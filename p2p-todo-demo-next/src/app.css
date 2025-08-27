@@ -1,0 +1,8 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/forms';
+@plugin '@tailwindcss/typography';
+
+/* Custom badge styles */
+.badge {
+	@apply inline-flex items-center rounded-full px-2 py-1 text-xs font-medium;
+}
