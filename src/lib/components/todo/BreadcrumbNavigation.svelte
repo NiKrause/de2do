@@ -1,11 +1,17 @@
 <script>
 	import { todoListHierarchyStore, navigateUp, switchToTodoList } from '../../todo-list-manager.js';
+	import { currentDbAddressStore, availableTodoListsStore } from '../../todo-list-manager.js';
 	import { get } from 'svelte/store';
 	import { ChevronRight, ArrowUp } from 'lucide-svelte';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 
 	export let preferences = {};
 	export let enableEncryption = false;
 	export let encryptionPassword = '';
+
+	// Check if we're in embed mode
+	$: isEmbedMode = $page.route?.id === '/embed/[address]';
 
 	async function handleBreadcrumbClick(index) {
 		const hierarchy = get(todoListHierarchyStore);
@@ -16,6 +22,7 @@
 		const newHierarchy = hierarchy.slice(0, index + 1);
 		todoListHierarchyStore.set(newHierarchy);
 
+		// Switch to the todo list (this updates the database)
 		await switchToTodoList(
 			targetLevel.name,
 			preferences,
@@ -23,10 +30,40 @@
 			encryptionPassword,
 			targetLevel.parent
 		);
+
+		// If in embed mode, navigate to the embed route instead of relying on hash
+		if (isEmbedMode) {
+			const currentAddress = get(currentDbAddressStore);
+			if (currentAddress) {
+				const embedPath = `/embed/${encodeURIComponent(currentAddress)}`;
+				const queryParams = new URLSearchParams(window.location.search);
+				const allowAdd = queryParams.get('allowAdd') === 'true';
+				const url = allowAdd ? `${embedPath}?allowAdd=true` : embedPath;
+				await goto(url, { noScroll: true });
+			}
+		}
 	}
 
 	async function handleNavigateUp() {
-		await navigateUp(preferences, enableEncryption, encryptionPassword);
+		const hierarchy = get(todoListHierarchyStore);
+		if (hierarchy.length <= 1) {
+			return; // Already at root
+		}
+
+		// Navigate up using navigateUp (which calls switchToTodoList)
+		const success = await navigateUp(preferences, enableEncryption, encryptionPassword);
+
+		// If in embed mode, navigate to the embed route instead of relying on hash
+		if (success && isEmbedMode) {
+			const currentAddress = get(currentDbAddressStore);
+			if (currentAddress) {
+				const embedPath = `/embed/${encodeURIComponent(currentAddress)}`;
+				const queryParams = new URLSearchParams(window.location.search);
+				const allowAdd = queryParams.get('allowAdd') === 'true';
+				const url = allowAdd ? `${embedPath}?allowAdd=true` : embedPath;
+				await goto(url, { noScroll: true });
+			}
+		}
 	}
 </script>
 
