@@ -269,7 +269,7 @@
 				{#if allowEdit}
 					<button
 						on:click={startEdit}
-						class="flex items-center gap-1 rounded-md px-3 py-1 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
+						class="flex items-center gap-1 rounded-md px-3 py-2 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 active:bg-blue-100 touch-manipulation cursor-pointer min-h-[44px] min-w-[44px]"
 						title="Edit todo"
 					>
 						<Edit2 class="h-4 w-4" />
@@ -278,7 +278,7 @@
 				{/if}
 				<button
 					on:click={handleCreateSubList}
-					class="flex items-center gap-1 rounded-md px-3 py-1 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
+					class="flex items-center gap-1 rounded-md px-3 py-2 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 active:bg-blue-100 touch-manipulation cursor-pointer min-h-[44px] min-w-[44px]"
 					title="Create sub-list from this todo"
 				>
 					<FolderPlus class="h-4 w-4" />
@@ -287,7 +287,7 @@
 				{#if allowEdit}
 					<button
 						on:click={handleDelete}
-						class="rounded-md px-3 py-1 text-red-500 transition-colors hover:bg-red-50 hover:text-red-700"
+						class="rounded-md px-3 py-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-700 active:bg-red-100 touch-manipulation cursor-pointer min-h-[44px] min-w-[44px]"
 					>
 						Delete
 					</button>

@@ -74,7 +74,7 @@
 				<button
 					type="button"
 					on:click={() => handleBreadcrumbClick(index)}
-					class="rounded px-1 transition-colors hover:text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none {index ===
+					class="rounded px-2 py-2 transition-colors hover:text-blue-600 active:bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none touch-manipulation cursor-pointer min-h-[44px] {index ===
 					$todoListHierarchyStore.length - 1
 						? 'font-semibold text-gray-900'
 						: 'text-gray-600'}"
@@ -91,7 +91,7 @@
 			<button
 				type="button"
 				on:click={handleNavigateUp}
-				class="ml-auto flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-200 hover:text-gray-900 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none"
+				class="ml-auto flex items-center gap-1 rounded px-3 py-2 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-200 hover:text-gray-900 active:bg-gray-300 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none touch-manipulation cursor-pointer min-h-[44px]"
 				title="Navigate to parent list"
 			>
 				<ArrowUp class="h-3 w-3" />
