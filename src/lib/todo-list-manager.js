@@ -494,16 +494,32 @@ export async function switchToTodoList(
 			);
 		} else if (parentListName) {
 			// If we're navigating to a sublist (has parent), check if parent belongs to another user
+			let currentDbIdentity = null;
 			const currentDbName = get(currentDbNameStore);
+			
 			if (currentDbName && currentDbName.includes('_')) {
-				const currentDbIdentity = currentDbName.split('_')[0];
-				// Only use parent's identity if parent belongs to another user
-				if (currentDbIdentity !== currentUserIdentity) {
-					targetIdentityId = currentDbIdentity;
-					console.log(
-						`🔍 Navigating to sublist. Using parent's identity: ${targetIdentityId.slice(0, 16)}...`
-					);
+				currentDbIdentity = currentDbName.split('_')[0];
+			} else {
+				// If currentDbNameStore is not set (e.g., when opening by address in embed mode),
+				// try to find the current list in availableTodoListsStore using currentDbAddressStore
+				const currentAddress = get(currentDbAddressStore);
+				if (currentAddress) {
+					const currentList = availableLists.find((list) => list.address === currentAddress);
+					if (currentList && currentList.dbName && currentList.dbName.includes('_')) {
+						currentDbIdentity = currentList.dbName.split('_')[0];
+						console.log(
+							`🔍 Found current list identity from availableLists: ${currentDbIdentity.slice(0, 16)}...`
+						);
+					}
 				}
+			}
+			
+			// Use parent's identity if parent belongs to another user
+			if (currentDbIdentity && currentDbIdentity !== currentUserIdentity) {
+				targetIdentityId = currentDbIdentity;
+				console.log(
+					`🔍 Navigating to sublist. Using parent's identity: ${targetIdentityId.slice(0, 16)}...`
+				);
 			}
 		}
 		// Otherwise, use current user's identity (default)
@@ -831,7 +847,7 @@ export async function listUniqueUsers() {
 		}
 
 		const uniqueUsersArray = Array.from(uniqueIds).sort();
-		console.log('👥 Unique users found:', uniqueUsersArray);
+		console.log('�� Unique users found:', uniqueUsersArray);
 		uniqueUsersStore.set(uniqueUsersArray);
 		return uniqueUsersArray;
 	} catch (error) {
