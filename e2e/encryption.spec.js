@@ -7,7 +7,7 @@ import {
 	waitForTodoText
 } from './helpers.js';
 
-test.describe.skip('Encryption E2E Tests', () => {
+test.describe.only('Encryption E2E Tests', () => {
 test('should encrypt projects list in browser A, decrypt via URL in browser B, and decrypt via user list in browser C', async ({
 		page: browserAPage
 	}) => {
@@ -346,7 +346,7 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		await browserCContext.close();
 	});
 
-	test('should handle wrong password gracefully', async ({ page: browserAPage }) => {
+	test.only('should handle wrong password gracefully', async ({ page: browserAPage }) => {
 		console.log('\n🚀 Starting wrong password handling test...\n');
 
 		const encryptionPassword = 'correct-password';
