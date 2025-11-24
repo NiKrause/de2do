@@ -16,7 +16,7 @@ import { ping } from '@libp2p/ping';
 // Environment variables
 const RELAY_BOOTSTRAP_ADDR_DEV =
 	import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_DEV ||
-	'/ip4/127.0.0.1/tcp/4001/ws/p2p/12D3KooWAJjbRkp8FPF5MKgMU53aUTxWkqvDrs4zc1VMbwRwfsbE';
+	'/ip4/127.0.0.1/tcp/4002/ws/p2p/12D3KooWAJjbRkp8FPF5MKgMU53aUTxWkqvDrs4zc1VMbwRwfsbE';
 const RELAY_BOOTSTRAP_ADDR_PROD =
 	import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_PROD ||
 	'/dns4/91-99-67-170.k51qzi5uqu5dl6dk0zoaocksijnghdrkxir5m4yfcodish4df6re6v3wbl6njf.libp2p.direct/tcp/4002/wss/p2p/12D3KooWPJYEZSwfmRL9SHehYAeQKEbCvzFu7vtKWb6jQfMSMb8W';

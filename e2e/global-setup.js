@@ -60,20 +60,33 @@ export default async function globalSetup() {
 			output += text;
 			process.stdout.write(text);
 
-			// Extract peer ID - try multiple patterns
-			// Pattern 1: "Relay PeerId: 12D3Koo..."
+			// Extract peer ID - prioritize specific patterns to avoid matching private key hex
+			// Pattern 1: "Relay PeerId: 12D3Koo..." (most specific and reliable)
 			let peerIdMatch = text.match(/Relay PeerId[:\s]+([12][A-HJ-NP-Za-km-z1-9]{50,})/i);
-			// Pattern 2: "peer id: ..." or "peerId: ..."
-			if (!peerIdMatch) {
-				peerIdMatch = text.match(/peer\s*id[:\s]+([12][A-HJ-NP-Za-km-z1-9]{50,})/i);
-			}
-			// Pattern 3: Just look for libp2p peer ID format (base58 encoded, starts with 12D3 or similar)
-			if (!peerIdMatch) {
-				peerIdMatch = text.match(/([12][A-HJ-NP-Za-km-z1-9]{50,})/);
+			// Pattern 2: Fallback - search in accumulated output if Pattern 1 didn't match in current chunk
+			// This handles cases where the peerId line is split across chunks
+			if (!peerIdMatch && output.includes('Relay Server Information')) {
+				// Search the accumulated output for the "Relay PeerId:" line
+				const relayInfoMatch = output.match(/Relay PeerId[:\s]+([12D][A-HJ-NP-Za-km-z1-9]{50,})/i);
+				if (relayInfoMatch) {
+					peerIdMatch = relayInfoMatch;
+				}
 			}
 
 			if (peerIdMatch && !relayMultiaddr && !resolved) {
 				const peerId = peerIdMatch[1];
+				// Additional validation: ensure it's a valid libp2p peerId
+				// Libp2p peerIds are base58-encoded and typically start with "12D"
+				if (!peerId.startsWith('12D')) {
+					console.warn(`⚠️  Extracted peerId doesn't start with 12D: ${peerId}, skipping...`);
+					return;
+				}
+				// Ensure it's not a hex string (hex would contain only 0-9, a-f)
+				// Base58 contains characters beyond hex, so if it only has hex chars, it's likely wrong
+				if (peerId.match(/^[0-9a-f]+$/i) && peerId.length > 50) {
+					console.warn(`⚠️  Extracted peerId looks like hex (not base58): ${peerId}, skipping...`);
+					return;
+				}
 				relayMultiaddr = `/ip4/127.0.0.1/tcp/4002/ws/p2p/${peerId}`;
 
 				// Create .env.development file for Vite

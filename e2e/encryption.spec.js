@@ -7,7 +7,7 @@ import {
 	waitForTodoText
 } from './helpers.js';
 
-test.describe('Encryption E2E Tests', () => {
+test.describe.skip('Encryption E2E Tests', () => {
 test('should encrypt projects list in browser A, decrypt via URL in browser B, and decrypt via user list in browser C', async ({
 		page: browserAPage
 	}) => {

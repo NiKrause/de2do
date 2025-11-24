@@ -438,19 +438,77 @@ export async function switchToTodoList(
 		return false;
 	}
 
-	const trimmedName = todoListName.trim();
+		const trimmedName = todoListName.trim();
 
 	try {
 		const currentUserIdentity = getCurrentIdentityId();
 		let targetIdentityId = currentUserIdentity; // Default to current user
 
-		// Check if this list requires encryption and handle password
-		if (currentUserIdentity) {
-			const registryEntry = getRegistryEntry(currentUserIdentity, trimmedName);
+		// First, determine which identity this list belongs to
+		// This is needed before we can check encryption settings
+		const availableLists = get(availableTodoListsStore);
+		
+		// Check if the target list exists in availableTodoListsStore
+		// This tells us which identity it belongs to
+		const targetListInStore = availableLists.find((list) => {
+			const nameMatches = list.displayName === trimmedName;
+			const parentMatches = parentListName ? list.parent === parentListName : !list.parent;
+			return nameMatches && parentMatches;
+		});
+
+		// If we found the list, use its identity
+		if (targetListInStore && targetListInStore.dbName && targetListInStore.dbName.includes('_')) {
+			const listIdentity = targetListInStore.dbName.split('_')[0];
+			targetIdentityId = listIdentity;
+			console.log(
+				`🔍 Found target list in store. Using identity: ${targetIdentityId.slice(0, 16)}...`
+			);
+		} else if (parentListName) {
+			// If we're navigating to a sublist (has parent), ALWAYS use parent's identity
+			// This ensures sub-lists are created with the correct owner's identity
+			let currentDbIdentity = null;
+			const currentDbName = get(currentDbNameStore);
+			
+			if (currentDbName && currentDbName.includes('_')) {
+				currentDbIdentity = currentDbName.split('_')[0];
+			} else {
+				// If currentDbNameStore is not set (e.g., when opening by address),
+				// try to find the current list in availableTodoListsStore using currentDbAddressStore
+				const currentAddress = get(currentDbAddressStore);
+				if (currentAddress) {
+					const currentList = availableLists.find((list) => list.address === currentAddress);
+					if (currentList && currentList.dbName && currentList.dbName.includes('_')) {
+						currentDbIdentity = currentList.dbName.split('_')[0];
+						console.log(
+							`🔍 Found current list identity from availableLists: ${currentDbIdentity.slice(0, 16)}...`
+						);
+					}
+				}
+			}
+			
+			// ALWAYS use parent's identity for sub-lists (sub-lists belong to the parent's owner)
+			if (currentDbIdentity) {
+				targetIdentityId = currentDbIdentity;
+				console.log(
+					`🔍 Creating/navigating to sublist. Using parent's identity: ${targetIdentityId.slice(0, 16)}...`
+				);
+			} else {
+				// Fallback: if we can't determine parent's identity, log a warning but still try
+				console.warn(
+					`⚠️ Could not determine parent's identity for sub-list "${trimmedName}". Using current user's identity as fallback.`
+				);
+			}
+		}
+		// Otherwise, use current user's identity (default)
+
+		// Now check if this list requires encryption and handle password
+		// Use targetIdentityId (which may be different from currentUserIdentity)
+		if (targetIdentityId) {
+			const registryEntry = getRegistryEntry(targetIdentityId, trimmedName);
 			
 			// If list is encrypted but no password provided
 			if (registryEntry?.encryptionEnabled && !encryptionPassword) {
-				const dbName = `${currentUserIdentity}_${trimmedName}`;
+				const dbName = `${targetIdentityId}_${trimmedName}`;
 				const cachedPassword = getCachedPassword(dbName);
 				
 				if (cachedPassword) {
@@ -470,59 +528,11 @@ export async function switchToTodoList(
 			
 			// If encryption enabled, cache the password for this session
 			if (enableEncryption && encryptionPassword) {
-				const dbName = `${currentUserIdentity}_${trimmedName}`;
+				const dbName = `${targetIdentityId}_${trimmedName}`;
 				cachePassword(dbName, encryptionPassword);
 				console.log('🔐 Cached encryption password for session');
 			}
 		}
-
-		// First, check if the target list exists in availableTodoListsStore
-		// This tells us which identity it belongs to
-		const availableLists = get(availableTodoListsStore);
-		const targetListInStore = availableLists.find((list) => {
-			const nameMatches = list.displayName === trimmedName;
-			const parentMatches = parentListName ? list.parent === parentListName : !list.parent; // If no parent specified, match lists without parent
-			return nameMatches && parentMatches;
-		});
-
-		// If we found the list, use its identity
-		if (targetListInStore && targetListInStore.dbName && targetListInStore.dbName.includes('_')) {
-			const listIdentity = targetListInStore.dbName.split('_')[0];
-			targetIdentityId = listIdentity;
-			console.log(
-				`🔍 Found target list in store. Using identity: ${targetIdentityId.slice(0, 16)}...`
-			);
-		} else if (parentListName) {
-			// If we're navigating to a sublist (has parent), check if parent belongs to another user
-			let currentDbIdentity = null;
-			const currentDbName = get(currentDbNameStore);
-			
-			if (currentDbName && currentDbName.includes('_')) {
-				currentDbIdentity = currentDbName.split('_')[0];
-			} else {
-				// If currentDbNameStore is not set (e.g., when opening by address in embed mode),
-				// try to find the current list in availableTodoListsStore using currentDbAddressStore
-				const currentAddress = get(currentDbAddressStore);
-				if (currentAddress) {
-					const currentList = availableLists.find((list) => list.address === currentAddress);
-					if (currentList && currentList.dbName && currentList.dbName.includes('_')) {
-						currentDbIdentity = currentList.dbName.split('_')[0];
-						console.log(
-							`🔍 Found current list identity from availableLists: ${currentDbIdentity.slice(0, 16)}...`
-						);
-					}
-				}
-			}
-			
-			// Use parent's identity if parent belongs to another user
-			if (currentDbIdentity && currentDbIdentity !== currentUserIdentity) {
-				targetIdentityId = currentDbIdentity;
-				console.log(
-					`🔍 Navigating to sublist. Using parent's identity: ${targetIdentityId.slice(0, 16)}...`
-				);
-			}
-		}
-		// Otherwise, use current user's identity (default)
 
 		// Now try to find the exact list with the target identity
 		const existingList = availableLists.find((list) => {
@@ -554,13 +564,13 @@ export async function switchToTodoList(
 			currentDbNameStore.set(existingList.dbName);
 			currentDbAddressStore.set(existingList.address);
 
-		// Update URL hash to match the database address
-		if (typeof window !== 'undefined' && existingList.address) {
-			const hash = existingList.address.startsWith('/') ? existingList.address : `/${existingList.address}`;
-			if (window.location.hash !== `#${hash}`) {
-				window.history.replaceState(null, '', `#${hash}`);
+			// Update URL hash to match the database address
+			if (typeof window !== 'undefined' && existingList.address) {
+				const hash = existingList.address.startsWith('/') ? existingList.address : `/${existingList.address}`;
+				if (window.location.hash !== `#${hash}`) {
+					window.history.replaceState(null, '', `#${hash}`);
+				}
 			}
-		}
 
 			// Update hierarchy
 			const currentHierarchy = get(todoListHierarchyStore);
@@ -653,7 +663,7 @@ export async function switchToTodoList(
 		currentDbNameStore.set(dbName);
 		currentDbAddressStore.set(openedDB?.address || null);
 
-	// Update URL hash to match the database address
+		// Update URL hash to match the database address
 		if (typeof window !== 'undefined' && openedDB?.address) {
 			const hash = openedDB.address.startsWith('/') ? openedDB.address : `/${openedDB.address}`;
 			if (window.location.hash !== `#${hash}`) {
