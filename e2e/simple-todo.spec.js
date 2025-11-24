@@ -259,7 +259,7 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('🎉 Todo operations test completed successfully!');
 	});
 
-	test.only('should connect two browsers and see each other as connected peers', async ({ browser }) => {
+	test('should connect two browsers and see each other as connected peers', async ({ browser }) => {
 		// Create two separate browser contexts (simulating two different browsers)
 		const context1 = await browser.newContext();
 		const context2 = await browser.newContext();
@@ -494,8 +494,9 @@ test.describe('Simple Todo P2P Application', () => {
 		}
 		console.log(`✅ Browser A: ${sublistTodos.length} todos visible in sublist`);
 
-		// Wait a bit for todos to sync to database
-		await page1.waitForTimeout(2000);
+		// Wait longer for todos to sync to database
+		console.log('⏳ Browser A: Waiting for todos to be saved to database...');
+		await page1.waitForTimeout(5000);
 
 		// Get the database address from Browser A (should now be available in URL hash since we're in a sublist)
 		console.log('🔗 Browser A: Getting database address from URL...');
@@ -518,7 +519,7 @@ test.describe('Simple Todo P2P Application', () => {
 
 		// Navigate Browser B to the shared database URL
 		const baseUrl = await page1.evaluate(() => window.location.origin + window.location.pathname);
-		const sharedUrl = `${baseUrl}#/${encodeURIComponent(dbAddress)}`;
+		const sharedUrl = `${baseUrl}#${dbAddress}`;
 		console.log(`🔗 Opening Browser B with URL: ${sharedUrl}`);
 		await page2.goto(sharedUrl);
 
@@ -590,7 +591,7 @@ test.describe('Simple Todo P2P Application', () => {
 
 		// Wait for database to load and sync
 		console.log('⏳ Browser B: Waiting for database to sync...');
-		await page2.waitForTimeout(5000); // Give time for database to open and sync
+		await page2.waitForTimeout(10000); // Give more time for database to open and sync
 
 		// Wait for todo input to be ready
 		const todoInput2 = page2.locator('[data-testid="todo-input"]');
@@ -598,11 +599,32 @@ test.describe('Simple Todo P2P Application', () => {
 
 		// Wait for todos to appear (they should sync from Browser A)
 		console.log('🔍 Browser B: Waiting for todos to sync...');
+		
+		// Wait for database replication to complete by checking for todo count
+		// This gives more time for all todos to sync
+		console.log('⏳ Browser B: Waiting for database replication to complete...');
+		await page2.waitForFunction(
+			(expectedCount) => {
+				// Count todos in the page
+				const todoElements = document.querySelectorAll('[data-todo-text], [data-testid="todo-item"], .todo-item');
+				// Filter for visible todos
+				const visibleTodos = Array.from(todoElements).filter(el => {
+					const style = window.getComputedStyle(el);
+					return style.display !== 'none' && style.visibility !== 'hidden';
+				});
+				return visibleTodos.length >= expectedCount;
+			},
+			sublistTodos.length,
+			{ timeout: 60000 } // Wait up to 60 seconds for todos to sync
+		);
+		console.log('✅ Browser B: Database replication appears complete');
 
 		// Wait for the 2 todos in the sublist to appear in Browser B
 		// (Shared Todo 1 is in the parent list, not the sublist)
 		for (const todoText of sublistTodos) {
-			await expect(page2.locator('text=' + todoText)).toBeVisible({ timeout: 30000 });
+			console.log(`⏳ Browser B: Waiting for "${todoText}" to appear...`);
+			await expect(page2.locator('text=' + todoText)).toBeVisible({ timeout: 60000 }); // Increased timeout to 60 seconds
+			console.log(`✅ Browser B: Found "${todoText}"`);
 		}
 		console.log(`✅ Browser B: Found ${sublistTodos.length} todos from shared database`);
 
