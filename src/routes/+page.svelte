@@ -49,7 +49,7 @@ switchToTodoList,
 	// import { Cloud } from 'lucide-svelte'; // Unused for now
 	import { toastStore } from '$lib/toast-store.js';
 	import { browser } from '$app/environment';
-	import { replaceState } from '$app/navigation';
+	import { replaceState, goto } from '$app/navigation';
 
 	// Expose database address to window for e2e testing
 	// Move reactive statements outside the if block and ensure they always run
@@ -166,6 +166,9 @@ switchToTodoList,
 				} else {
 					embedAllowAdd = false;
 				}
+				
+				// IMPORTANT: Also trigger the hash handler after initialization
+				// This ensures the database is opened even on initial load
 			}
 
 			// Check for hash in URL to open specific database
@@ -954,11 +957,11 @@ switchToTodoList,
 							console.warn('Could not update hierarchy:', hierarchyError);
 						}
 
-						// Update URL hash without reloading
-						const embedPath = `embed/${encodeURIComponent(newListAddress)}`;
+						// Navigate to new embed route using goto (like the embed route does)
+						const embedPath = `/embed/${encodeURIComponent(newListAddress)}`;
 						const queryParams = embedAllowAdd ? '?allowAdd=true' : '';
-						const newHash = `#/${embedPath}${queryParams}`;
-						pushState(newHash, {});
+						const newUrl = embedPath + queryParams;
+						await goto(newUrl, { noScroll: true });
 
 						toastStore.show('✅ Sub-list created!', 'success');
 					}
