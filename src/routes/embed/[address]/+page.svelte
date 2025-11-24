@@ -82,14 +82,20 @@
 				encryptionPassword
 			);
 			if (success) {
-				// Wait a bit for stores to update
+				// switchToTodoList already:
+				// - Opens/creates the database with correct identity
+				// - Sets currentDbAddressStore with the correct deterministic address
+				// - Updates stores
+				// - Adds to registry
+				// - Refreshes available lists
+				// So we just need to wait a moment for stores to update, then use the address
 				await new Promise((resolve) => setTimeout(resolve, 100));
 
 				const newListAddress = get(currentDbAddressStore);
 				const newListName = get(currentTodoListNameStore);
 
 				if (newListAddress && typeof window !== 'undefined') {
-					// Reload todos from the new database (already opened by createSubList)
+					// Reload todos from the new database (already opened by createSubList/switchToTodoList)
 					await loadTodos();
 
 					// Update hierarchy
@@ -101,18 +107,25 @@
 							const hierarchy = await buildHierarchyPath(list.displayName);
 							todoListHierarchyStore.set(hierarchy);
 						} else if (newListName) {
+							// Fallback if not in registry yet
 							todoListHierarchyStore.set([{ name: newListName, parent: null }]);
 						}
 					} catch (hierarchyError) {
 						console.warn('Could not update hierarchy:', hierarchyError);
+						// Fallback hierarchy
+						if (newListName) {
+							todoListHierarchyStore.set([{ name: newListName, parent: null }]);
+						}
 					}
 
-					// Navigate to new embed route
-					const embedPath = `/embed/${encodeURIComponent(newListAddress)}`;
-					const queryParams = allowAdd ? '?allowAdd=true' : '';
-					const newUrl = embedPath + queryParams;
-					// Navigate to new embed URL
-					await goto(newUrl, { noScroll: true });
+					// Navigate using hash (not goto) - this will trigger the hash handler in main page
+					// Don't encode the address - OrbitDB addresses are URL-safe and the hash handler expects them unencoded
+					const normalizedAddress = newListAddress.startsWith('/') ? newListAddress : `/${newListAddress}`;
+					const newHash = allowAdd 
+						? `#/embed${normalizedAddress}?allowAdd=true`
+						: `#/embed${normalizedAddress}`;
+					
+					window.location.hash = newHash;
 
 					// Update local dbAddress to match
 					dbAddress = newListAddress;

@@ -3,15 +3,14 @@
 	import { currentDbAddressStore, availableTodoListsStore } from '../../todo-list-manager.js';
 	import { get } from 'svelte/store';
 	import { ChevronRight, ArrowUp } from 'lucide-svelte';
-	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 
 	export let preferences = {};
 	export let enableEncryption = false;
 	export let encryptionPassword = '';
 
-	// Check if we're in embed mode
-	$: isEmbedMode = $page.route?.id === '/embed/[address]';
+	// Check if we're in embed mode by checking hash
+	$: isEmbedMode = browser && typeof window !== 'undefined' && window.location.hash.startsWith('#/embed/');
 
 	async function handleBreadcrumbClick(index) {
 		const hierarchy = get(todoListHierarchyStore);
@@ -22,7 +21,7 @@
 		const newHierarchy = hierarchy.slice(0, index + 1);
 		todoListHierarchyStore.set(newHierarchy);
 
-		// Switch to the todo list (this updates the database)
+		// Switch to the todo list (this updates the database and sets currentDbAddressStore)
 		await switchToTodoList(
 			targetLevel.name,
 			preferences,
@@ -31,15 +30,22 @@
 			targetLevel.parent
 		);
 
-		// If in embed mode, navigate to the embed route instead of relying on hash
-		if (isEmbedMode) {
+		// If in embed mode, update hash instead of using goto
+		if (isEmbedMode && typeof window !== 'undefined') {
 			const currentAddress = get(currentDbAddressStore);
 			if (currentAddress) {
-				const embedPath = `/embed/${encodeURIComponent(currentAddress)}`;
-				const queryParams = new URLSearchParams(window.location.search);
-				const allowAdd = queryParams.get('allowAdd') === 'true';
-				const url = allowAdd ? `${embedPath}?allowAdd=true` : embedPath;
-				await goto(url, { noScroll: true });
+				// Get current allowAdd from hash or query params
+				const currentHash = window.location.hash;
+				const allowAdd = currentHash.includes('allowAdd=true');
+				
+				// Update hash to navigate to new embed
+				// Don't encode the address - OrbitDB addresses are URL-safe and the hash handler expects them unencoded
+				const normalizedAddress = currentAddress.startsWith('/') ? currentAddress : `/${currentAddress}`;
+				const newHash = allowAdd 
+					? `#/embed${normalizedAddress}?allowAdd=true`
+					: `#/embed${normalizedAddress}`;
+				
+				window.location.hash = newHash;
 			}
 		}
 	}
@@ -53,15 +59,22 @@
 		// Navigate up using navigateUp (which calls switchToTodoList)
 		const success = await navigateUp(preferences, enableEncryption, encryptionPassword);
 
-		// If in embed mode, navigate to the embed route instead of relying on hash
-		if (success && isEmbedMode) {
+		// If in embed mode, update hash instead of using goto
+		if (success && isEmbedMode && typeof window !== 'undefined') {
 			const currentAddress = get(currentDbAddressStore);
 			if (currentAddress) {
-				const embedPath = `/embed/${encodeURIComponent(currentAddress)}`;
-				const queryParams = new URLSearchParams(window.location.search);
-				const allowAdd = queryParams.get('allowAdd') === 'true';
-				const url = allowAdd ? `${embedPath}?allowAdd=true` : embedPath;
-				await goto(url, { noScroll: true });
+				// Get current allowAdd from hash
+				const currentHash = window.location.hash;
+				const allowAdd = currentHash.includes('allowAdd=true');
+				
+				// Update hash to navigate to parent embed
+				// Don't encode the address - OrbitDB addresses are URL-safe and the hash handler expects them unencoded
+				const normalizedAddress = currentAddress.startsWith('/') ? currentAddress : `/${currentAddress}`;
+				const newHash = allowAdd 
+					? `#/embed${normalizedAddress}?allowAdd=true`
+					: `#/embed${normalizedAddress}`;
+				
+				window.location.hash = newHash;
 			}
 		}
 	}

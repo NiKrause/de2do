@@ -957,11 +957,14 @@ switchToTodoList,
 							console.warn('Could not update hierarchy:', hierarchyError);
 						}
 
-						// Navigate to new embed route using goto (like the embed route does)
-						const embedPath = `/embed/${encodeURIComponent(newListAddress)}`;
-						const queryParams = embedAllowAdd ? '?allowAdd=true' : '';
-						const newUrl = embedPath + queryParams;
-						await goto(newUrl, { noScroll: true });
+						// Navigate using hash (not goto) - this will trigger the hash handler
+						// Don't encode the address - OrbitDB addresses are URL-safe and the hash handler expects them unencoded
+						const normalizedAddress = newListAddress.startsWith('/') ? newListAddress : `/${newListAddress}`;
+						const newHash = embedAllowAdd 
+							? `#/embed${normalizedAddress}?allowAdd=true`
+							: `#/embed${normalizedAddress}`;
+						
+						window.location.hash = newHash;
 
 						toastStore.show('✅ Sub-list created!', 'success');
 					}
