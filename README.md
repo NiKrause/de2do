@@ -106,10 +106,6 @@ For detailed relay server configuration options and HTTP API endpoints, see **[R
 5. **Copy URL from browser A to browser B** - If both browser open the same todo-list they can see each others todo's (only A has write permission at the moment)
 6. **Add Todos** - Create todos in one browser and watch them appear in the other
 
-## 📚 Documentation
-
-A guide on how this app works, implementation details, and reusable components:
-
 **[📖 Tutorial](./docs/TUTORIAL.md)**
 
 The tutorial covers:
@@ -125,8 +121,8 @@ The tutorial covers:
 ```bash
 # Clone repository
 git clone https://github.com/NiKrause/simple-todo.git
-# checkout simple-todo branch
-git checkout simple-todo
+# checkout /simplified-tutorial branch
+git checkout /simplified-tutorial
 
 # run (like this you don't need to cut and past anything)
 ./tutorial-01.js
