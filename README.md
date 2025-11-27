@@ -65,20 +65,12 @@ This project includes an enhanced P2P relay server that facilitates peer discove
 
 ### Quick Start
 
-#### Using Docker Compose (Recommended)
-
+Run a local relay and the app server like so:
 ```bash
-# Run both the app and relay together
-docker-compose up --build
+npm install 
+npm run dev 
 
-# Access the app at http://localhost:5173
-# Access relay API at http://localhost:3000
-```
-
-#### Manual Setup
-
-```bash
-# Install relay dependencies
+# open a second terminal and do
 cd relay
 npm install
 
