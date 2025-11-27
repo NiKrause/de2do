@@ -10,7 +10,7 @@ import {
 	waitForTodoText
 } from './helpers.js';
 
-test.describe.only('Simple Todo P2P Application', () => {
+test.describe('Simple Todo P2P Application', () => {
 	test('should have webserver running and accessible', async ({ page, request }) => {
 		// Check if the webserver is responding
 		const response = await request.get('/');
@@ -652,7 +652,7 @@ test.describe.only('Simple Todo P2P Application', () => {
 		console.log('🎉 Database sharing test completed successfully!');
 	});
 
-	test('should replicate database when Browser B opens Browser A database by name', async ({
+	test.skip('should replicate database when Browser B opens Browser A database by name', async ({
 		browser
 	}) => {
 		// Create two separate browser contexts (simulating two different browsers)

@@ -59,6 +59,9 @@
 	},
 	"overrides": {
 		"ms": "2.1.3",
+		"ws": "^8.17.1",
+		"node-forge": "^1.3.2",
+		"cookie": "^0.7.0",
 		"orbitdb-storacha-bridge": {
 			"lucide-svelte": "^0.500.0"
 		}

@@ -1,5 +1,16 @@
 # Relay Server Configuration
 
+## Features
+
+The relay server provides the following capabilities:
+
+- **Circuit Relay v2** - Helps peers connect through NAT and firewalls
+- **WebRTC Signaling** - Enables direct peer-to-peer connections
+- **OrbitDB Pinning** - Automatically pins and syncs OrbitDB databases
+- **HTTP API** - Management and monitoring endpoints
+- **Multi-Transport Support** - WebSocket, TCP, WebRTC, and WebRTC Direct
+- **Metrics & Monitoring** - Prometheus-compatible metrics and health checks
+- **Production Ready** - DoS protection, rate limiting, and secure configuration
 
 ## 🏗️ Network Architecture
 

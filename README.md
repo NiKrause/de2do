@@ -37,17 +37,7 @@ A basic decentralized, local-first, peer-to-peer todo application built with `li
 - ✅ **Real-time Synchronization** - Changes appear instantly across all peers
 - ✅ **Encryption** - Todo-List is by default unencrypted and publicly stored on IPFS so it can be embedded easily into public websites. It is possible to encrypt your todo-list with a password.
 
-This project includes an enhanced P2P relay server that facilitates peer discovery and connectivity for the simple-todo application. The relay server provides:
-
-### Features
-
-- **Circuit Relay v2** - Helps peers connect through NAT and firewalls
-- **WebRTC Signaling** - Enables direct peer-to-peer connections
-- **OrbitDB Pinning** - Automatically pins and syncs OrbitDB databases
-- **HTTP API** - Management and monitoring endpoints
-- **Multi-Transport Support** - WebSocket, TCP, WebRTC, and WebRTC Direct
-- **Metrics & Monitoring** - Prometheus-compatible metrics and health checks
-- **Production Ready** - DoS protection, rate limiting, and secure configuration
+This project includes an enhanced P2P relay server that facilitates peer discovery and connectivity for the simple-todo application. For details about the relay server features, see **[Relay Configuration Documentation](./docs/RELAY_CONFIG.md)**.
 
 ### Quick Start
 
