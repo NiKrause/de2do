@@ -85,13 +85,13 @@ npm start
 
 # Or with verbose logging
 npm run start:verbose
-```
 
-Then copy the resulting websocket from the relay console and put it into .env (make sure it contains a /ws/p2p)
 
-For example like so:
+# Then copy the resulting websocket multiaddress from the relay console and put it into .env (make sure it contains a /ws/p2p)
+# For example like so:
 VITE_RELAY_BOOTSTRAP_ADDR_DEV=/ip4/127.0.0.1/tcp/4002/ws/p2p/12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
 
+```
 
 ### Configuration (optional)
 
