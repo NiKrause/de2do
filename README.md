@@ -22,8 +22,8 @@ A basic decentralized, local-first, peer-to-peer todo application built with `li
 - **Progressive Web App**: If webservers are down, this app can be started as PWA from desktops and mobile devices
 - **Direct P2P Connections**: WebRTC connections between all devices
 - **Relay/Signaling Network**: Signaling for peer discovery with optional relay functionality when direct peer-to-peer is unavailable
-- **OrbitDB/IPFS Pinning** Peers and Relays integrate a Helia/OrbitDB node which pin db data on demand or by default (can be customized)
-- **Local OrbitDB Storage**: Each device maintains offline-capable via the browsers indexdb
+- **OrbitDB/IPFS Pinning** - Peers and Relays integrate a Helia/OrbitDB node which pins db data on demand or by default (can be customized)
+- **Local OrbitDB Storage**: Each device maintains offline-capable storage via the browser's indexdb
 - **Multi-Transport Support**: WebSocket, WebTransport, and WebRTC protocols
 - **Storacha/Filecoin Integration with UCAN-Auth:** Backup & restore todo lists via Storacha gateway to Filecoin decentralized storage
 
@@ -47,7 +47,7 @@ This is a **browser only** local-first peer-to-peer todo application that operat
 - ✅ **OrbitDB Relay-Pinning Nodes included** - If a peer is not online while data is needed by other peers - personal pinning nodes or full OrbitDB pinning networks can help out.
 - ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC (with help of signaling nodes)
 - ✅ **Real-time Synchronization** - Changes appear instantly across all peers
-- ✅ **Encryption** - Todo-List is by default unencrypted and publicly stored on IPFS so it can be embedded easily in to public websites. It is possible to encrypt your todo-list with a password.
+- ✅ **Encryption** - Todo-List is by default unencrypted and publicly stored on IPFS so it can be embedded easily into public websites. It is possible to encrypt your todo-list with a password.
 
 This project includes an enhanced P2P relay server that facilitates peer discovery and connectivity for the simple-todo application. The relay server provides:
 
@@ -97,14 +97,14 @@ For detailed relay server configuration options and HTTP API endpoints, see **[R
 
 ## 🎯 How to Test
 
-1. **Open Two Browser Windows** - You need at least two browser instances, a mobile or ask another distant person to open the app
+1. **Open Two Browser Windows** - You need at least two browser instances, a mobile device, or ask another distant person to open the app
 2. **Load the Same URL** - all app users should load the same app URL
 3. **Accept Consent** - Check all consent boxes in both browsers
 4. **Wait for Connection** - The app will automatically discover and connect peers
-5. **Copy URL from browser A to browser B** - If both browser open the same todo-list they can see each others todo's (only A has write permission at the moment)
+5. **Copy URL from browser A to browser B** - If both browsers open the same todo-list they can see each other's todos (only A has write permission at the moment)
 6. **Add Todos** - Create todos in one browser and watch them appear in the other
 
-**[📖 Tutorial](./docs/TUTORIAL.md)**
+**[�� Tutorial](./docs/TUTORIAL.md)**
 
 The tutorial covers:
 
@@ -120,9 +120,9 @@ The tutorial covers:
 # Clone repository
 git clone https://github.com/NiKrause/simple-todo.git
 # checkout /simplified-tutorial branch
-git checkout /simplified-tutorial
+git checkout simplified-tutorial
 
-# run (like this you don't need to cut and past anything)
+# run (like this you don't need to cut and paste anything)
 ./tutorial-01.js
 
 ```
