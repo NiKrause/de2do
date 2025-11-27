@@ -43,8 +43,8 @@ This is a **browser only** local-first peer-to-peer todo application that operat
 
 ### Key Features
 
-- ✅ **Local-First Storage** - Data ist stored in the browser only and is getting replicated to other peers via OrbitDB and IPFS
-- ✅ **OrbitDB Relay-Pinnging Nodes included** -  If a peer is not online while data is needed by other peers - personal pinning nodes or setting up full OrbitDB pinning networks can help out.
+- ✅ **Local-First Storage** - Data is stored in the browser only and is getting replicated to other peers via OrbitDB and IPFS
+- ✅ **OrbitDB Relay-Pinning Nodes included** - If a peer is not online while data is needed by other peers - personal pinning nodes or full OrbitDB pinning networks can help out.
 - ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC (with help of signaling nodes)
 - ✅ **Real-time Synchronization** - Changes appear instantly across all peers
 - ✅ **Encryption** - Todo-List is by default unencrypted and publicly stored on IPFS so it can be embedded easily in to public websites. It is possible to encrypt your todo-list with a password.
