@@ -103,11 +103,12 @@ For detailed relay server configuration options and HTTP API endpoints, see **[R
 2. **Load the Same URL** - all app users should load the same app URL
 3. **Accept Consent** - Check all consent boxes in both browsers
 4. **Wait for Connection** - The app will automatically discover and connect peers
-5. **Add Todos** - Create todos in one browser and watch them appear in the other
+5. **Copy URL from browser A to browser B** - If both browser open the same todo-list they can see each others todo's (only A has write permission at the moment)
+6. **Add Todos** - Create todos in one browser and watch them appear in the other
 
 ## 📚 Documentation
 
-For comprehensive guides on how this app works, implementation details, and reusable components:
+A guide on how this app works, implementation details, and reusable components:
 
 **[📖 Tutorial](./docs/TUTORIAL.md)**
 
@@ -118,24 +119,6 @@ The tutorial covers:
 - Testing procedures
 - Troubleshooting guide
 - Security considerations
-
-**[🔧 AI-Friendly Component Reference](./docs/)**
-
-This codebase contains reusable components for building decentralized P2P applications. Key components for AI analysis and reuse:
-
-- **[ConsentModal.svelte](./src/lib/ConsentModal.svelte)** - A comprehensive privacy consent component that manages user preferences for data storage (persistent vs session), network connectivity, and P2P connections. Features configurable checkboxes, storage toggles, and handles GDPR-style consent flow for decentralized applications.
-
-- **[StorachaIntegration.svelte](./src/lib/StorachaIntegration.svelte)** - Complete Web3 storage integration component providing UCAN-based authentication, space management, and backup/restore functionality for OrbitDB databases to Storacha/Filecoin. Includes progress tracking, error handling, and space usage monitoring.
-
-- **[storacha-backup.js](./src/lib/storacha-backup.js)** - Core backup/restore utility module that bridges OrbitDB with Storacha cloud storage. Provides functions for client initialization, space management, database backup/restore operations, and UCAN delegation handling for decentralized storage workflows.
-
-- **[p2p.js](./src/lib/p2p.js)** - Core P2P network initialization module that handles libp2p node creation, Helia (IPFS) setup, and OrbitDB database initialization. Manages user consent preferences for storage persistence, network connectivity, and peer connections. Includes comprehensive error handling, mobile-aware storage fallbacks, and initialization state management.
-
-- **[db-actions.js](./src/lib/db-actions.js)** - Database operations module providing CRUD functionality for OrbitDB-based todo management. Features reactive Svelte stores, real-time database synchronization, event listeners for database changes, and comprehensive todo lifecycle management (add, delete, toggle completion, assignment).
-
-- **[libp2p-config.js](./src/lib/libp2p-config.js)** - LibP2P network configuration module with environment-aware relay selection, multi-transport support (WebRTC, WebSockets, Circuit Relay), peer discovery via gossipsub, and configurable network preferences. Supports both development and production relay configurations with comprehensive connection management.
-
-These components demonstrate patterns for: P2P consent management, Web3 storage integration, OrbitDB backup strategies, UCAN authentication flows, libp2p network configuration, decentralized database operations, and privacy-compliant P2P initialization.
 
 ## 🛠️ Quick Start
 
@@ -148,22 +131,6 @@ git checkout simple-todo
 # run (like this you don't need to cut and past anything)
 ./tutorial-01.js
 ```
-
-## 🔧 Technologies Used
-
-- **libp2p** - Peer-to-peer networking stack
-- **IPFS** - Distributed file system (via Helia)
-- **OrbitDB** - Decentralized database
-- **Svelte** - Frontend framework
-- **WebRTC** - Direct browser-to-browser communication
-
-## ⚠️ Important Notes
-
-- This is a **demo application** for educational purposes
-- Data is stored in a **global unencrypted database** visible to all users
-- **No privacy protection** - all data is publicly visible
-- **Not suitable for production use** without additional security measures
-
 ## 📄 License
 
 This project is open source and available under the [LICENSE](./LICENSE) file.
