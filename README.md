@@ -19,13 +19,8 @@ A basic decentralized, local-first, peer-to-peer todo application built with `li
 
 ---
 
-- **Progressive Web App**: If webservers are down, this app can be started as PWA from desktops and mobile devices
-- **Direct P2P Connections**: WebRTC connections between all devices
-- **Relay/Signaling Network**: Signaling for peer discovery with optional relay functionality when direct peer-to-peer is unavailable
-- **OrbitDB/IPFS Pinning** - Peers and Relays integrate a Helia/OrbitDB node which pins db data on demand or by default (can be customized)
-- **Local OrbitDB Storage**: Each device maintains offline-capable storage via the browser's indexdb
-- **Multi-Transport Support**: WebSocket, WebTransport, and WebRTC protocols
-- **Storacha/Filecoin Integration with UCAN-Auth:** Backup & restore todo lists via Storacha gateway to Filecoin decentralized storage
+- **Progressive Web App**: If clouds are down, this is a PWA which can run from desktops and mobile devices connecting peer-to-peer to other collaborators. 
+- **Storacha/Filecoin Integration with UCAN-Auth:** Backup & restore todo lists via Storacha gateway to Filecoin decentralized storage - restore the OrbitDB from IPFS network
 
 ## 🚀 Live Demo
 
@@ -33,9 +28,7 @@ A basic decentralized, local-first, peer-to-peer todo application built with `li
 - **IPFS (dweb.link)**: https://dweb.link/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
 - **IPFS (le-space)**: https://ipfs.le-space.de/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
 
-## 🏗️ Network Architecture
 
-![Local-First P2P Network Architecture](docs/p2p-network-diagram.svg)
 
 ## 🎯 What is this?
 

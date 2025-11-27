@@ -1,5 +1,10 @@
 # Relay Server Configuration
 
+
+## 🏗️ Network Architecture
+
+![Local-First P2P Network Architecture](docs/p2p-network-diagram.svg)
+
 ## Configuration
 
 The relay server can be configured using environment variables:
