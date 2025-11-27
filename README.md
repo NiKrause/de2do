@@ -19,8 +19,8 @@ A basic decentralized, local-first, peer-to-peer todo application built with `li
 
 ---
 
-- **Progressive Web App**: If clouds are down, this is a PWA which can run from desktops and mobile devices connecting peer-to-peer to other collaborators. 
-- **Storacha/Filecoin Integration with UCAN-Auth:** Backup & restore todo lists via Storacha gateway to Filecoin decentralized storage - restore the OrbitDB from IPFS network
+- **Progressive Web App**: If clouds are down, this is a PWA which can run from desktops and mobile devices connecting peer-to-peer to other collaborators via a relay or OrbitDB pinning network. 
+- **Storacha/Filecoin Integration with UCAN-Auth:** Backup & restore todo lists via Storacha gateway to Filecoin decentralized storage - restore the TodoList's OrbitDB decentralized form the IPFS network
 
 ## 🚀 Live Demo
 
@@ -28,11 +28,6 @@ A basic decentralized, local-first, peer-to-peer todo application built with `li
 - **IPFS (dweb.link)**: https://dweb.link/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
 - **IPFS (w3s.link)**: https://w3s.link/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
 - **IPFS (storacha.link)**: https://storacha.link/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
-
-
-## 🎯 What is this?
-
-This is a **browser only** local-first peer-to-peer todo application that operates without any traditional server infrastructure. It connects directly to other browsers and mobile devices through peer-to-peer connections, creating a truly decentralized experience.
 
 ### Key Features
 
