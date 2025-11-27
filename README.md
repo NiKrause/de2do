@@ -43,11 +43,11 @@ This is a **browser only** local-first peer-to-peer todo application that operat
 
 ### Key Features
 
-- ✅ **No Server Required** - Runs entirely in your browser
-- ✅ **Local Data** - data is stored in your browsers level storage and replicated via OrbitBB and IPFS
+- ✅ **Local-First Storage** - data ist stored in the browser and getting replicated other peers if needed via OrbitDB and IPFS
 - ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC (with help of signaling nodes)
 - ✅ **Real-time Synchronization** - Changes appear instantly across all peers
-- ✅ **Dynamic Identity** - Fresh peer ID generated on each load
+- ✅ **OrbitDB Relay-Pinnging Nodes included** -  If a peer is not online while data is needed - personal pinning nodes or full pinning networks can help out.
+- ✅ **Storacha Backup** - Backup your todo list to Storacha/Filecoin so the Simple-Todo OrbitDB can be restored directly from IPFS-network to any device via a UCAN
 
 ## 🌉 P2P Relay Server
 
@@ -126,6 +126,7 @@ git checkout /simplified-tutorial
 
 # run (like this you don't need to cut and past anything)
 ./tutorial-01.js
+
 ```
 ## 📄 License
 
