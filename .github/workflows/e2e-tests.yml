@@ -35,12 +35,6 @@ jobs:
           cd relay
           npm install
 
-      - name: Build application
-        run: npm run build
-        env:
-          VITE_NODE_ENV: development
-          # VITE_RELAY_BOOTSTRAP_ADDR_DEV: /ip4/127.0.0.1/tcp/4001/ws/p2p/12D3KooWP9ryj8o6uLRhUV2SXJycuBrynakzbiUMBmTn3prF8ezb
-
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
 

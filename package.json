@@ -15,9 +15,9 @@
 		"relay": "cd relay && DEBUG=libp2p:* node relay-enhanced.js",
 		"relay:verbose": "cd relay && node relay-enhanced.js --verbose",
 		"test": "npm run test:e2e",
-		"test:e2e": "npm run build && playwright test",
-		"test:e2e:debug": "npm run build && playwright test --debug",
-		"test:e2e:headed": "npm run build && playwright test --headed",
+		"test:e2e": "playwright test",
+		"test:e2e:debug": "playwright test --debug",
+		"test:e2e:headed": "playwright test --headed",
 		"test:orbitdb": "node test-orbitdb.js"
 	},
 	"devDependencies": {

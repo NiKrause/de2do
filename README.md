@@ -26,8 +26,8 @@ A basic decentralized, local-first, peer-to-peer todo application built with `li
 
 - **HTTP**: https://simple-todo.le-space.de
 - **IPFS (dweb.link)**: https://dweb.link/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
-- **IPFS (le-space)**: https://ipfs.le-space.de/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
-
+- **IPFS (w3s.link)**: https://w3s.link/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
+- **IPFS (storacha.link)**: https://storacha.link/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
 
 
 ## 🎯 What is this?

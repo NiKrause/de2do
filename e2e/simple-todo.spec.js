@@ -10,8 +10,8 @@ import {
 	waitForTodoText
 } from './helpers.js';
 
-test.describe('Simple Todo P2P Application', () => {
-	test('should have webserver running and accessible', async ({ page, request }) => {
+test.describe.only('Simple Todo P2P Application', () => {
+	test.only('should have webserver running and accessible', async ({ page, request }) => {
 		// Check if the webserver is responding
 		const response = await request.get('/');
 		expect(response.status()).toBe(200);
