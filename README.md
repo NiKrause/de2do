@@ -65,11 +65,17 @@ This project includes an enhanced P2P relay server that facilitates peer discove
 
 ### Quick Start
 
-Run a local relay and the app server like so:
+Run the simple-todo via a public relay
+
 ```bash
+copy .env.example .env
 npm install 
 npm run dev 
+```
 
+Run a local relay like so:
+
+```bash
 # open a second terminal and do
 cd relay
 npm install
@@ -81,7 +87,13 @@ npm start
 npm run start:verbose
 ```
 
-### Configuration
+Then copy the resulting websocket from the relay console and put it into .env (make sure it contains a /ws/p2p)
+
+For example like so:
+VITE_RELAY_BOOTSTRAP_ADDR_DEV=/ip4/127.0.0.1/tcp/4002/ws/p2p/12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
+
+
+### Configuration (optional)
 
 The relay server can be configured using environment variables:
 
