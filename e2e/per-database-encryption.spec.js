@@ -17,7 +17,7 @@ import {
  * 5. Open new browser contexts with URLs to test password prompts
  */
 test.describe('Per-Database Encryption E2E Tests', () => {
-	test.skip('should handle multiple projects with different encryption settings', async ({
+	test('should handle multiple projects with different encryption settings', async ({
 		browser
 	}) => {
 		const timestamp = Date.now();
@@ -86,15 +86,21 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 		const project3Address = await getCurrentDatabaseAddress(page);
 		console.log(`✅ Project 3 address: ${project3Address}`);
 		
-		// ============================================================================
-		// STEP 2: Verify encryption icons in TodoListSelector
-		// ============================================================================
-		console.log('\n🔍 STEP 2: Verifying encryption icons in dropdown...\n');
-		
-		// Open TodoListSelector dropdown
-		const todoListInput = page.locator('input[placeholder*="todo list" i]').first();
-		await todoListInput.click();
-		await page.waitForTimeout(500);
+	// ============================================================================
+	// STEP 2: Verify encryption icons in TodoListSelector
+	// ============================================================================
+	console.log('\n🔍 STEP 2: Verifying encryption icons in dropdown...\n');
+	
+	// First verify all projects are in the registry
+	const registryLists = await page.evaluate(() => {
+		return window.__availableTodoLists__ || [];
+	});
+	console.log(`📋 Registry has ${registryLists.length} lists:`, registryLists.map(l => l.displayName));
+	
+	// Open TodoListSelector dropdown
+	const todoListInput = page.locator('input[placeholder*="todo list" i]').first();
+	await todoListInput.click();
+	await page.waitForTimeout(1000); // Wait for dropdown to open and load
 		
 		// Check for encryption icons
 		const dropdownContainer = page.locator('[role="listbox"]').first();
@@ -360,12 +366,12 @@ test.describe('Per-Database Encryption E2E Tests', () => {
  * Create a project and add todos to it
  */
 async function createProjectWithTodos(page, projectName, encrypted, password, todoTexts) {
-	// Open TodoListSelector
+	// Open TodoListSelector - note it will clear input on focus
 	const todoListInput = page.locator('input[placeholder*="todo list" i]').first();
 	await todoListInput.click();
-	await page.waitForTimeout(300);
+	await page.waitForTimeout(500);
 	
-	// Type project name
+	// Type project name (input was cleared by focus handler)
 	await todoListInput.fill(projectName);
 	await page.waitForTimeout(500);
 	
@@ -374,19 +380,19 @@ async function createProjectWithTodos(page, projectName, encrypted, password, to
 		// Check encryption checkbox
 		const encryptionCheckbox = page.locator('input[type="checkbox"]:near(:text("Enable Encryption"))').first();
 		await encryptionCheckbox.check();
-		await page.waitForTimeout(300);
+		await page.waitForTimeout(500);
 		
 		// Enter password
 		const passwordInput = page.locator('input[type="password"][placeholder*="password" i]').first();
 		await passwordInput.fill(password);
-		await page.waitForTimeout(300);
+		await page.waitForTimeout(500);
 	}
 	
 	// Click create button or press Enter
 	await todoListInput.press('Enter');
 	
-	// Wait for project to be created
-	await page.waitForTimeout(2000);
+	// Wait for project to be created and registered
+	await page.waitForTimeout(4000); // Increased wait time for DB creation
 	
 	console.log(`  ✓ Created project: ${projectName}${encrypted ? ' 🔐' : ''}`);
 	

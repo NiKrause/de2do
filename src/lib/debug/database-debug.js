@@ -1,6 +1,7 @@
 import { get } from 'svelte/store';
 import { orbitdbStore, todoDBStore, todosStore } from '$lib/db-actions.js';
 import { loadTodos } from '$lib/db-actions.js';
+import { availableTodoListsStore } from '$lib/todo-list-manager.js';
 
 /**
  * Setup database debugging utilities
@@ -44,6 +45,13 @@ export function setupDatabaseDebug() {
 		const todoDB = get(todoDBStore);
 		return todoDB?.address || null;
 	};
+	
+	// Subscribe to availableTodoListsStore and expose to window
+	availableTodoListsStore.subscribe((lists) => {
+		if (typeof window !== 'undefined') {
+			window.__availableTodoLists__ = lists;
+		}
+	});
 	
 	console.log('🔧 Database debugging utilities loaded. Available functions:');
 	console.log('  - window.debugDatabase() - Inspect database state');
