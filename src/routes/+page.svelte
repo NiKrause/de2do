@@ -243,6 +243,9 @@ import {
 		return await todoHandlers.handleCreateSubList(event, { isEmbedMode, embedAllowAdd });
 	};
 
+	// Track the last manually-set encryption state to prevent overwrites
+	let lastManualEncryptionUpdate = { listName: '', encrypted: false, timestamp: 0 };
+
 	// Reactively update encryption state based on current list
 	$: if ($currentTodoListNameStore && $availableTodoListsStore.length > 0) {
 		const currentList = $availableTodoListsStore.find(
@@ -250,19 +253,28 @@ import {
 		);
 		
 		if (currentList) {
-			// Update encryption state to match the current database
-			const wasEncrypted = isCurrentDbEncrypted;
-			isCurrentDbEncrypted = currentList.encryptionEnabled || false;
+			// Check if we just manually updated this list's encryption state
+			const recentlyManuallyUpdated = 
+				lastManualEncryptionUpdate.listName === $currentTodoListNameStore &&
+				Date.now() - lastManualEncryptionUpdate.timestamp < 5000; // 5 second grace period
 			
-			// Log state change for debugging
-			if (wasEncrypted !== isCurrentDbEncrypted) {
-				console.log(`🔐 Encryption state changed: ${wasEncrypted} → ${isCurrentDbEncrypted} for list: ${$currentTodoListNameStore}`);
-			}
-			
-			// Reset form state when switching to unencrypted database
-			if (!isCurrentDbEncrypted) {
-				enableEncryption = false;
-				encryptionPassword = '';
+			if (!recentlyManuallyUpdated) {
+				// Update encryption state to match the current database
+				const wasEncrypted = isCurrentDbEncrypted;
+				isCurrentDbEncrypted = currentList.encryptionEnabled || false;
+				
+				// Log state change for debugging
+				if (wasEncrypted !== isCurrentDbEncrypted) {
+					console.log(`🔐 Encryption state changed: ${wasEncrypted} → ${isCurrentDbEncrypted} for list: ${$currentTodoListNameStore}`);
+				}
+				
+				// Reset form state when switching to unencrypted database
+				if (!isCurrentDbEncrypted) {
+					enableEncryption = false;
+					encryptionPassword = '';
+				}
+			} else {
+				console.log(`⏭️ Skipping reactive encryption update - recently manually set for ${$currentTodoListNameStore}`);
 			}
 		}
 	}
@@ -362,9 +374,21 @@ import {
 				disabled={!$initializationStore.isInitialized}
 				on:encryptionEnabled={(e) => {
 					isCurrentDbEncrypted = e.detail.isCurrentDbEncrypted;
+					// Mark this as a manual update to prevent reactive overwrite
+					lastManualEncryptionUpdate = {
+						listName: $currentTodoListNameStore,
+						encrypted: e.detail.isCurrentDbEncrypted,
+						timestamp: Date.now()
+					};
 				}}
 				on:encryptionDisabled={(e) => {
 					isCurrentDbEncrypted = e.detail.isCurrentDbEncrypted;
+					// Mark this as a manual update to prevent reactive overwrite
+					lastManualEncryptionUpdate = {
+						listName: $currentTodoListNameStore,
+						encrypted: e.detail.isCurrentDbEncrypted,
+						timestamp: Date.now()
+					};
 				}}
 			/>
 		</div>

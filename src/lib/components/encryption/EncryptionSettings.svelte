@@ -27,9 +27,12 @@
 	}
 
 	async function handleEnableClick() {
+		console.log('🔐 EncryptionSettings: handleEnableClick called');
 		const result = await encryptionHandlers.handleEnableEncryption(encryptionPassword);
+		console.log('🔐 EncryptionSettings: handler result =', result);
 		
 		if (result.success) {
+			console.log('✅ EncryptionSettings: Encryption enabled successfully, dispatching event');
 			// Update parent state
 			enableEncryption = false; // Reset checkbox
 			// Don't clear password yet - keep it for display
@@ -39,11 +42,14 @@
 				isCurrentDbEncrypted: result.isCurrentDbEncrypted,
 				password: encryptionPassword 
 			});
+			console.log('✅ EncryptionSettings: Event dispatched, isCurrentDbEncrypted =', result.isCurrentDbEncrypted);
 			
 			// Now clear password field after event is dispatched
 			setTimeout(() => {
 				encryptionPassword = '';
 			}, 100);
+		} else {
+			console.error('❌ EncryptionSettings: Encryption failed, result =', result);
 		}
 	}
 
@@ -58,7 +64,7 @@
 <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
 	{#if isCurrentDbEncrypted}
 		<!-- Encryption is active - show status -->
-		<div class="flex items-center gap-2 rounded-md bg-green-50 px-3 py-2 border border-green-200">
+		<div data-testid="encryption-active-indicator" class="flex items-center gap-2 rounded-md bg-green-50 px-3 py-2 border border-green-200">
 			<span class="text-green-600">🔐</span>
 			<span class="text-sm font-medium text-green-800">Encryption: Active</span>
 		</div>

@@ -20,18 +20,19 @@ function createPasswordManagerStore() {
 		 * @param {string} dbName - Database name to show in modal
 		 * @returns {Promise<string>} Promise that resolves with password or rejects on cancel
 		 */
-		requestPassword(dbName) {
-			return new Promise((resolve, reject) => {
-				update(state => ({
-					...state,
-					showModal: true,
-					dbName,
-					retryCount: 0,
-					pendingResolve: resolve,
-					pendingReject: reject
-				}));
-			});
-		},
+	requestPassword(dbName) {
+		return new Promise((resolve, reject) => {
+			update(state => ({
+				...state,
+				showModal: true,
+				dbName,
+				// Don't reset retryCount - preserve it if we're in a retry flow
+				// Only reset on first password request (when retryCount is already 0)
+				pendingResolve: resolve,
+				pendingReject: reject
+			}));
+		});
+	},
 		
 		/**
 		 * Submit password

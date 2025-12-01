@@ -111,6 +111,17 @@ export async function loadTodos() {
 			todoDBAddress: todoDB?.address,
 			todoDBType: typeof todoDB
 		});
+		
+		// Check if this is a decryption error (wrong password)
+		if (error.message && error.message.includes('decrypt')) {
+			console.error('❌ Decryption error detected - wrong password or encrypted database');
+			systemToasts.showError('Failed to decrypt database entries. Wrong password?');
+			// Note: The password was already accepted during open, but entries arrived later
+			// We can't re-prompt here easily, so just show error
+			// TODO: Consider implementing re-authentication flow
+		} else {
+			systemToasts.showError(`Failed to load todos: ${error.message}`);
+		}
 	}
 }
 

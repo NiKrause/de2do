@@ -11,6 +11,11 @@
 	export let isOpen = false;
 	export let dbName = '';
 	export let retryCount = 0;
+	
+	// Debug logging
+	$: if (isOpen) {
+		console.log('🔐 PasswordModal opened - retryCount:', retryCount);
+	}
 
 	async function handleSubmit() {
 		if (!password.trim()) {
@@ -62,7 +67,7 @@
 				<p class="db-name">Database: <strong>{dbName || 'Unknown'}</strong></p>
 
 				{#if retryCount > 0}
-					<div class="warning-message">
+					<div class="warning-message" data-testid="password-retry-warning">
 						<span>⚠️ Previous password attempt failed. Please try again.</span>
 					</div>
 				{/if}

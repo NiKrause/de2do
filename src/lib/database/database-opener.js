@@ -39,6 +39,9 @@ export async function openDatabaseWithEncryptionDetection(options) {
 		throw new Error('Must provide address, name, or displayName');
 	}
 	
+	// Determine if this is remote access (opening by address = remote)
+	const isRemoteAccess = !!address;
+	
 	try {
 		console.log('🔍 Attempting to open database without encryption...');
 		
@@ -46,8 +49,9 @@ export async function openDatabaseWithEncryptionDetection(options) {
 		await openMethod(openParam, preferences, false, null);
 		const db = get(todoDBStore);
 		
-		// Check if data looks encrypted using the official isDatabaseEncrypted
-		const isEncrypted = await detectDatabaseEncryption(db);
+		// Check if data looks encrypted
+		// Pass isRemoteAccess=true for address-based opening (URL access)
+		const isEncrypted = await detectDatabaseEncryption(db, { isRemoteAccess });
 		
 		if (isEncrypted) {
 			console.log('🔐 Database appears to be encrypted');
@@ -139,6 +143,77 @@ export async function openDatabaseWithPassword(options) {
 		await openMethod(openParam, preferences, true, password);
 		const db = get(todoDBStore);
 		
+		// Verify password is correct by trying to read entries
+		// Wait for database to sync entries from peers before verifying
+		console.log('🔍 Verifying password by reading database...');
+		
+		const testEntries = await db.all();
+		console.log(`📊 Found ${testEntries.length} entries initially`);
+		
+		// If database is empty, wait a bit for sync to potentially bring in entries
+		if (testEntries.length === 0) {
+			console.log('⏳ Empty database - waiting 2s for potential sync...');
+			await new Promise(resolve => setTimeout(resolve, 2000));
+			
+			// Check again after waiting
+			const entriesAfterWait = await db.all();
+			console.log(`📊 After waiting: ${entriesAfterWait.length} entries`);
+			
+			// If still empty after waiting, this is likely a wrong password
+			// For remote encrypted databases: correct password would allow sync to decrypt entries
+			if (entriesAfterWait.length === 0 && address) {
+				console.error('❌ Database still empty after waiting - likely wrong password for remote encrypted DB');
+				toastStore.show('❌ Incorrect password - cannot decrypt remote database', 'error');
+				return {
+					success: false,
+					encrypted: true,
+					wrongPassword: true,
+					error: new Error('Database empty after sync - wrong password')
+				};
+			} else if (entriesAfterWait.length > 0) {
+				// Entries arrived, try to decrypt them
+				try {
+					const hasUndefinedValues = entriesAfterWait.some(e => e.value === undefined);
+					if (hasUndefinedValues) {
+						throw new Error('Could not decrypt entries - values are undefined');
+					}
+					console.log(`✅ Password verified - successfully read ${entriesAfterWait.length} entries after sync`);
+				} catch (decryptErr) {
+					console.error('❌ Decryption failed after sync:', decryptErr);
+					toastStore.show('❌ Incorrect password', 'error');
+					return {
+						success: false,
+						encrypted: true,
+						wrongPassword: true,
+						error: decryptErr
+					};
+				}
+			}
+		} else {
+			// Database has entries - verify we can decrypt them
+			try {
+				// Try to access values to trigger decryption
+				const hasUndefinedValues = testEntries.some(e => e.value === undefined);
+				if (hasUndefinedValues) {
+					throw new Error('Could not decrypt entries - values are undefined');
+				}
+				console.log(`✅ Password verified - successfully read ${testEntries.length} entries`);
+			} catch (decryptErr) {
+				console.error('❌ Decryption failed when reading entries:', decryptErr);
+				// Wrong password - database opened but can't decrypt entries
+				if (decryptErr.message && decryptErr.message.includes('decrypt')) {
+					toastStore.show('❌ Incorrect password', 'error');
+					return {
+						success: false,
+						encrypted: true,
+						wrongPassword: true,
+						error: decryptErr
+					};
+				}
+				throw decryptErr;
+			}
+		}
+		
 		console.log('✅ Database opened successfully with encryption');
 		return {
 			success: true,
@@ -149,7 +224,7 @@ export async function openDatabaseWithPassword(options) {
 		console.error('❌ Failed to open database with password:', err);
 		
 		// Check if it's a decryption error
-		if (err.message.includes('Could not decrypt')) {
+		if (err.message && err.message.includes('decrypt')) {
 			toastStore.show('❌ Incorrect password', 'error');
 			return {
 				success: false,

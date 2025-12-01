@@ -351,6 +351,15 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 	test('should handle wrong password gracefully', async ({ page: browserAPage }) => {
 		console.log('\n🚀 Starting wrong password handling test...\n');
 
+		// Capture browser console logs
+		browserAPage.on('console', msg => {
+			const type = msg.type();
+			const text = msg.text();
+			if (type === 'error' || text.includes('Encryption') || text.includes('Migration') || text.includes('handler')) {
+				console.log(`[🌐 BROWSER ${type.toUpperCase()}]`, text);
+			}
+		});
+
 		const encryptionPassword = 'correct-password';
 		const wrongPassword = 'wrong-password';
 		const testTodoText = `Password test todo - ${Date.now()}`;
@@ -371,14 +380,6 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 			console.log(`✅ Navigation successful (status: ${response?.status() || 'unknown'})`);
 		} catch (error) {
 			console.error('❌ Navigation failed:', error.message);
-			// Check response status if available
-			if (response) {
-				throw new Error(`Failed to load app. Server returned status ${response.status()}. Error: ${error.message}`);
-			}
-			// Check if it's a timeout or connection error
-			if (error.message.includes('timeout') || error.message.includes('net::ERR')) {
-				throw new Error(`Failed to connect to app at http://localhost:4174. Server may not be running or not ready. Error: ${error.message}`);
-			}
 			throw error;
 		}
 
@@ -401,9 +402,12 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		const applyEncryptionButton = browserAPage.getByRole('button', { name: /Apply Encryption/i });
 		await applyEncryptionButton.click();
 		
-		// Wait for encryption to be applied (database recreated)
-		await browserAPage.waitForTimeout(3000);
-		console.log('✅ Browser A: Encryption enabled');
+		// Wait for encryption to be ACTUALLY applied (database migrated)
+		// Look for the "Encryption: Active" indicator that appears after migration completes
+		console.log('⏳ Browser A: Waiting for encryption to complete...');
+		const encryptionActiveIndicator = browserAPage.getByTestId('encryption-active-indicator');
+		await encryptionActiveIndicator.waitFor({ state: 'visible', timeout: 30000 });
+		console.log('✅ Browser A: Encryption confirmed active (migration completed)');
 
 		const dbAddressA = await getCurrentDatabaseAddress(browserAPage);
 		expect(dbAddressA).toBeTruthy();
@@ -424,9 +428,18 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		// ============================================================================
 		console.log('\n📱 BROWSER B: Testing wrong password handling...');
 
-		const browserB = await chromium.launch();
-		const contextB = await browserB.newContext();
-		const pageBrowserB = await contextB.newPage();
+	const browserB = await chromium.launch();
+	const contextB = await browserB.newContext();
+	const pageBrowserB = await contextB.newPage();
+	
+	// Capture browser console logs for debugging
+	pageBrowserB.on('console', msg => {
+		const type = msg.type();
+		const text = msg.text();
+		if (type === 'error' || text.includes('PasswordModal') || text.includes('retry') || text.includes('password')) {
+			console.log(`[🌐 BROWSER B ${type.toUpperCase()}]`, text);
+		}
+	});
 
 		// Navigate directly to the encrypted database URL
 		await pageBrowserB.goto(`/?#/${dbAddressA}`);
@@ -437,7 +450,7 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		await pageBrowserB.waitForTimeout(1000);
 		
 		// Accept consent (skip if not found - hash URLs auto-initialize without modal)
-		await acceptConsentAndInitialize(pageBrowserB, { skipIfNotFound: true });
+		// await acceptConsentAndInitialize(pageBrowserB, { skipIfNotFound: true });
 		await waitForP2PInitialization(pageBrowserB);
 		
 		// Wait for password modal to appear (it appears when encrypted DB is detected)
@@ -450,16 +463,27 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		await passwordInput.waitFor({ state: 'visible', timeout: 5000 });
 		await passwordInput.fill(wrongPassword);
 
-		const unlockButton = pageBrowserB.getByRole('button', { name: /Unlock/i });
-		await unlockButton.click();
+	const unlockButton = pageBrowserB.getByRole('button', { name: /Unlock/i });
+	await unlockButton.click();
 
-		// Wait for error message to appear
-		const errorMessage = pageBrowserB.locator('text=/incorrect|wrong|failed/i');
-		await expect(errorMessage).toBeVisible({ timeout: 10000 });
-		console.log('✅ Browser B: Error message appeared for wrong password');
+	// Wrong password: modal should close briefly, then reappear after ~2s with retry warning
+	// Wait for modal to disappear first
+	console.log('⏳ Browser B: Waiting for password verification (2s)...');
+	await passwordModal.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {
+		console.log('⚠️ Modal did not disappear - might have failed immediately');
+	});
+	
+	// Wait for modal to reappear with retry warning
+	console.log('⏳ Browser B: Waiting for modal to reappear with retry warning...');
+	await passwordModal.waitFor({ state: 'visible', timeout: 5000 });
+	
+	// Check for retry warning message using testid
+	const retryWarning = pageBrowserB.getByTestId('password-retry-warning');
+	await expect(retryWarning).toBeVisible({ timeout: 2000 });
+	console.log('✅ Browser B: Modal reappeared with retry warning for wrong password');
 
-		// Try again with correct password
-		await passwordInput.clear();
+	// Try again with correct password
+	await passwordInput.clear();
 		await passwordInput.fill(encryptionPassword);
 		await unlockButton.click();
 
