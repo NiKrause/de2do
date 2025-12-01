@@ -84,7 +84,7 @@
 		"@libp2p/webrtc": "^5.2.23",
 		"@libp2p/websockets": "^9.2.19",
 		"@orbitdb/core": "^3.0.2",
-		"@orbitdb/simple-encryption": "^0.0.2",
+		"@le-space/orbitdb-simple-encryption": "^0.0.2",
 		"@storacha/capabilities": "^1.10.0",
 		"@storacha/client": "^1.8.12",
 		"@ucanto/core": "^10.4.0",

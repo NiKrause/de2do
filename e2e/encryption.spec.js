@@ -91,14 +91,16 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		// Open with database address from browser A
 		await pageBrowserB.goto(`/?#/${dbAddressA}`);
 		
-		// Wait for database to load (should not show password modal for unencrypted DB)
-		await pageBrowserB.waitForTimeout(5000);
+		// Wait for P2P initialization (auto-initializes when hash is present)
+		await waitForP2PInitialization(pageBrowserB, 60000);
+		console.log('✅ Browser B: P2P initialized');
+		
+		// Wait for database to be opened (check that todo input is available)
+		await pageBrowserB.waitForSelector('[data-testid="todo-input"]', { timeout: 30000 });
 		console.log('✅ Browser B: Database opened via URL');
 
-		// Verify todo appears in browser B
-		await expect(
-			pageBrowserB.locator(`text=${testTodoText}`).first()
-		).toBeVisible({ timeout: 30000 });
+		// Wait for todo to appear (this handles syncing from peers)
+		await waitForTodoText(pageBrowserB, testTodoText, 60000);
 		console.log(`✅ Browser B: Verified todo "${testTodoText}" is accessible`);
 
 		// Get browser B peer ID
@@ -346,7 +348,7 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		await browserCContext.close();
 	});
 
-	test.skip('should handle wrong password gracefully', async ({ page: browserAPage }) => {
+	test('should handle wrong password gracefully', async ({ page: browserAPage }) => {
 		console.log('\n🚀 Starting wrong password handling test...\n');
 
 		const encryptionPassword = 'correct-password';

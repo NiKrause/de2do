@@ -128,112 +128,68 @@
 		const { replaceState } = await import('$app/navigation');
 
 		if (targetProjects && targetProjects.address) {
-			// Update stores immediately
-			currentTodoListNameStore.set('projects');
-			if (targetProjects.dbName) {
-				currentDbNameStore.set(targetProjects.dbName);
-			}
-			currentDbAddressStore.set(targetProjects.address);
-
-			// Open by address to ensure we load the same DB
+			// Use centralized password prompt flow for consistent encryption detection
 			try {
-				// Check if database is encrypted
-				const isEncrypted = targetProjects.encryptionEnabled || false;
+				const { openDatabaseWithPasswordPrompt } = await import('../database/database-manager.js');
 				
-				if (isEncrypted) {
-					console.log('🔐 Target projects database is encrypted, attempting to open...');
-					// Try to open without password first - will trigger password modal if needed
-					try {
-						await openDatabaseByAddress(targetProjects.address, preferences, false, '');
-						// If this succeeds, the database wasn't actually encrypted or opened without encryption
-					} catch (encErr) {
-						// Expected if encrypted - trigger password flow via +page.svelte
-						console.log('🔐 Database requires encryption, delegating to main page handler');
-						// Set the hash so +page.svelte can handle encryption detection
-						if (typeof window !== 'undefined') {
-							const hash = targetProjects.address.startsWith('/') ? targetProjects.address : `/${targetProjects.address}`;
-							window.location.hash = hash;
-						}
-						return; // Let +page.svelte handle it
-					}
-				} else {
-					await openDatabaseByAddress(targetProjects.address, preferences, false, '');
-				}
+				console.log('🔍 Opening target projects database:', targetProjects.address);
+				const result = await openDatabaseWithPasswordPrompt({
+					address: targetProjects.address,
+					preferences
+				});
 				
-						if (typeof window !== 'undefined') {
-							const hash = targetProjects.address.startsWith('/') ? targetProjects.address : `/${targetProjects.address}`;
-							replaceState(`#${hash}`, { replaceState: true });
-						}
-			} catch (e) {
-				console.error('Failed to open projects database by address:', e);
-				// Fallback to opening by name
-				const dbName = `${targetUserId}_projects`;
-				try {
-					await openDatabaseByName(dbName, preferences, false, '');
+				if (result.success) {
+					// Update stores
 					currentTodoListNameStore.set('projects');
-					currentDbNameStore.set(dbName);
-					if (typeof window !== 'undefined') {
-						const { replaceState } = await import('$app/navigation');
-						// Try to get address from opened DB if available
-						// Note: openDatabaseByName might not return address immediately
+					if (targetProjects.dbName) {
+						currentDbNameStore.set(targetProjects.dbName);
 					}
-				} catch (e2) {
-					console.error('Failed to open projects database by name:', e2);
+					currentDbAddressStore.set(targetProjects.address);
+					
+					// Update hash
+					if (typeof window !== 'undefined') {
+						const hash = targetProjects.address.startsWith('/') ? targetProjects.address : `/${targetProjects.address}`;
+						replaceState(`#${hash}`, { replaceState: true });
+					}
+				} else if (result.cancelled) {
+					// User cancelled password entry
+					console.log('⚠️ User cancelled database open');
 				}
+			} catch (e) {
+				console.error('Failed to open projects database:', e);
+				showToast('Failed to open projects database', 'error', 3000);
 			}
 		} else {
 			// Try opening by name if not found in available lists
 			const dbName = `${targetUserId}_projects`;
 			try {
-				// Try to open without encryption first
-				try {
-					const openedDB = await openDatabaseByName(dbName, preferences, false, '');
+				const { openDatabaseWithPasswordPrompt } = await import('../database/database-manager.js');
+				
+				console.log('🔍 Opening target projects database by name:', dbName);
+				const result = await openDatabaseWithPasswordPrompt({
+					name: dbName,
+					preferences
+				});
+				
+				if (result.success) {
+					// Update stores
 					currentTodoListNameStore.set('projects');
 					currentDbNameStore.set(dbName);
-					currentDbAddressStore.set(openedDB?.address || null);
-
-					// Update URL hash if we have an address
-					if (openedDB?.address && typeof window !== 'undefined') {
-						const hash = openedDB.address.startsWith('/') ? openedDB.address : `/${openedDB.address}`;
-						replaceState(`#${hash}`, { replaceState: true });
-					}
-				} catch (openErr) {
-					// Check if this might be an encrypted database
-					console.log('🔐 Database might be encrypted, checking...');
-					
-					// Try to get the database info to determine if it's encrypted
-					// Set hash and let +page.svelte handle encryption detection
-					const { getCurrentIdentityId } = await import('../stores.js');
-					const currentIdent = getCurrentIdentityId();
-					
-					// Track this user so they appear in the list
-					if (targetUserId !== currentIdent) {
-						const success = await addTrackedUser(targetUserId);
-						if (success) {
-							// User added and database discovered - get the address
-							await listAvailableTodoLists();
-							const lists = get(availableTodoListsStore);
-							const projectsList = lists.find(
-								(l) => l.dbName === dbName && l.displayName === 'projects'
-							);
-							
-							if (projectsList?.address) {
-								// Set hash to trigger encryption detection in +page.svelte
-								if (typeof window !== 'undefined') {
-									const hash = projectsList.address.startsWith('/') ? projectsList.address : `/${projectsList.address}`;
-									window.location.hash = hash;
-								}
-								return; // Let +page.svelte handle it
-							}
+					if (result.database?.address) {
+						currentDbAddressStore.set(result.database.address);
+						
+						// Update hash
+						if (typeof window !== 'undefined') {
+							const hash = result.database.address.startsWith('/') ? result.database.address : `/${result.database.address}`;
+							replaceState(`#${hash}`, { replaceState: true });
 						}
 					}
-					
-					// If we couldn't find the database, just throw the original error
-					throw openErr;
+				} else if (result.cancelled) {
+					console.log('⚠️ User cancelled database open');
 				}
 			} catch (e) {
 				console.error('Failed to open projects database by name:', e);
-				showToast('Failed to open projects database. It may be encrypted or unavailable.', 'error', 4000);
+				showToast('Failed to open projects database. It may be unavailable.', 'error', 3000);
 			}
 		}
 	}

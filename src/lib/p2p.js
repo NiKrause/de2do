@@ -3,7 +3,7 @@ import { writable, get } from 'svelte/store';
 import { createLibp2p } from 'libp2p';
 import { createHelia } from 'helia';
 import { createOrbitDB, OrbitDBAccessController, MemoryStorage } from '@orbitdb/core';
-import SimpleEncryption from '@orbitdb/simple-encryption';
+import SimpleEncryption from '@le-space/orbitdb-simple-encryption';
 import { createLibp2pConfig } from './libp2p-config.js';
 // Dynamic import to avoid circular dependency with db-actions.js
 // import { initializeDatabase } from './db-actions.js';

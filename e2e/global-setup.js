@@ -31,6 +31,13 @@ export default async function globalSetup() {
 		// Ignore errors
 	}
 
+	// Port configuration for relay server
+	const TCP_PORT = '4101';
+	const WS_PORT = '4102';
+	const WEBRTC_PORT = '4103';
+	const WEBRTC_DIRECT_PORT = '4106';
+	const HTTP_PORT = '3000';
+
 	// Start relay server
 	return new Promise((resolve, reject) => {
 		relayProcess = spawn('node', ['relay-enhanced.js'], {
@@ -39,11 +46,11 @@ export default async function globalSetup() {
 				...process.env,
 				NODE_ENV: 'development',
 				RELAY_PRIV_KEY: process.env.RELAY_PRIV_KEY, // Explicitly pass it
-				RELAY_TCP_PORT: '4001',
-				RELAY_WS_PORT: '4002',
-				RELAY_WEBRTC_PORT: '4003',
-				RELAY_WEBRTC_DIRECT_PORT: '4006',
-				HTTP_PORT: '3000',
+				RELAY_TCP_PORT: TCP_PORT,
+				RELAY_WS_PORT: WS_PORT,
+				RELAY_WEBRTC_PORT: WEBRTC_PORT,
+				RELAY_WEBRTC_DIRECT_PORT: WEBRTC_DIRECT_PORT,
+				HTTP_PORT: HTTP_PORT,
 				DATASTORE_PATH: './test-relay-datastore',
 				PUBSUB_TOPICS: 'todo._peer-discovery._p2p._pubsub',
 				STRUCTURED_LOGS: 'false'
@@ -87,7 +94,8 @@ export default async function globalSetup() {
 					console.warn(`⚠️  Extracted peerId looks like hex (not base58): ${peerId}, skipping...`);
 					return;
 				}
-				relayMultiaddr = `/ip4/127.0.0.1/tcp/4002/ws/p2p/${peerId}`;
+			// Use the WebSocket port for browser connections
+			relayMultiaddr = `/ip4/127.0.0.1/tcp/${WS_PORT}/ws/p2p/${peerId}`;
 
 				// Create .env.development file for Vite
 				const envContent = `# Generated for e2e tests

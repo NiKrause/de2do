@@ -130,7 +130,7 @@ export async function migrateDatabaseEncryption(
 	
 	// Set up encryption for final database
 	const { OrbitDBAccessController } = await import('@orbitdb/core');
-	const SimpleEncryption = (await import('@orbitdb/simple-encryption')).default;
+	const SimpleEncryption = (await import('@le-space/orbitdb-simple-encryption')).default;
 	let finalEncryption = null;
 	if (targetEncryption && targetPassword) {
 		const dataEncryption = await SimpleEncryption({ password: targetPassword });

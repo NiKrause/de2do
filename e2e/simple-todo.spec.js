@@ -652,7 +652,7 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('🎉 Database sharing test completed successfully!');
 	});
 
-	test.skip('should replicate database when Browser B opens Browser A database by name', async ({
+	test('should replicate database when Browser B opens Browser A database by name', async ({
 		browser
 	}) => {
 		// Create two separate browser contexts (simulating two different browsers)

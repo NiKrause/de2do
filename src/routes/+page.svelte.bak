@@ -4,11 +4,15 @@
 	import { fade, fly } from 'svelte/transition';
 	import { initializeP2P, initializationStore, libp2pStore } from '$lib/p2p.js';
 	import { peerIdStore } from '$lib/stores.js';
-import {
-	todosStore,
-	todoDBStore,
-	orbitdbStore
-} from '$lib/db-actions.js';
+	import {
+		todosStore,
+		addTodo,
+		deleteTodo,
+		toggleTodoComplete,
+		todoDBStore,
+		loadTodos,
+		orbitdbStore
+	} from '$lib/db-actions.js';
 	import ConsentModal from '$lib/components/ui/ConsentModal.svelte';
 	import SocialIcons from '$lib/components/ui/SocialIcons.svelte';
 	import SystemToast from '$lib/components/ui/SystemToast.svelte';
@@ -26,19 +30,25 @@ import {
 import ShareEmbedButtons from '$lib/components/todo/ShareEmbedButtons.svelte';
 import ManagedPasswordModal from '$lib/components/ui/ManagedPasswordModal.svelte';
 import AppHeader from '$lib/components/layout/AppHeader.svelte';
-import EncryptionSettings from '$lib/components/encryption/EncryptionSettings.svelte';
 import { setupDatabaseDebug, exposeDatabaseToWindow } from '$lib/debug/database-debug.js';
 import { createTodoHandlers } from '$lib/handlers/todo-handlers.js';
 import { detectEmbedMode, parseEmbedParams } from '$lib/embed/embed-handler.js';
 import { openDatabaseWithPasswordPrompt, updateStoresAfterDatabaseOpen } from '$lib/database/database-manager.js';
 import { setupHashRouter } from '$lib/routing/hash-router.js';
 import {
-	switchToTodoList,
-	currentTodoListNameStore,
-	currentDbNameStore,
-	currentDbAddressStore,
-	availableTodoListsStore
-} from '$lib/todo-list-manager.js';
+switchToTodoList,
+		createSubList,
+		currentTodoListNameStore,
+		currentDbNameStore,
+		currentDbAddressStore,
+		extractDisplayName,
+		listAvailableTodoLists,
+		availableTodoListsStore,
+		todoListHierarchyStore,
+		buildHierarchyPath,
+		listUniqueUsers,
+		selectedUserIdStore
+	} from '$lib/todo-list-manager.js';
 	import { openDatabaseByAddress } from '$lib/p2p.js';
 	import { getCurrentIdentityId } from '$lib/stores.js';
 	import { get } from 'svelte/store';
@@ -202,6 +212,238 @@ import {
 		// ignore storage errors
 	}
 });
+								const updatedLists = [...currentLists, newList];
+								availableTodoListsStore.set(updatedLists);
+								console.log('  - Added to available lists (no identity):', newList);
+
+								// Persist in our registry if possible (may fail if not initialized yet)
+								try {
+									const { addTodoListToRegistry } = await import('$lib/todo-list-manager.js');
+									await addTodoListToRegistry(displayName, dbName, hashValueForLookup, null);
+									console.log('  - Persisted in registry');
+								} catch (e) {
+									console.warn('  ⚠️ Could not persist to registry (no identity yet?):', e);
+								}
+
+								// Update users list from dbName prefixes
+								await listUniqueUsers();
+								
+								// If this is a foreign database, select that user in the userlist
+								if (extractedIdentityId && extractedIdentityId !== currentIdentityId) {
+									console.log('  - Setting selected user to foreign identity:', extractedIdentityId);
+									selectedUserIdStore.set(extractedIdentityId);
+								}
+							}
+
+							// Update stores
+							currentTodoListNameStore.set(displayName);
+							if (dbName) {
+								currentDbNameStore.set(dbName);
+							}
+							currentDbAddressStore.set(hashValueForLookup);
+
+							// Re-extract identity from final dbName to ensure we have it
+							if (dbName && dbName.includes('_')) {
+								const underscoreIndex = dbName.indexOf('_');
+								if (underscoreIndex > 0) {
+									extractedIdentityId = dbName.substring(0, underscoreIndex);
+								}
+							}
+
+							// Ensure users list is updated after all store updates
+							await listUniqueUsers();
+
+							// Show final toast with identity and dbName (after all processing)
+							if (extractedIdentityId && dbName) {
+								console.log(
+									'📢 Showing success toast with identity:',
+									extractedIdentityId,
+									'and dbName:',
+									dbName
+								);
+								toastStore.show(
+									`✅ Database loaded! Identity: ${extractedIdentityId.slice(0, 8)}... | Name: ${dbName}`,
+									'success',
+									5000
+								);
+							} else if (dbName) {
+								console.log('📢 Showing success toast with dbName:', dbName);
+								toastStore.show(`✅ Database loaded! Name: ${dbName}`, 'success', 5000);
+							}
+
+							// Update hierarchy
+							if (currentIdentityId) {
+								await listAvailableTodoLists();
+								const availableLists = get(availableTodoListsStore);
+								const list = availableLists.find((l) => l.address === hashValueForLookup);
+								if (list && list.parent) {
+									// Build hierarchy for this list
+									const hierarchy = await buildHierarchyPath(list.displayName);
+									todoListHierarchyStore.set(hierarchy);
+									console.log('  - Hierarchy:', hierarchy);
+								} else {
+									// Not in registry or no parent, set as root
+									todoListHierarchyStore.set([{ name: displayName, parent: null }]);
+								}
+							} else {
+								// No identity, set as root
+								todoListHierarchyStore.set([{ name: displayName, parent: null }]);
+							}
+
+							console.log('✅ Database opened and logged successfully');
+						} else {
+							// Not an address - treat as displayName or dbName (backward compatibility)
+							const identityId = getCurrentIdentityId();
+
+							// Try to find it in available lists first
+							await listAvailableTodoLists();
+							const availableLists = get(availableTodoListsStore);
+							const list = availableLists.find((l) => l.displayName === hashValue);
+
+							if (list) {
+								// Found in available lists - check if we have an address
+								if (list.address) {
+									// Use the address to open
+									await openDatabaseByAddress(
+										list.address,
+										preferences,
+										enableEncryption,
+										encryptionPassword
+									);
+									// Track encryption state
+									isCurrentDbEncrypted = enableEncryption && !!encryptionPassword;
+									if (isCurrentDbEncrypted) {
+										enableEncryption = false;
+										encryptionPassword = '';
+									}
+									currentTodoListNameStore.set(list.displayName);
+									currentDbNameStore.set(list.dbName);
+									currentDbAddressStore.set(list.address);
+								} else {
+									// No address stored, switch normally (will create/get address)
+									await switchToTodoList(
+										list.displayName,
+										preferences,
+										enableEncryption,
+										encryptionPassword
+									);
+									// Track encryption state
+									isCurrentDbEncrypted = enableEncryption && !!encryptionPassword;
+									if (isCurrentDbEncrypted) {
+										enableEncryption = false;
+										encryptionPassword = '';
+									}
+								}
+							} else if (identityId && hashValue.startsWith(`${identityId}_`)) {
+								// It's a full dbName from current identity
+								const displayName = extractDisplayName(hashValue, identityId);
+								await switchToTodoList(
+									displayName,
+									preferences,
+									enableEncryption,
+									encryptionPassword
+								);
+								// Track encryption state
+								isCurrentDbEncrypted = enableEncryption && !!encryptionPassword;
+								if (isCurrentDbEncrypted) {
+									enableEncryption = false;
+									encryptionPassword = '';
+								}
+							} else {
+								// Not found, try to open as displayName (will create if doesn't exist)
+								await switchToTodoList(
+									hashValue,
+									preferences,
+									enableEncryption,
+									encryptionPassword
+								);
+								// Track encryption state
+								isCurrentDbEncrypted = enableEncryption && !!encryptionPassword;
+								if (isCurrentDbEncrypted) {
+									enableEncryption = false;
+									encryptionPassword = '';
+								}
+							}
+						}
+					} catch (error) {
+						console.error('❌ Error opening database from hash:', error);
+						toastStore.show(`Failed to open database: ${error.message}`, 'error');
+					} finally {
+						isUpdatingFromHash = false;
+					}
+				}
+			};
+
+			// Listen for hash changes
+			window.addEventListener('hashchange', handleHashChange);
+
+			// Set up subscription to handle hash after initialization completes
+			let hashHandled = false;
+			const unsubscribe = initializationStore.subscribe(async (state) => {
+				if (state.isInitialized && hasHash && !hashHandled) {
+					// Only handle hash once after initialization
+					const currentAddress = get(currentDbAddressStore);
+			const hash = window.location.hash;
+			if (hash && hash.startsWith('#/')) {
+				const hashValue = hash.slice(2);
+				if (hashValue !== currentAddress) {
+					hashHandled = true;
+					await handleHashChange();
+				}
+			}
+				}
+			});
+
+			// If there's a hash in URL, auto-initialize even without consent (user wants to open a specific DB)
+			// Accessing a database via URL implies consent
+			if (hasHash || hasConsent) {
+				if (hasHash && !hasConsent) {
+					// Auto-initialize when hash is present - accessing DB via URL implies consent
+					showModal = false;
+					console.log(
+						'🔧 DEBUG: Hash detected, auto-initializing to open database (implied consent)...'
+					);
+					// Initialize - skip default database since we'll open from hash
+					// Hash will be handled by subscription once initialized
+					await initializeP2P({
+						enablePersistentStorage: true,
+						enableNetworkConnection: true,
+						enablePeerConnections: true,
+						skipDefaultDatabase: true
+					});
+					// Hash will be handled by subscription
+				} else if (hasConsent) {
+					// Normal flow: consent remembered
+					showModal = false;
+					console.log('🔧 DEBUG: Auto-initializing with default preferences');
+					await initializeP2P({
+						enablePersistentStorage: true,
+						enableNetworkConnection: true,
+						enablePeerConnections: true
+					});
+
+					// After initialization, check hash
+					await handleHashChange();
+					hashHandled = true;
+				}
+			}
+
+			// Add this in onMount or as a global function
+			if (browser) {
+				window.__getDbAddress = () => {
+					return $currentDbAddressStore || $todoDBStore?.address || null;
+				};
+			}
+
+			// Cleanup on component destroy
+			return () => {
+				window.removeEventListener('hashchange', handleHashChange);
+				unsubscribe();
+			};
+		} catch {
+			// ignore storage errors
+		}
+	});
 
 	// Update hash when currentDbAddressStore changes (but not when updating from hash or in embed mode)
 	$: {
@@ -240,7 +482,64 @@ import {
 	};
 
 	const handleCreateSubList = async (event) => {
-		return await todoHandlers.handleCreateSubList(event, { isEmbedMode, embedAllowAdd });
+		const { text } = event.detail;
+		const currentList = get(currentTodoListNameStore);
+
+		try {
+			const success = await createSubList(
+				text,
+				currentList,
+				preferences,
+				enableEncryption,
+				encryptionPassword
+			);
+			if (success) {
+				await new Promise((resolve) => setTimeout(resolve, 100)); // Wait for stores to update
+
+				if (isEmbedMode && typeof window !== 'undefined') {
+					const newListAddress = get(currentDbAddressStore);
+					if (newListAddress) {
+						await loadTodos(); // Reload todos from the new database
+
+						// Update hierarchy
+						try {
+							await listAvailableTodoLists();
+							const availableLists = get(availableTodoListsStore);
+							const list = availableLists.find((l) => l.address === newListAddress);
+							if (list) {
+								const hierarchy = await buildHierarchyPath(list.displayName);
+								todoListHierarchyStore.set(hierarchy);
+							} else {
+								const newListName = get(currentTodoListNameStore);
+								if (newListName) {
+									todoListHierarchyStore.set([{ name: newListName, parent: null }]);
+								}
+							}
+						} catch (hierarchyError) {
+							console.warn('Could not update hierarchy:', hierarchyError);
+						}
+
+						// Navigate using hash (not goto) - this will trigger the hash handler
+						// Don't encode the address - OrbitDB addresses are URL-safe and the hash handler expects them unencoded
+						const normalizedAddress = newListAddress.startsWith('/') ? newListAddress : `/${newListAddress}`;
+						const newHash = embedAllowAdd 
+							? `#/embed${normalizedAddress}?allowAdd=true`
+							: `#/embed${normalizedAddress}`;
+						
+						window.location.hash = newHash;
+
+						toastStore.show('✅ Sub-list created!', 'success');
+					}
+				} else {
+					toastStore.show('✅ Sub-list created!', 'success');
+				}
+			} else {
+				toastStore.show('❌ Failed to create sub-list', 'error');
+			}
+		} catch (err) {
+			console.error('Failed to create sub-list:', err);
+			toastStore.show('❌ Failed to create sub-list', 'error');
+		}
 	};
 
 	// Reactively update encryption state based on current list
@@ -354,19 +653,156 @@ import {
 					<TodoListSelector />
 				</div>
 			</div>
-			<EncryptionSettings
-				{isCurrentDbEncrypted}
-				bind:enableEncryption
-				bind:encryptionPassword
-				{preferences}
-				disabled={!$initializationStore.isInitialized}
-				on:encryptionEnabled={(e) => {
-					isCurrentDbEncrypted = e.detail.isCurrentDbEncrypted;
-				}}
-				on:encryptionDisabled={(e) => {
-					isCurrentDbEncrypted = e.detail.isCurrentDbEncrypted;
-				}}
-			/>
+			<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
+				{#if isCurrentDbEncrypted}
+					<!-- Encryption is active - show status -->
+					<div class="flex items-center gap-2 rounded-md bg-green-50 px-3 py-2 border border-green-200">
+						<span class="text-green-600">🔐</span>
+						<span class="text-sm font-medium text-green-800">Encryption: Active</span>
+					</div>
+					<button
+						type="button"
+						on:click={async () => {
+							if (!confirm('Disable encryption? This will create a new unencrypted database and copy all your data to it. The old encrypted database will remain but won\'t be used.')) {
+								return;
+							}
+							
+							// Prompt for current password
+							const currentPassword = prompt('Enter current encryption password:');
+							if (!currentPassword) {
+								return;
+							}
+							
+							try {
+								// Get current database info
+								const { currentTodoListNameStore, currentDbNameStore, currentDbAddressStore } = await import('$lib/todo-list-manager.js');
+								const { disableDatabaseEncryption } = await import('$lib/encryption-migration.js');
+								const { get } = await import('svelte/store');
+								
+								const currentList = get(currentTodoListNameStore);
+								const currentDbName = get(currentDbNameStore);
+								const currentAddress = get(currentDbAddressStore);
+								
+								// Migrate to unencrypted
+								const result = await disableDatabaseEncryption(
+									currentList,
+									currentDbName,
+									currentAddress,
+									currentPassword,
+									preferences,
+									null
+								);
+								
+								if (result.success) {
+									// Reopen the new unencrypted database
+									await switchToTodoList(currentList, preferences, false, '');
+									isCurrentDbEncrypted = false;
+									enableEncryption = false;
+									encryptionPassword = '';
+								}
+							} catch (error) {
+								toastStore.show(`Failed to disable encryption: ${error.message}`, 'error');
+							}
+						}}
+						disabled={!$initializationStore.isInitialized}
+						class="rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						Disable Encryption
+					</button>
+				{:else}
+					<!-- Encryption is not active - show enable form -->
+					<div class="group relative">
+						<label class="flex cursor-pointer items-center gap-2">
+							<input
+								type="checkbox"
+								bind:checked={enableEncryption}
+								class="h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
+							/>
+							<span class="text-sm font-medium text-gray-700">Enable Encryption</span>
+						</label>
+						<div
+							class="invisible absolute top-full left-0 z-10 mt-2 w-64 rounded-md bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100"
+							role="tooltip"
+						>
+							Without encryption, the todo list will be visible unencrypted on the internet and might
+							be wanted or not wanted.
+						</div>
+					</div>
+					{#if enableEncryption}
+						<div class="flex-1">
+							<label for="encryption-password" class="mb-1 block text-sm font-medium text-gray-700">
+								Encryption Password
+							</label>
+							<input
+								id="encryption-password"
+								type="password"
+								bind:value={encryptionPassword}
+								placeholder="Enter password for encryption"
+								on:keydown={(e) => {
+									if (e.key === 'Enter' && encryptionPassword.trim() && $initializationStore.isInitialized) {
+										e.preventDefault();
+										document.getElementById('apply-encryption-button')?.click();
+									}
+								}}
+								class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+							/>
+						</div>
+						<button
+							id="apply-encryption-button"
+							type="button"
+							on:click={async () => {
+								if (enableEncryption && !encryptionPassword.trim()) {
+									alert('Please enter an encryption password');
+									return;
+								}
+								
+								try {
+									// Get current database info
+									const { currentTodoListNameStore, currentDbNameStore, currentDbAddressStore } = await import('$lib/todo-list-manager.js');
+									const { enableDatabaseEncryption } = await import('$lib/encryption-migration.js');
+									const { get } = await import('svelte/store');
+									
+									const currentList = get(currentTodoListNameStore);
+									const currentDbName = get(currentDbNameStore);
+									const currentAddress = get(currentDbAddressStore);
+									
+									// Migrate to encrypted
+									const result = await enableDatabaseEncryption(
+										currentList,
+										currentDbName,
+										currentAddress,
+										encryptionPassword,
+										preferences,
+										null
+									);
+									
+								if (result.success) {
+									// Reopen the new encrypted database
+									await switchToTodoList(currentList, preferences, true, encryptionPassword);
+									
+									// Update UI state
+									isCurrentDbEncrypted = true;
+									enableEncryption = false; // Reset checkbox
+									// Don't clear password yet - keep it for next operations in this session
+									
+									// Load todos from the newly encrypted database
+									await loadTodos();
+									
+									// Now clear password field after everything is loaded
+									encryptionPassword = '';
+								}
+								} catch (error) {
+									toastStore.show(`Failed to enable encryption: ${error.message}`, 'error');
+								}
+							}}
+							disabled={!$initializationStore.isInitialized || !encryptionPassword.trim()}
+							class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							Apply Encryption
+						</button>
+					{/if}
+				{/if}
+			</div>
 		</div>
 
 		<!-- Add TODO Form -->
