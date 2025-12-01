@@ -599,16 +599,18 @@ test.describe('Simple Todo P2P Application', () => {
 
 		// Wait for todos to appear (they should sync from Browser A)
 		console.log('🔍 Browser B: Waiting for todos to sync...');
-		
+
 		// Wait for database replication to complete by checking for todo count
 		// This gives more time for all todos to sync
 		console.log('⏳ Browser B: Waiting for database replication to complete...');
 		await page2.waitForFunction(
 			(expectedCount) => {
 				// Count todos in the page
-				const todoElements = document.querySelectorAll('[data-todo-text], [data-testid="todo-item"], .todo-item');
+				const todoElements = document.querySelectorAll(
+					'[data-todo-text], [data-testid="todo-item"], .todo-item'
+				);
 				// Filter for visible todos
-				const visibleTodos = Array.from(todoElements).filter(el => {
+				const visibleTodos = Array.from(todoElements).filter((el) => {
 					const style = window.getComputedStyle(el);
 					return style.display !== 'none' && style.visibility !== 'hidden';
 				});

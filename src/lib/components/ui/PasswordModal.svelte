@@ -11,7 +11,7 @@
 	export let isOpen = false;
 	export let dbName = '';
 	export let retryCount = 0;
-	
+
 	// Debug logging
 	$: if (isOpen) {
 		console.log('🔐 PasswordModal opened - retryCount:', retryCount);

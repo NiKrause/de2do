@@ -73,8 +73,8 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - "should share database between browsers"
-          - "should replicate database when Browser B opens"
+          - 'should share database between browsers'
+          - 'should replicate database when Browser B opens'
 
     steps:
       - name: Checkout code

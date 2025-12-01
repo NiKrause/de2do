@@ -7,6 +7,7 @@
 All these modules **build successfully** and are **ready to use**:
 
 #### **`src/lib/database/database-opener.js`** ✅
+
 - `openDatabaseWithEncryptionDetection()` - Auto-detects if database is encrypted
 - `openDatabaseWithPassword()` - Opens encrypted databases
 - `validateDatabaseEntry()` - Checks if data looks encrypted
@@ -14,27 +15,32 @@ All these modules **build successfully** and are **ready to use**:
 - **Key Feature**: Implements automatic encryption detection based on simple-encryption test patterns
 
 #### **`src/lib/database/database-manager.js`** ✅
+
 - `openDatabaseWithPasswordPrompt()` - High-level opener with automatic password prompting
 - `updateStoresAfterDatabaseOpen()` - Updates all stores and registry after DB opens
 - **Integrates** password manager with database opener
 
 #### **`src/lib/password/password-manager.js`** ✅
+
 - `passwordManager` store - Promise-based password request system
 - `requestPasswordWithRetry()` - Password request with retry logic
 - **Svelte store** that works with reactive components
 
 #### **`src/lib/embed/embed-handler.js`** ✅
+
 - `detectEmbedMode()` - Check if URL is embed route
 - `parseEmbedParams()` - Parse allowAdd and other params
 - `buildEmbedUrl()` - Construct embed URLs
 - `isEmbedMode()`, `getCurrentEmbedParams()` - Helper utilities
 
 #### **`src/lib/handlers/todo-handlers.js`** ✅
+
 - `createTodoHandlers()` - Factory for todo event handlers
 - Returns: `handleAddTodo`, `handleDelete`, `handleToggleComplete`, `handleCreateSubList`
 - **Encapsulates** toast notifications and error handling
 
 #### **`src/lib/debug/database-debug.js`** ✅
+
 - `setupDatabaseDebug()` - Exposes debugging utilities to window
 - `exposeDatabaseToWindow()` - E2E testing helpers
 - Functions: `window.debugDatabase()`, `window.forceReloadTodos()`, `window.__getDbAddress()`
@@ -42,20 +48,24 @@ All these modules **build successfully** and are **ready to use**:
 ### 2. Created Supporting Components ✅
 
 #### **`src/lib/components/layout/AppHeader.svelte`** ✅
+
 - Extracted header component with title and social icons
 - Reduces template size in main page
 
 #### **`src/lib/components/ui/ManagedPasswordModal.svelte`** ✅
+
 - Password modal wrapper that uses passwordManager store
 - Promise-based API for requesting passwords
 
 ### 3. Fixed Relay Port Configuration ✅
 
 **Problem Found**: Port mismatch in test configuration
+
 - `global-setup.js` was using hardcoded port in multiaddr
 - **Fixed**: Now uses `WS_PORT` constant consistently
 
 **File Modified**: `e2e/global-setup.js`
+
 ```javascript
 // Before: Hardcoded port
 relayMultiaddr = `/ip4/127.0.0.1/tcp/4002/ws/p2p/${peerId}`;
@@ -69,11 +79,13 @@ relayMultiaddr = `/ip4/127.0.0.1/tcp/${WS_PORT}/ws/p2p/${peerId}`;
 
 **Build Status**: ✅ **SUCCESSFUL** - All modules compile without errors
 
-**Test Results**: 
+**Test Results**:
+
 - ✅ **6 of 10 tests PASSING** (60% success rate)
 - ❌ **4 tests failing** - All P2P/relay connectivity related
 
 **Passing Tests:**
+
 1. ✅ Webserver running and accessible
 2. ✅ Consent modal and P2P initialization
 3. ✅ Offline mode handling
@@ -82,6 +94,7 @@ relayMultiaddr = `/ip4/127.0.0.1/tcp/${WS_PORT}/ws/p2p/${peerId}`;
 6. ✅ Database URL navigation
 
 **Failing Tests** (Pre-existing P2P issue):
+
 1. ❌ Connect two browsers via relay
 2. ❌ Share database between browsers
 3. ❌ Share encrypted database
@@ -96,6 +109,7 @@ relayMultiaddr = `/ip4/127.0.0.1/tcp/${WS_PORT}/ws/p2p/${peerId}`;
 **Status**: Utilities created but **NOT yet integrated** into the main component
 
 **What needs to happen**:
+
 - Replace existing hash routing logic (lines 175-621) with extracted utilities
 - Replace `tryOpenDatabaseWithEncryptionDetection()` with `openDatabaseWithPasswordPrompt()`
 - Replace inline event handlers with `createTodoHandlers()`
@@ -107,6 +121,7 @@ relayMultiaddr = `/ip4/127.0.0.1/tcp/${WS_PORT}/ws/p2p/${peerId}`;
 ### 2. Template Componentization ❌
 
 **Planned but NOT created**:
+
 - ❌ `EncryptionControls.svelte` - Encryption UI section (lines 1173-1321)
 - ❌ `NormalModeView.svelte` - Normal mode layout
 - ❌ `EmbedModeView.svelte` - Embed mode layout
@@ -117,12 +132,14 @@ relayMultiaddr = `/ip4/127.0.0.1/tcp/${WS_PORT}/ws/p2p/${peerId}`;
 **Problem**: Tests show `ERR_CONNECTION_REFUSED` on WebSocket port **4102**
 
 **What we know**:
+
 - Relay configured for port **4002** ✅
 - `.env.development` shows correct port **4002** ✅
 - Test setup uses correct port **4002** ✅
 - But browser connection attempts use port **4102** ❓
 
 **Root cause**: Unknown - Port 4102 doesn't appear anywhere in codebase
+
 - Possibly: Vite dev server port proxy
 - Possibly: Browser security/CORS policy
 - Possibly: WebSocket upgrade issue
@@ -138,33 +155,34 @@ relayMultiaddr = `/ip4/127.0.0.1/tcp/${WS_PORT}/ws/p2p/${peerId}`;
 ### Phase 1: Complete Integration (High Priority)
 
 1. **Update +page.svelte to use new utilities**
+
    ```svelte
    <script>
-   import { openDatabaseWithPasswordPrompt } from '$lib/database/database-manager.js';
-   import { createTodoHandlers } from '$lib/handlers/todo-handlers.js';
-   import { detectEmbedMode, parseEmbedParams } from '$lib/embed/embed-handler.js';
-   import ManagedPasswordModal from '$lib/components/ui/ManagedPasswordModal.svelte';
-   import AppHeader from '$lib/components/layout/AppHeader.svelte';
-   
-   // Replace inline handlers
-   const { handleAddTodo, handleDelete, handleToggleComplete, handleCreateSubList } = 
-     createTodoHandlers({ preferences, enableEncryption, encryptionPassword });
-   
-   // Use new database opener
-   async function openDatabase(address) {
-     const result = await openDatabaseWithPasswordPrompt({ address, preferences });
-     if (result.success) {
-       await updateStoresAfterDatabaseOpen(result.database, address, preferences);
-     }
-   }
+   	import { openDatabaseWithPasswordPrompt } from '$lib/database/database-manager.js';
+   	import { createTodoHandlers } from '$lib/handlers/todo-handlers.js';
+   	import { detectEmbedMode, parseEmbedParams } from '$lib/embed/embed-handler.js';
+   	import ManagedPasswordModal from '$lib/components/ui/ManagedPasswordModal.svelte';
+   	import AppHeader from '$lib/components/layout/AppHeader.svelte';
+
+   	// Replace inline handlers
+   	const { handleAddTodo, handleDelete, handleToggleComplete, handleCreateSubList } =
+   		createTodoHandlers({ preferences, enableEncryption, encryptionPassword });
+
+   	// Use new database opener
+   	async function openDatabase(address) {
+   		const result = await openDatabaseWithPasswordPrompt({ address, preferences });
+   		if (result.success) {
+   			await updateStoresAfterDatabaseOpen(result.database, address, preferences);
+   		}
+   	}
    </script>
-   
+
    <!-- Replace password modal -->
    <ManagedPasswordModal />
-   
+
    <!-- Use header component -->
    {#if !isEmbedMode}
-     <AppHeader onQRCodeClick={() => (showQRCodeModal = true)} />
+   	<AppHeader onQRCodeClick={() => (showQRCodeModal = true)} />
    {/if}
    ```
 
@@ -179,10 +197,11 @@ relayMultiaddr = `/ip4/127.0.0.1/tcp/${WS_PORT}/ws/p2p/${peerId}`;
 ### Phase 2: Fix P2P Tests (Medium Priority)
 
 1. **Debug WebSocket port issue**:
+
    ```bash
    # During test run, check what's actually listening
    lsof -i :4002 -i :4102 -i :4174
-   
+
    # Check browser console for actual connection attempts
    npm run test:e2e:headed  # Run with visible browser
    ```
@@ -212,6 +231,7 @@ Only after Phase 1 is complete:
 ## Success Metrics
 
 ### Current State
+
 - ✅ **6 utility modules created** and tested
 - ✅ **Build successful** - No compilation errors
 - ✅ **60% tests passing** - Core functionality works
@@ -219,6 +239,7 @@ Only after Phase 1 is complete:
 - ❌ **40% tests failing** - P2P connectivity issue (pre-existing)
 
 ### Target State (When Complete)
+
 - ✅ Main +page.svelte reduced to ~400-600 lines
 - ✅ All utilities actively used in main component
 - ✅ No code duplication between utilities and main component
@@ -229,7 +250,7 @@ Only after Phase 1 is complete:
 
 ## Key Takeaway
 
-**Your refactoring extracted utilities are working correctly!** 
+**Your refactoring extracted utilities are working correctly!**
 
 The code is well-structured, compiles successfully, and the extracted logic is sound. The main work remaining is:
 

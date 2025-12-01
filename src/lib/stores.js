@@ -16,4 +16,3 @@ export function getCurrentIdentityId() {
 	const identity = get(currentIdentityStore);
 	return identity?.id || null;
 }
-

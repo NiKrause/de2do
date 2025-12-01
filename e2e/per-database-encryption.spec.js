@@ -8,7 +8,7 @@ import {
 
 /**
  * Comprehensive E2E test for per-database encryption
- * 
+ *
  * Test flow:
  * 1. Create 3 different todo lists with 3 todos each
  * 2. Third project is created with encryption enabled
@@ -21,38 +21,38 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 		browser
 	}) => {
 		const timestamp = Date.now();
-		
+
 		// Project names
 		const project1Name = `project-plain-${timestamp}`;
 		const project2Name = `project-encrypted-later-${timestamp}`;
 		const project3Name = `project-encrypted-${timestamp}`;
-		
+
 		// Passwords
 		const password2 = `pass2-${timestamp}`;
 		const password3 = `pass3-${timestamp}`;
-		
+
 		console.log('\n🚀 Starting per-database encryption e2e test...\n');
 		console.log(`📋 Project 1 (unencrypted): ${project1Name}`);
 		console.log(`📋 Project 2 (encrypted later): ${project2Name}`);
 		console.log(`📋 Project 3 (encrypted): ${project3Name}`);
 		console.log(`🔑 Password for Project 2: ${password2}`);
 		console.log(`🔑 Password for Project 3: ${password3}`);
-		
+
 		// ============================================================================
 		// STEP 1: Create 3 projects with 3 todos each
 		// ============================================================================
 		console.log('\n📝 STEP 1: Creating 3 projects...\n');
-		
+
 		const context1 = await browser.newContext();
 		const page = await context1.newPage();
-		
+
 		await page.goto('/');
 		await acceptConsentAndInitialize(page);
 		await waitForP2PInitialization(page);
-		
+
 		const identityId = await page.evaluate(() => window.__currentIdentityId__);
 		console.log(`✅ Identity ID: ${identityId?.slice(0, 16)}...`);
-		
+
 		// Create Project 1 (unencrypted)
 		console.log(`\n📁 Creating ${project1Name} (unencrypted)...`);
 		await createProjectWithTodos(page, project1Name, false, '', [
@@ -60,10 +60,10 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 			`Task 1-2 of ${project1Name}`,
 			`Task 1-3 of ${project1Name}`
 		]);
-		
+
 		const project1Address = await getCurrentDatabaseAddress(page);
 		console.log(`✅ Project 1 address: ${project1Address}`);
-		
+
 		// Create Project 2 (unencrypted initially)
 		console.log(`\n📁 Creating ${project2Name} (initially unencrypted)...`);
 		await createProjectWithTodos(page, project2Name, false, '', [
@@ -71,10 +71,10 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 			`Task 2-2 of ${project2Name}`,
 			`Task 2-3 of ${project2Name}`
 		]);
-		
+
 		const project2Address = await getCurrentDatabaseAddress(page);
 		console.log(`✅ Project 2 address: ${project2Address}`);
-		
+
 		// Create Project 3 (encrypted from start)
 		console.log(`\n📁 Creating ${project3Name} (encrypted)...`);
 		await createProjectWithTodos(page, project3Name, true, password3, [
@@ -82,12 +82,12 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 			`Task 3-2 of ${project3Name}`,
 			`Task 3-3 of ${project3Name}`
 		]);
-		
-	const project3Address = await getCurrentDatabaseAddress(page);
-	console.log(`✅ Project 3 address: ${project3Address}`);
-	
-	// TODO: Re-enable when dropdown issue is fixed
-	/*
+
+		const project3Address = await getCurrentDatabaseAddress(page);
+		console.log(`✅ Project 3 address: ${project3Address}`);
+
+		// TODO: Re-enable when dropdown issue is fixed
+		/*
 	// ============================================================================
 	// STEP 2: Verify encryption icons in TodoListSelector
 	// ============================================================================
@@ -356,7 +356,7 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 		// ============================================================================
 		*/
 		await context1.close();
-		
+
 		console.log('\n✅ STEP 1 COMPLETED: All 3 projects created successfully! 🎉\n');
 	});
 });
@@ -373,44 +373,46 @@ async function createProjectWithTodos(page, projectName, encrypted, password, to
 	const todoListInput = page.locator('input[placeholder*="todo list" i]').first();
 	await todoListInput.click();
 	await page.waitForTimeout(500);
-	
+
 	// Type project name (input was cleared by focus handler)
 	await todoListInput.fill(projectName);
 	await page.waitForTimeout(500);
-	
+
 	// If encrypted, enable encryption first
 	if (encrypted) {
 		// Check encryption checkbox
-		const encryptionCheckbox = page.locator('input[type="checkbox"]:near(:text("Enable Encryption"))').first();
+		const encryptionCheckbox = page
+			.locator('input[type="checkbox"]:near(:text("Enable Encryption"))')
+			.first();
 		await encryptionCheckbox.check();
 		await page.waitForTimeout(500);
-		
+
 		// Enter password
 		const passwordInput = page.locator('input[type="password"][placeholder*="password" i]').first();
 		await passwordInput.fill(password);
 		await page.waitForTimeout(500);
 	}
-	
+
 	// Click create button or press Enter
 	await todoListInput.press('Enter');
-	
+
 	// Wait for project to be created and registered
 	await page.waitForTimeout(4000); // Increased wait time for DB creation
-	
+
 	console.log(`  ✓ Created project: ${projectName}${encrypted ? ' 🔐' : ''}`);
-	
+
 	// Add todos
 	for (const todoText of todoTexts) {
 		const todoInput = page.locator('[data-testid="todo-input"]').first();
 		await todoInput.fill(todoText);
-		
+
 		const addButton = page.locator('[data-testid="add-todo-button"]').first();
 		await addButton.click();
-		
+
 		// Wait for todo to appear
 		await expect(page.locator(`text=${todoText}`).first()).toBeVisible({ timeout: 5000 });
 		console.log(`  ✓ Added todo: ${todoText}`);
-		
+
 		await page.waitForTimeout(300);
 	}
 }
@@ -422,21 +424,21 @@ async function switchToProject(page, projectName) {
 	const todoListInput = page.locator('input[placeholder*="todo list" i]').first();
 	await todoListInput.click();
 	await page.waitForTimeout(500);
-	
+
 	// Type project name to filter
 	await todoListInput.fill(projectName);
 	await page.waitForTimeout(300);
-	
+
 	// Click on the project in dropdown or press Enter
 	const projectButton = page.locator(`button:has-text("${projectName}")`).first();
 	const isVisible = await projectButton.isVisible({ timeout: 2000 }).catch(() => false);
-	
+
 	if (isVisible) {
 		await projectButton.click();
 	} else {
 		await todoListInput.press('Enter');
 	}
-	
+
 	await page.waitForTimeout(1500);
 }
 

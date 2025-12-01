@@ -10,7 +10,8 @@
 	export let encryptionPassword = '';
 
 	// Check if we're in embed mode by checking hash
-	$: isEmbedMode = browser && typeof window !== 'undefined' && window.location.hash.startsWith('#/embed/');
+	$: isEmbedMode =
+		browser && typeof window !== 'undefined' && window.location.hash.startsWith('#/embed/');
 
 	async function handleBreadcrumbClick(index) {
 		const hierarchy = get(todoListHierarchyStore);
@@ -37,14 +38,16 @@
 				// Get current allowAdd from hash or query params
 				const currentHash = window.location.hash;
 				const allowAdd = currentHash.includes('allowAdd=true');
-				
+
 				// Update hash to navigate to new embed
 				// Don't encode the address - OrbitDB addresses are URL-safe and the hash handler expects them unencoded
-				const normalizedAddress = currentAddress.startsWith('/') ? currentAddress : `/${currentAddress}`;
-				const newHash = allowAdd 
+				const normalizedAddress = currentAddress.startsWith('/')
+					? currentAddress
+					: `/${currentAddress}`;
+				const newHash = allowAdd
 					? `#/embed${normalizedAddress}?allowAdd=true`
 					: `#/embed${normalizedAddress}`;
-				
+
 				window.location.hash = newHash;
 			}
 		}
@@ -66,14 +69,16 @@
 				// Get current allowAdd from hash
 				const currentHash = window.location.hash;
 				const allowAdd = currentHash.includes('allowAdd=true');
-				
+
 				// Update hash to navigate to parent embed
 				// Don't encode the address - OrbitDB addresses are URL-safe and the hash handler expects them unencoded
-				const normalizedAddress = currentAddress.startsWith('/') ? currentAddress : `/${currentAddress}`;
-				const newHash = allowAdd 
+				const normalizedAddress = currentAddress.startsWith('/')
+					? currentAddress
+					: `/${currentAddress}`;
+				const newHash = allowAdd
 					? `#/embed${normalizedAddress}?allowAdd=true`
 					: `#/embed${normalizedAddress}`;
-				
+
 				window.location.hash = newHash;
 			}
 		}
@@ -87,7 +92,7 @@
 				<button
 					type="button"
 					on:click={() => handleBreadcrumbClick(index)}
-					class="rounded px-2 py-2 transition-colors hover:text-blue-600 active:bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none touch-manipulation cursor-pointer min-h-[44px] {index ===
+					class="min-h-[44px] cursor-pointer touch-manipulation rounded px-2 py-2 transition-colors hover:text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none active:bg-blue-50 {index ===
 					$todoListHierarchyStore.length - 1
 						? 'font-semibold text-gray-900'
 						: 'text-gray-600'}"
@@ -104,7 +109,7 @@
 			<button
 				type="button"
 				on:click={handleNavigateUp}
-				class="ml-auto flex items-center gap-1 rounded px-3 py-2 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-200 hover:text-gray-900 active:bg-gray-300 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none touch-manipulation cursor-pointer min-h-[44px]"
+				class="ml-auto flex min-h-[44px] cursor-pointer touch-manipulation items-center gap-1 rounded px-3 py-2 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-200 hover:text-gray-900 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none active:bg-gray-300"
 				title="Navigate to parent list"
 			>
 				<ArrowUp class="h-3 w-3" />

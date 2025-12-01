@@ -22,9 +22,9 @@
 	let isUserTyping = false; // Track if user is actively typing
 
 	// Check if current list is encrypted
-	$: currentListEncrypted = $availableTodoListsStore.find(
-		(list) => list.displayName === $currentTodoListNameStore
-	)?.encryptionEnabled || false;
+	$: currentListEncrypted =
+		$availableTodoListsStore.find((list) => list.displayName === $currentTodoListNameStore)
+			?.encryptionEnabled || false;
 
 	// Check if current database belongs to another user
 	$: currentDbName = $currentDbNameStore;
@@ -96,8 +96,14 @@
 
 		// switchToTodoList checks registry for encryption and uses cached password if available
 		// Returns false if encrypted and password not cached - password will be prompted via URL hash
-		const success = await switchToTodoList(list.displayName, preferences, false, '', list.parent || null);
-		
+		const success = await switchToTodoList(
+			list.displayName,
+			preferences,
+			false,
+			'',
+			list.parent || null
+		);
+
 		if (!success && list.encryptionEnabled && list.address) {
 			// Encrypted database without cached password - trigger password prompt via hash
 			console.log('🔐 Encrypted list selected, triggering password prompt via hash');

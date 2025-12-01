@@ -43,6 +43,7 @@ The `src/routes/+page.svelte` file (1425 lines) has been partially refactored by
 ### 1. Test Database Opening via Browser URL
 
 #### Test 1.1: Open Unencrypted Database via URL
+
 1. Start dev server: `npm run dev`
 2. Create a test database (e.g., "test-db")
 3. Copy the database address from the UI
@@ -51,6 +52,7 @@ The `src/routes/+page.svelte` file (1425 lines) has been partially refactored by
 6. **Expected**: Todos load correctly
 
 #### Test 1.2: Open Encrypted Database via URL
+
 1. Create an encrypted database with password "test123"
 2. Copy the database address
 3. Open new tab with URL: `http://localhost:5173/#/orbitdb/[address]`
@@ -59,6 +61,7 @@ The `src/routes/+page.svelte` file (1425 lines) has been partially refactored by
 6. **Expected**: Todos decrypt and display correctly
 
 #### Test 1.3: Wrong Password Handling
+
 1. Use encrypted database URL from Test 1.2
 2. Enter wrong password
 3. **Expected**: Error message "Incorrect password. Attempt 1/3"
@@ -70,6 +73,7 @@ The `src/routes/+page.svelte` file (1425 lines) has been partially refactored by
 ### 2. Test Database Opening via UserList → TodoList Selector
 
 #### Test 2.1: Switch to Unencrypted List
+
 1. Open application normally
 2. Use TodoList Selector dropdown
 3. Select an unencrypted list
@@ -77,6 +81,7 @@ The `src/routes/+page.svelte` file (1425 lines) has been partially refactored by
 5. **Expected**: Correct todos display
 
 #### Test 2.2: Switch to Encrypted List
+
 1. Create encrypted list with password
 2. Switch to another list
 3. Switch back to encrypted list using selector
@@ -87,14 +92,16 @@ The `src/routes/+page.svelte` file (1425 lines) has been partially refactored by
 ### 3. Test Sub-List Creation
 
 #### Test 3.1: Create Unencrypted Sub-List
+
 1. Select a todo item
-2. Click "Create Sub-List" 
+2. Click "Create Sub-List"
 3. Enter sub-list name
 4. **Expected**: Sub-list created
 5. **Expected**: Navigation to new sub-list
 6. **Expected**: Breadcrumb shows hierarchy
 
 #### Test 3.2: Create Encrypted Sub-List
+
 1. Enable encryption checkbox
 2. Enter encryption password
 3. Create sub-list from a todo
@@ -106,6 +113,7 @@ The `src/routes/+page.svelte` file (1425 lines) has been partially refactored by
 ### 4. Test Embed Mode
 
 #### Test 4.1: Embed Unencrypted Database (Read-Only)
+
 1. Get database address
 2. Open URL: `http://localhost:5173/#/embed/orbitdb/[address]`
 3. **Expected**: Shows todos in embed mode
@@ -113,12 +121,14 @@ The `src/routes/+page.svelte` file (1425 lines) has been partially refactored by
 5. **Expected**: Cannot edit or delete
 
 #### Test 4.2: Embed with allowAdd
+
 1. Open URL: `http://localhost:5173/#/embed/orbitdb/[address]?allowAdd=true`
 2. **Expected**: "Add Todo" form visible
 3. **Expected**: Can add new todos
 4. **Expected**: Header is hidden (embed mode)
 
 #### Test 4.3: Embed Encrypted Database
+
 1. Get encrypted database address
 2. Open embed URL
 3. **Expected**: Password modal appears
@@ -150,13 +160,15 @@ The key improvement is **automatic encryption detection**. Test this by:
 ## Known Limitations
 
 Current integration is partial. The main `+page.svelte` still contains:
+
 - Full hash routing logic (lines 175-621)
 - Original database opening code
 - Inline event handlers
 
 **Next Steps for Complete Integration**:
+
 1. Replace hash routing with extracted utilities
-2. Use `openDatabaseWithPasswordPrompt()` instead of inline logic  
+2. Use `openDatabaseWithPasswordPrompt()` instead of inline logic
 3. Use `createTodoHandlers()` for event handling
 4. Further componentize the large template sections
 

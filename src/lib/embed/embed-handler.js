@@ -16,11 +16,11 @@ export function parseEmbedParams(hash) {
 	if (!detectEmbedMode(hash)) {
 		return null;
 	}
-	
+
 	// Extract path after #/embed/
 	const embedPath = hash.slice(8); // Remove '#/embed/'
 	const [addressPart, queryString] = embedPath.split('?');
-	
+
 	// Parse query params
 	const params = {};
 	if (queryString) {
@@ -29,10 +29,14 @@ export function parseEmbedParams(hash) {
 	} else {
 		params.allowAdd = false;
 	}
-	
+
 	// Normalize address (ensure leading slash)
-	const address = addressPart ? (addressPart.startsWith('/') ? addressPart : `/${addressPart}`) : null;
-	
+	const address = addressPart
+		? addressPart.startsWith('/')
+			? addressPart
+			: `/${addressPart}`
+		: null;
+
 	return {
 		address,
 		allowAdd: params.allowAdd
@@ -48,18 +52,18 @@ export function parseEmbedParams(hash) {
  */
 export function buildEmbedUrl(address, options = {}) {
 	const { allowAdd = false } = options;
-	
+
 	// Normalize address
 	const normalizedAddress = address.startsWith('/') ? address : `/${address}`;
-	
+
 	// Build query string
 	const queryParams = [];
 	if (allowAdd) {
 		queryParams.push('allowAdd=true');
 	}
-	
+
 	const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
-	
+
 	return `#/embed${normalizedAddress}${queryString}`;
 }
 

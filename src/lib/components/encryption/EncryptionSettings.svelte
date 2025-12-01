@@ -15,12 +15,12 @@
 
 	async function handleDisableClick() {
 		const result = await encryptionHandlers.handleDisableEncryption('');
-		
+
 		if (result.success) {
 			// Update parent state
 			enableEncryption = false;
 			encryptionPassword = '';
-			
+
 			// Dispatch event to parent
 			dispatch('encryptionDisabled', { isCurrentDbEncrypted: result.isCurrentDbEncrypted });
 		}
@@ -30,20 +30,23 @@
 		console.log('🔐 EncryptionSettings: handleEnableClick called');
 		const result = await encryptionHandlers.handleEnableEncryption(encryptionPassword);
 		console.log('🔐 EncryptionSettings: handler result =', result);
-		
+
 		if (result.success) {
 			console.log('✅ EncryptionSettings: Encryption enabled successfully, dispatching event');
 			// Update parent state
 			enableEncryption = false; // Reset checkbox
 			// Don't clear password yet - keep it for display
-			
+
 			// Dispatch event to parent
-			dispatch('encryptionEnabled', { 
+			dispatch('encryptionEnabled', {
 				isCurrentDbEncrypted: result.isCurrentDbEncrypted,
-				password: encryptionPassword 
+				password: encryptionPassword
 			});
-			console.log('✅ EncryptionSettings: Event dispatched, isCurrentDbEncrypted =', result.isCurrentDbEncrypted);
-			
+			console.log(
+				'✅ EncryptionSettings: Event dispatched, isCurrentDbEncrypted =',
+				result.isCurrentDbEncrypted
+			);
+
 			// Now clear password field after event is dispatched
 			setTimeout(() => {
 				encryptionPassword = '';
@@ -64,7 +67,10 @@
 <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
 	{#if isCurrentDbEncrypted}
 		<!-- Encryption is active - show status -->
-		<div data-testid="encryption-active-indicator" class="flex items-center gap-2 rounded-md bg-green-50 px-3 py-2 border border-green-200">
+		<div
+			data-testid="encryption-active-indicator"
+			class="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2"
+		>
 			<span class="text-green-600">🔐</span>
 			<span class="text-sm font-medium text-green-800">Encryption: Active</span>
 		</div>
@@ -91,8 +97,8 @@
 				class="invisible absolute top-full left-0 z-10 mt-2 w-64 rounded-md bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100"
 				role="tooltip"
 			>
-				Without encryption, the todo list will be visible unencrypted on the internet and might
-				be wanted or not wanted.
+				Without encryption, the todo list will be visible unencrypted on the internet and might be
+				wanted or not wanted.
 			</div>
 		</div>
 		{#if enableEncryption}

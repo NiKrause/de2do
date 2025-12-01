@@ -4,11 +4,7 @@
 	import { fade, fly } from 'svelte/transition';
 	import { initializeP2P, initializationStore, libp2pStore } from '$lib/p2p.js';
 	import { peerIdStore } from '$lib/stores.js';
-import {
-	todosStore,
-	todoDBStore,
-	orbitdbStore
-} from '$lib/db-actions.js';
+	import { todosStore, todoDBStore, orbitdbStore } from '$lib/db-actions.js';
 	import ConsentModal from '$lib/components/ui/ConsentModal.svelte';
 	import SocialIcons from '$lib/components/ui/SocialIcons.svelte';
 	import SystemToast from '$lib/components/ui/SystemToast.svelte';
@@ -23,22 +19,25 @@ import {
 	import TodoListSelector from '$lib/components/todo/TodoListSelector.svelte';
 	import UsersList from '$lib/UsersList/index.svelte';
 	import BreadcrumbNavigation from '$lib/components/todo/BreadcrumbNavigation.svelte';
-import ShareEmbedButtons from '$lib/components/todo/ShareEmbedButtons.svelte';
-import ManagedPasswordModal from '$lib/components/ui/ManagedPasswordModal.svelte';
-import AppHeader from '$lib/components/layout/AppHeader.svelte';
-import EncryptionSettings from '$lib/components/encryption/EncryptionSettings.svelte';
-import { setupDatabaseDebug, exposeDatabaseToWindow } from '$lib/debug/database-debug.js';
-import { createTodoHandlers } from '$lib/handlers/todo-handlers.js';
-import { detectEmbedMode, parseEmbedParams } from '$lib/embed/embed-handler.js';
-import { openDatabaseWithPasswordPrompt, updateStoresAfterDatabaseOpen } from '$lib/database/database-manager.js';
-import { setupHashRouter } from '$lib/routing/hash-router.js';
-import {
-	switchToTodoList,
-	currentTodoListNameStore,
-	currentDbNameStore,
-	currentDbAddressStore,
-	availableTodoListsStore
-} from '$lib/todo-list-manager.js';
+	import ShareEmbedButtons from '$lib/components/todo/ShareEmbedButtons.svelte';
+	import ManagedPasswordModal from '$lib/components/ui/ManagedPasswordModal.svelte';
+	import AppHeader from '$lib/components/layout/AppHeader.svelte';
+	import EncryptionSettings from '$lib/components/encryption/EncryptionSettings.svelte';
+	import { setupDatabaseDebug, exposeDatabaseToWindow } from '$lib/debug/database-debug.js';
+	import { createTodoHandlers } from '$lib/handlers/todo-handlers.js';
+	import { detectEmbedMode, parseEmbedParams } from '$lib/embed/embed-handler.js';
+	import {
+		openDatabaseWithPasswordPrompt,
+		updateStoresAfterDatabaseOpen
+	} from '$lib/database/database-manager.js';
+	import { setupHashRouter } from '$lib/routing/hash-router.js';
+	import {
+		switchToTodoList,
+		currentTodoListNameStore,
+		currentDbNameStore,
+		currentDbAddressStore,
+		availableTodoListsStore
+	} from '$lib/todo-list-manager.js';
 	import { openDatabaseByAddress } from '$lib/p2p.js';
 	import { getCurrentIdentityId } from '$lib/stores.js';
 	import { get } from 'svelte/store';
@@ -145,63 +144,71 @@ import {
 			const hasHash = window.location.hash && window.location.hash.startsWith('#/');
 			const hasConsent = localStorage.getItem(CONSENT_KEY) === 'true';
 
-		// Setup hash router with context
-		const routerCleanup = setupHashRouter({
-			initializationStore,
-			hasHash,
-			isUpdatingFromHash,
-			setIsUpdatingFromHash: (value) => { isUpdatingFromHash = value; },
-			isEmbedMode,
-			setIsEmbedMode: (value) => { isEmbedMode = value; },
-			embedAllowAdd,
-			setEmbedAllowAdd: (value) => { embedAllowAdd = value; },
-			preferences,
-			enableEncryption,
-			encryptionPassword,
-			setIsCurrentDbEncrypted: (value) => { isCurrentDbEncrypted = value; }
-		});
+			// Setup hash router with context
+			const routerCleanup = setupHashRouter({
+				initializationStore,
+				hasHash,
+				isUpdatingFromHash,
+				setIsUpdatingFromHash: (value) => {
+					isUpdatingFromHash = value;
+				},
+				isEmbedMode,
+				setIsEmbedMode: (value) => {
+					isEmbedMode = value;
+				},
+				embedAllowAdd,
+				setEmbedAllowAdd: (value) => {
+					embedAllowAdd = value;
+				},
+				preferences,
+				enableEncryption,
+				encryptionPassword,
+				setIsCurrentDbEncrypted: (value) => {
+					isCurrentDbEncrypted = value;
+				}
+			});
 
-		// If there's a hash in URL, auto-initialize even without consent
-		if (hasHash || hasConsent) {
-			if (hasHash && !hasConsent) {
-				// Auto-initialize when hash is present - accessing DB via URL implies consent
-				showModal = false;
-				console.log(
-					'🔧 DEBUG: Hash detected, auto-initializing to open database (implied consent)...'
-				);
-				// Initialize - skip default database since we'll open from hash
-				// Hash will be handled by router once initialized
-				await initializeP2P({
-					enablePersistentStorage: true,
-					enableNetworkConnection: true,
-					enablePeerConnections: true,
-					skipDefaultDatabase: true
-				});
-			} else if (hasConsent) {
-				// Normal flow: consent remembered
-				showModal = false;
-				console.log('🔧 DEBUG: Auto-initializing with default preferences');
-				await initializeP2P({
-					enablePersistentStorage: true,
-					enableNetworkConnection: true,
-					enablePeerConnections: true
-				});
+			// If there's a hash in URL, auto-initialize even without consent
+			if (hasHash || hasConsent) {
+				if (hasHash && !hasConsent) {
+					// Auto-initialize when hash is present - accessing DB via URL implies consent
+					showModal = false;
+					console.log(
+						'🔧 DEBUG: Hash detected, auto-initializing to open database (implied consent)...'
+					);
+					// Initialize - skip default database since we'll open from hash
+					// Hash will be handled by router once initialized
+					await initializeP2P({
+						enablePersistentStorage: true,
+						enableNetworkConnection: true,
+						enablePeerConnections: true,
+						skipDefaultDatabase: true
+					});
+				} else if (hasConsent) {
+					// Normal flow: consent remembered
+					showModal = false;
+					console.log('🔧 DEBUG: Auto-initializing with default preferences');
+					await initializeP2P({
+						enablePersistentStorage: true,
+						enableNetworkConnection: true,
+						enablePeerConnections: true
+					});
+				}
 			}
-		}
 
-		// Add window function for e2e testing
-		if (browser) {
-			window.__getDbAddress = () => {
-				return $currentDbAddressStore || $todoDBStore?.address || null;
-			};
-		}
+			// Add window function for e2e testing
+			if (browser) {
+				window.__getDbAddress = () => {
+					return $currentDbAddressStore || $todoDBStore?.address || null;
+				};
+			}
 
-		// Return cleanup function
-		return routerCleanup;
-	} catch {
-		// ignore storage errors
-	}
-});
+			// Return cleanup function
+			return routerCleanup;
+		} catch {
+			// ignore storage errors
+		}
+	});
 
 	// Update hash when currentDbAddressStore changes (but not when updating from hash or in embed mode)
 	$: {
@@ -251,30 +258,34 @@ import {
 		const currentList = $availableTodoListsStore.find(
 			(list) => list.displayName === $currentTodoListNameStore
 		);
-		
+
 		if (currentList) {
 			// Check if we just manually updated this list's encryption state
-			const recentlyManuallyUpdated = 
+			const recentlyManuallyUpdated =
 				lastManualEncryptionUpdate.listName === $currentTodoListNameStore &&
 				Date.now() - lastManualEncryptionUpdate.timestamp < 5000; // 5 second grace period
-			
+
 			if (!recentlyManuallyUpdated) {
 				// Update encryption state to match the current database
 				const wasEncrypted = isCurrentDbEncrypted;
 				isCurrentDbEncrypted = currentList.encryptionEnabled || false;
-				
+
 				// Log state change for debugging
 				if (wasEncrypted !== isCurrentDbEncrypted) {
-					console.log(`🔐 Encryption state changed: ${wasEncrypted} → ${isCurrentDbEncrypted} for list: ${$currentTodoListNameStore}`);
+					console.log(
+						`🔐 Encryption state changed: ${wasEncrypted} → ${isCurrentDbEncrypted} for list: ${$currentTodoListNameStore}`
+					);
 				}
-				
+
 				// Reset form state when switching to unencrypted database
 				if (!isCurrentDbEncrypted) {
 					enableEncryption = false;
 					encryptionPassword = '';
 				}
 			} else {
-				console.log(`⏭️ Skipping reactive encryption update - recently manually set for ${$currentTodoListNameStore}`);
+				console.log(
+					`⏭️ Skipping reactive encryption update - recently manually set for ${$currentTodoListNameStore}`
+				);
 			}
 		}
 	}

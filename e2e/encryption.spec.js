@@ -8,7 +8,7 @@ import {
 } from './helpers.js';
 
 test.describe('Encryption E2E Tests', () => {
-test('should encrypt projects list in browser A, decrypt via URL in browser B, and decrypt via user list in browser C', async ({
+	test('should encrypt projects list in browser A, decrypt via URL in browser B, and decrypt via user list in browser C', async ({
 		page: browserAPage
 	}) => {
 		const testTodoText = `Test todo - ${Date.now()}`;
@@ -56,7 +56,7 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 			}
 			return null;
 		});
-		
+
 		if (!identityIdA) {
 			throw new Error('Could not get full identity ID from Browser A');
 		}
@@ -90,11 +90,11 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 
 		// Open with database address from browser A
 		await pageBrowserB.goto(`/?#/${dbAddressA}`);
-		
+
 		// Wait for P2P initialization (auto-initializes when hash is present)
 		await waitForP2PInitialization(pageBrowserB, 60000);
 		console.log('✅ Browser B: P2P initialized');
-		
+
 		// Wait for database to be opened (check that todo input is available)
 		await pageBrowserB.waitForSelector('[data-testid="todo-input"]', { timeout: 30000 });
 		console.log('✅ Browser B: Database opened via URL');
@@ -122,14 +122,16 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 
 		const peerIdC = await getPeerId(pageBrowserC);
 		console.log(`✅ Browser C peer ID: ${peerIdC.slice(0, 16)}...`);
-		
+
 		// Wait for UI to fully render
 		await pageBrowserC.waitForTimeout(2000);
 
 		// Try to find the user list/selector
 		console.log('🔍 Looking for UsersList component...');
-		const usersSection = pageBrowserC.locator('text=Users, text=/user/i, [data-testid="users"]').first();
-		
+		const usersSection = pageBrowserC
+			.locator('text=Users, text=/user/i, [data-testid="users"]')
+			.first();
+
 		try {
 			await usersSection.isVisible({ timeout: 5000 });
 			console.log('✅ Browser C: Found users section');
@@ -169,14 +171,14 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 			await userInputElement.fill(identityIdA);
 			await userInputElement.press('Enter');
 			console.log(`✅ Browser C: Added Browser A's identity ID: ${identityIdA.slice(0, 16)}...`);
-			
+
 			// Wait for user to be added and discovery to complete
 			await pageBrowserC.waitForTimeout(3000);
 
 			// Open UsersList dropdown to select Browser A's identity
 			// Clicking on the user identity will automatically open their projects database
 			console.log('🔍 Browser C: Opening UsersList dropdown to select user A...');
-			
+
 			// Click on the user input to open dropdown
 			await userInputElement.click();
 			await pageBrowserC.waitForTimeout(500);
@@ -192,7 +194,7 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 				`button:has-text("${identityIdA.slice(0, 12)}")`, // First 12 chars
 				`div:has-text("${identityIdA.slice(0, 8)}")` // First 8 chars (in case it's in a child div)
 			];
-			
+
 			for (const selector of userSelectors) {
 				try {
 					const element = pageBrowserC.locator(selector).first();
@@ -205,29 +207,31 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 					// Continue to next selector
 				}
 			}
-			
+
 			if (!userInDropdown) {
 				throw new Error('Could not find user in dropdown');
 			}
-			
+
 			try {
 				console.log('✅ Browser C: Found Browser A in UsersList dropdown');
-				
+
 				// Click on Browser A's identity - this will automatically open their projects database
 				await userInDropdown.click();
-				console.log('✅ Browser C: Clicked on Browser A\'s identity - should open projects database automatically');
+				console.log(
+					"✅ Browser C: Clicked on Browser A's identity - should open projects database automatically"
+				);
 			} catch {
-				console.warn(`⚠️ Browser C: Could not find user in dropdown, trying fallback to URL method...`);
+				console.warn(
+					`⚠️ Browser C: Could not find user in dropdown, trying fallback to URL method...`
+				);
 				// Fallback: use URL if user list doesn't work
 				await pageBrowserC.goto(`/?#/${dbAddressA}`);
 				await pageBrowserC.waitForTimeout(5000);
 				await waitForTodoText(pageBrowserC, testTodoText, 30000);
-				console.log(
-					`✅ Browser C: Verified todo via URL fallback`
-				);
+				console.log(`✅ Browser C: Verified todo via URL fallback`);
 				return; // Exit early if using fallback
 			}
-			
+
 			// Wait for any navigation/loading to complete
 			await pageBrowserC.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
 				console.log('⚠️ Browser C: Network idle timeout, continuing anyway...');
@@ -270,19 +274,25 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 			console.log('✅ Browser C: Todo input visible, database loaded');
 
 			// Wait for page to be fully interactive (no loading spinners)
-			await pageBrowserC.waitForFunction(
-				() => {
-					// Check if there are any loading spinners visible
-					const spinners = document.querySelectorAll('[class*="spinner"], [class*="loading"], [data-testid="loading"]');
-					if (spinners.length > 0) {
-						return Array.from(spinners).every(el => el.style.display === 'none' || !el.offsetParent);
-					}
-					return true;
-				},
-				{ timeout: 10000 }
-			).catch(() => {
-				console.log('⚠️ Browser C: Loading check timeout, continuing anyway...');
-			});
+			await pageBrowserC
+				.waitForFunction(
+					() => {
+						// Check if there are any loading spinners visible
+						const spinners = document.querySelectorAll(
+							'[class*="spinner"], [class*="loading"], [data-testid="loading"]'
+						);
+						if (spinners.length > 0) {
+							return Array.from(spinners).every(
+								(el) => el.style.display === 'none' || !el.offsetParent
+							);
+						}
+						return true;
+					},
+					{ timeout: 10000 }
+				)
+				.catch(() => {
+					console.log('⚠️ Browser C: Loading check timeout, continuing anyway...');
+				});
 
 			// Wait a bit more for todos to sync from network
 			await pageBrowserC.waitForTimeout(3000);
@@ -290,32 +300,28 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 			// Verify todo appears in browser C using the helper function
 			try {
 				await waitForTodoText(pageBrowserC, testTodoText, 30000);
-				console.log(
-					`✅ Browser C: Verified todo "${testTodoText}" is accessible`
-				);
+				console.log(`✅ Browser C: Verified todo "${testTodoText}" is accessible`);
 			} catch {
 				console.warn(`⚠️ Browser C: Todo not visible yet, trying fallback to URL method...`);
 				// Fallback: use URL if user list doesn't work
 				await pageBrowserC.goto(`/?#/${dbAddressA}`);
 				await pageBrowserC.waitForTimeout(5000);
 				await waitForTodoText(pageBrowserC, testTodoText, 30000);
-				console.log(
-					`✅ Browser C: Verified todo via URL fallback`
-				);
+				console.log(`✅ Browser C: Verified todo via URL fallback`);
 			}
 		} else {
-			console.warn('⚠️ Browser C: Could not find user input element - user list may not be implemented yet');
+			console.warn(
+				'⚠️ Browser C: Could not find user input element - user list may not be implemented yet'
+			);
 			// Fallback: just open the database via URL for now
 			console.log('Falling back to URL hash method...');
 			await pageBrowserC.goto(`/?#/${dbAddressA}`);
 			await pageBrowserC.waitForTimeout(5000);
-			
-			await expect(
-				pageBrowserC.locator(`text=${testTodoText}`).first()
-			).toBeVisible({ timeout: 30000 });
-			console.log(
-				`✅ Browser C: Verified todo "${testTodoText}" is accessible (via fallback)`
-			);
+
+			await expect(pageBrowserC.locator(`text=${testTodoText}`).first()).toBeVisible({
+				timeout: 30000
+			});
+			console.log(`✅ Browser C: Verified todo "${testTodoText}" is accessible (via fallback)`);
 		}
 
 		// ============================================================================
@@ -324,15 +330,9 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		console.log('\n' + '='.repeat(60));
 		console.log('🎉 THREE-BROWSER E2E TEST SUMMARY');
 		console.log('='.repeat(60));
-		console.log(
-			`✅ Browser A (Creator): Created projects todo list and added todo`
-		);
-		console.log(
-			`✅ Browser B (URL Access): Opened same database via URL hash`
-		);
-		console.log(
-			`✅ Browser C (URL Access): Opened same database via URL hash`
-		);
+		console.log(`✅ Browser A (Creator): Created projects todo list and added todo`);
+		console.log(`✅ Browser B (URL Access): Opened same database via URL hash`);
+		console.log(`✅ Browser C (URL Access): Opened same database via URL hash`);
 		console.log(`\n📝 Test Todo: "${testTodoText}"`);
 		console.log(`📍 Database Address: ${dbAddressA}`);
 		console.log(
@@ -352,10 +352,15 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		console.log('\n🚀 Starting wrong password handling test...\n');
 
 		// Capture browser console logs
-		browserAPage.on('console', msg => {
+		browserAPage.on('console', (msg) => {
 			const type = msg.type();
 			const text = msg.text();
-			if (type === 'error' || text.includes('Encryption') || text.includes('Migration') || text.includes('handler')) {
+			if (
+				type === 'error' ||
+				text.includes('Encryption') ||
+				text.includes('Migration') ||
+				text.includes('handler')
+			) {
 				console.log(`[🌐 BROWSER ${type.toUpperCase()}]`, text);
 			}
 		});
@@ -373,9 +378,9 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		console.log('🌐 Navigating to app...');
 		let response;
 		try {
-			response = await browserAPage.goto('/', { 
+			response = await browserAPage.goto('/', {
 				waitUntil: 'networkidle',
-				timeout: 30000 
+				timeout: 30000
 			});
 			console.log(`✅ Navigation successful (status: ${response?.status() || 'unknown'})`);
 		} catch (error) {
@@ -390,18 +395,18 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		console.log('🔐 Browser A: Enabling encryption...');
 		const encryptionCheckbox = browserAPage.getByLabel(/Enable Encryption/i);
 		await encryptionCheckbox.check();
-		
+
 		// Wait for password input to appear
 		const passwordInputA = browserAPage.locator('#encryption-password');
 		await passwordInputA.waitFor({ state: 'visible', timeout: 5000 });
-		
+
 		// Enter encryption password
 		await passwordInputA.fill(encryptionPassword);
-		
+
 		// Click "Apply Encryption" button
 		const applyEncryptionButton = browserAPage.getByRole('button', { name: /Apply Encryption/i });
 		await applyEncryptionButton.click();
-		
+
 		// Wait for encryption to be ACTUALLY applied (database migrated)
 		// Look for the "Encryption: Active" indicator that appears after migration completes
 		console.log('⏳ Browser A: Waiting for encryption to complete...');
@@ -428,31 +433,36 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		// ============================================================================
 		console.log('\n📱 BROWSER B: Testing wrong password handling...');
 
-	const browserB = await chromium.launch();
-	const contextB = await browserB.newContext();
-	const pageBrowserB = await contextB.newPage();
-	
-	// Capture browser console logs for debugging
-	pageBrowserB.on('console', msg => {
-		const type = msg.type();
-		const text = msg.text();
-		if (type === 'error' || text.includes('PasswordModal') || text.includes('retry') || text.includes('password')) {
-			console.log(`[🌐 BROWSER B ${type.toUpperCase()}]`, text);
-		}
-	});
+		const browserB = await chromium.launch();
+		const contextB = await browserB.newContext();
+		const pageBrowserB = await contextB.newPage();
+
+		// Capture browser console logs for debugging
+		pageBrowserB.on('console', (msg) => {
+			const type = msg.type();
+			const text = msg.text();
+			if (
+				type === 'error' ||
+				text.includes('PasswordModal') ||
+				text.includes('retry') ||
+				text.includes('password')
+			) {
+				console.log(`[🌐 BROWSER B ${type.toUpperCase()}]`, text);
+			}
+		});
 
 		// Navigate directly to the encrypted database URL
 		await pageBrowserB.goto(`/?#/${dbAddressA}`);
-		
+
 		// Wait for page to load
 		// Note: When navigating with a hash, the app auto-initializes without showing consent modal
 		await pageBrowserB.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
 		await pageBrowserB.waitForTimeout(1000);
-		
+
 		// Accept consent (skip if not found - hash URLs auto-initialize without modal)
 		// await acceptConsentAndInitialize(pageBrowserB, { skipIfNotFound: true });
 		await waitForP2PInitialization(pageBrowserB);
-		
+
 		// Wait for password modal to appear (it appears when encrypted DB is detected)
 		// The modal appears asynchronously when the app tries to open the encrypted database
 		const passwordModal = pageBrowserB.locator('h2:has-text("Database Password Required")');
@@ -463,27 +473,27 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		await passwordInput.waitFor({ state: 'visible', timeout: 5000 });
 		await passwordInput.fill(wrongPassword);
 
-	const unlockButton = pageBrowserB.getByRole('button', { name: /Unlock/i });
-	await unlockButton.click();
+		const unlockButton = pageBrowserB.getByRole('button', { name: /Unlock/i });
+		await unlockButton.click();
 
-	// Wrong password: modal should close briefly, then reappear after ~2s with retry warning
-	// Wait for modal to disappear first
-	console.log('⏳ Browser B: Waiting for password verification (2s)...');
-	await passwordModal.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {
-		console.log('⚠️ Modal did not disappear - might have failed immediately');
-	});
-	
-	// Wait for modal to reappear with retry warning
-	console.log('⏳ Browser B: Waiting for modal to reappear with retry warning...');
-	await passwordModal.waitFor({ state: 'visible', timeout: 5000 });
-	
-	// Check for retry warning message using testid
-	const retryWarning = pageBrowserB.getByTestId('password-retry-warning');
-	await expect(retryWarning).toBeVisible({ timeout: 2000 });
-	console.log('✅ Browser B: Modal reappeared with retry warning for wrong password');
+		// Wrong password: modal should close briefly, then reappear after ~2s with retry warning
+		// Wait for modal to disappear first
+		console.log('⏳ Browser B: Waiting for password verification (2s)...');
+		await passwordModal.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {
+			console.log('⚠️ Modal did not disappear - might have failed immediately');
+		});
 
-	// Try again with correct password
-	await passwordInput.clear();
+		// Wait for modal to reappear with retry warning
+		console.log('⏳ Browser B: Waiting for modal to reappear with retry warning...');
+		await passwordModal.waitFor({ state: 'visible', timeout: 5000 });
+
+		// Check for retry warning message using testid
+		const retryWarning = pageBrowserB.getByTestId('password-retry-warning');
+		await expect(retryWarning).toBeVisible({ timeout: 2000 });
+		console.log('✅ Browser B: Modal reappeared with retry warning for wrong password');
+
+		// Try again with correct password
+		await passwordInput.clear();
 		await passwordInput.fill(encryptionPassword);
 		await unlockButton.click();
 
@@ -492,9 +502,9 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		console.log('✅ Browser B: Database unlocked with correct password on retry');
 
 		// Verify todo is accessible
-		await expect(
-			pageBrowserB.locator(`text=${testTodoText}`).first()
-		).toBeVisible({ timeout: 30000 });
+		await expect(pageBrowserB.locator(`text=${testTodoText}`).first()).toBeVisible({
+			timeout: 30000
+		});
 		console.log('✅ Browser B: Verified todo is accessible after successful unlock');
 
 		console.log('\n' + '='.repeat(60));
@@ -504,7 +514,9 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		await browserB.close();
 	});
 
-	test('should allow opening unencrypted database without password', async ({ page: browserAPage }) => {
+	test('should allow opening unencrypted database without password', async ({
+		page: browserAPage
+	}) => {
 		console.log('\n🚀 Starting unencrypted database test...\n');
 
 		const testTodoText = `Unencrypted test todo - ${Date.now()}`;
@@ -556,9 +568,9 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		}
 
 		// Verify todo is immediately accessible
-		await expect(
-			pageBrowserB.locator(`text=${testTodoText}`).first()
-		).toBeVisible({ timeout: 30000 });
+		await expect(pageBrowserB.locator(`text=${testTodoText}`).first()).toBeVisible({
+			timeout: 30000
+		});
 		console.log('✅ Browser B: Verified unencrypted todo is immediately accessible');
 
 		console.log('\n' + '='.repeat(60));

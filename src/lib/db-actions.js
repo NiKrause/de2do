@@ -19,7 +19,7 @@ export const todosCountStore = derived(todosStore, ($todos) => $todos.length);
 export async function initializeDatabase(orbitdb, todoDB, preferences) {
 	// Clear todos from previous database first
 	todosStore.set([]);
-	
+
 	orbitdbStore.set(orbitdb);
 	todoDBStore.set(todoDB);
 
@@ -40,7 +40,7 @@ export async function initializeDatabase(orbitdb, todoDB, preferences) {
 
 	// Set up event listeners FIRST - so they catch data as it syncs from peers/IPFS
 	setupDatabaseListeners(todoDB);
-	
+
 	// Update reference to current database
 	previousTodoDB = todoDB;
 
@@ -111,7 +111,7 @@ export async function loadTodos() {
 			todoDBAddress: todoDB?.address,
 			todoDBType: typeof todoDB
 		});
-		
+
 		// Check if this is a decryption error (wrong password)
 		if (error.message && error.message.includes('decrypt')) {
 			console.error('❌ Decryption error detected - wrong password or encrypted database');

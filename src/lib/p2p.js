@@ -295,12 +295,12 @@ export async function openDatabaseByName(
 			todoDB = await orbitdb.open(dbName, dbOptions);
 		}
 
-	console.log('🔍 TodoDB records:', (await todoDB.all()).length);
-	console.log('✅ Database opened successfully by name:', todoDB);
+		console.log('🔍 TodoDB records:', (await todoDB.all()).length);
+		console.log('✅ Database opened successfully by name:', todoDB);
 
-	// Initialize database stores and actions (dynamic import to avoid circular dependency)
-	const { initializeDatabase } = await import('./db-actions.js');
-	await initializeDatabase(orbitdb, todoDB, preferences);
+		// Initialize database stores and actions (dynamic import to avoid circular dependency)
+		const { initializeDatabase } = await import('./db-actions.js');
+		await initializeDatabase(orbitdb, todoDB, preferences);
 
 		return todoDB;
 	} catch (error) {

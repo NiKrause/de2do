@@ -131,13 +131,13 @@
 			// Use centralized password prompt flow for consistent encryption detection
 			try {
 				const { openDatabaseWithPasswordPrompt } = await import('../database/database-manager.js');
-				
+
 				console.log('🔍 Opening target projects database:', targetProjects.address);
 				const result = await openDatabaseWithPasswordPrompt({
 					address: targetProjects.address,
 					preferences
 				});
-				
+
 				if (result.success) {
 					// Update stores
 					currentTodoListNameStore.set('projects');
@@ -145,10 +145,12 @@
 						currentDbNameStore.set(targetProjects.dbName);
 					}
 					currentDbAddressStore.set(targetProjects.address);
-					
+
 					// Update hash
 					if (typeof window !== 'undefined') {
-						const hash = targetProjects.address.startsWith('/') ? targetProjects.address : `/${targetProjects.address}`;
+						const hash = targetProjects.address.startsWith('/')
+							? targetProjects.address
+							: `/${targetProjects.address}`;
 						replaceState(`#${hash}`, { replaceState: true });
 					}
 				} else if (result.cancelled) {
@@ -164,23 +166,25 @@
 			const dbName = `${targetUserId}_projects`;
 			try {
 				const { openDatabaseWithPasswordPrompt } = await import('../database/database-manager.js');
-				
+
 				console.log('🔍 Opening target projects database by name:', dbName);
 				const result = await openDatabaseWithPasswordPrompt({
 					name: dbName,
 					preferences
 				});
-				
+
 				if (result.success) {
 					// Update stores
 					currentTodoListNameStore.set('projects');
 					currentDbNameStore.set(dbName);
 					if (result.database?.address) {
 						currentDbAddressStore.set(result.database.address);
-						
+
 						// Update hash
 						if (typeof window !== 'undefined') {
-							const hash = result.database.address.startsWith('/') ? result.database.address : `/${result.database.address}`;
+							const hash = result.database.address.startsWith('/')
+								? result.database.address
+								: `/${result.database.address}`;
 							replaceState(`#${hash}`, { replaceState: true });
 						}
 					}

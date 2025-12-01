@@ -7,7 +7,7 @@ import { detectDatabaseEncryption } from '$lib/encryption/encryption-detector.js
 /**
  * Open a database with automatic encryption detection
  * Tries to open without encryption first, then detects if encryption is needed
- * 
+ *
  * @param {Object} options - Opening options
  * @param {string} options.address - Database address (for address-based opening)
  * @param {string} options.name - Database name (for name-based opening)
@@ -18,10 +18,10 @@ import { detectDatabaseEncryption } from '$lib/encryption/encryption-detector.js
  */
 export async function openDatabaseWithEncryptionDetection(options) {
 	const { address, name, displayName, preferences, onPasswordRequired } = options;
-	
+
 	let openMethod;
 	let openParam;
-	
+
 	// Determine which opening method to use
 	if (address) {
 		openMethod = openDatabaseByAddress;
@@ -38,24 +38,24 @@ export async function openDatabaseWithEncryptionDetection(options) {
 	} else {
 		throw new Error('Must provide address, name, or displayName');
 	}
-	
+
 	// Determine if this is remote access (opening by address = remote)
 	const isRemoteAccess = !!address;
-	
+
 	try {
 		console.log('🔍 Attempting to open database without encryption...');
-		
+
 		// Try to open without encryption first
 		await openMethod(openParam, preferences, false, null);
 		const db = get(todoDBStore);
-		
+
 		// Check if data looks encrypted
 		// Pass isRemoteAccess=true for address-based opening (URL access)
 		const isEncrypted = await detectDatabaseEncryption(db, { isRemoteAccess });
-		
+
 		if (isEncrypted) {
 			console.log('🔐 Database appears to be encrypted');
-			
+
 			// Call the password required callback if provided
 			if (onPasswordRequired) {
 				const result = await onPasswordRequired({
@@ -63,27 +63,26 @@ export async function openDatabaseWithEncryptionDetection(options) {
 					name: name || db.name,
 					displayName: displayName || name || address
 				});
-				
+
 				return result;
 			}
-			
+
 			return {
 				success: false,
 				encrypted: true,
 				database: db
 			};
 		}
-		
+
 		console.log('✅ Database opened successfully without encryption');
 		return {
 			success: true,
 			encrypted: false,
 			database: db
 		};
-		
 	} catch (err) {
 		console.log('⚠️ Error opening database:', err.message);
-		
+
 		// If opening failed, might be encrypted
 		if (onPasswordRequired) {
 			const result = await onPasswordRequired({
@@ -92,10 +91,10 @@ export async function openDatabaseWithEncryptionDetection(options) {
 				displayName: displayName || name || address,
 				error: err
 			});
-			
+
 			return result;
 		}
-		
+
 		return {
 			success: false,
 			encrypted: true,
@@ -116,14 +115,14 @@ export async function openDatabaseWithEncryptionDetection(options) {
  */
 export async function openDatabaseWithPassword(options) {
 	const { address, name, displayName, preferences, password } = options;
-	
+
 	if (!password) {
 		throw new Error('Password is required');
 	}
-	
+
 	let openMethod;
 	let openParam;
-	
+
 	// Determine which opening method to use
 	if (address) {
 		openMethod = openDatabaseByAddress;
@@ -137,32 +136,34 @@ export async function openDatabaseWithPassword(options) {
 	} else {
 		throw new Error('Must provide address, name, or displayName');
 	}
-	
+
 	try {
 		console.log('🔐 Opening database with password...');
 		await openMethod(openParam, preferences, true, password);
 		const db = get(todoDBStore);
-		
+
 		// Verify password is correct by trying to read entries
 		// Wait for database to sync entries from peers before verifying
 		console.log('🔍 Verifying password by reading database...');
-		
+
 		const testEntries = await db.all();
 		console.log(`📊 Found ${testEntries.length} entries initially`);
-		
+
 		// If database is empty, wait a bit for sync to potentially bring in entries
 		if (testEntries.length === 0) {
 			console.log('⏳ Empty database - waiting 2s for potential sync...');
-			await new Promise(resolve => setTimeout(resolve, 2000));
-			
+			await new Promise((resolve) => setTimeout(resolve, 2000));
+
 			// Check again after waiting
 			const entriesAfterWait = await db.all();
 			console.log(`📊 After waiting: ${entriesAfterWait.length} entries`);
-			
+
 			// If still empty after waiting, this is likely a wrong password
 			// For remote encrypted databases: correct password would allow sync to decrypt entries
 			if (entriesAfterWait.length === 0 && address) {
-				console.error('❌ Database still empty after waiting - likely wrong password for remote encrypted DB');
+				console.error(
+					'❌ Database still empty after waiting - likely wrong password for remote encrypted DB'
+				);
 				toastStore.show('❌ Incorrect password - cannot decrypt remote database', 'error');
 				return {
 					success: false,
@@ -173,11 +174,13 @@ export async function openDatabaseWithPassword(options) {
 			} else if (entriesAfterWait.length > 0) {
 				// Entries arrived, try to decrypt them
 				try {
-					const hasUndefinedValues = entriesAfterWait.some(e => e.value === undefined);
+					const hasUndefinedValues = entriesAfterWait.some((e) => e.value === undefined);
 					if (hasUndefinedValues) {
 						throw new Error('Could not decrypt entries - values are undefined');
 					}
-					console.log(`✅ Password verified - successfully read ${entriesAfterWait.length} entries after sync`);
+					console.log(
+						`✅ Password verified - successfully read ${entriesAfterWait.length} entries after sync`
+					);
 				} catch (decryptErr) {
 					console.error('❌ Decryption failed after sync:', decryptErr);
 					toastStore.show('❌ Incorrect password', 'error');
@@ -193,7 +196,7 @@ export async function openDatabaseWithPassword(options) {
 			// Database has entries - verify we can decrypt them
 			try {
 				// Try to access values to trigger decryption
-				const hasUndefinedValues = testEntries.some(e => e.value === undefined);
+				const hasUndefinedValues = testEntries.some((e) => e.value === undefined);
 				if (hasUndefinedValues) {
 					throw new Error('Could not decrypt entries - values are undefined');
 				}
@@ -213,7 +216,7 @@ export async function openDatabaseWithPassword(options) {
 				throw decryptErr;
 			}
 		}
-		
+
 		console.log('✅ Database opened successfully with encryption');
 		return {
 			success: true,
@@ -222,7 +225,7 @@ export async function openDatabaseWithPassword(options) {
 		};
 	} catch (err) {
 		console.error('❌ Failed to open database with password:', err);
-		
+
 		// Check if it's a decryption error
 		if (err.message && err.message.includes('decrypt')) {
 			toastStore.show('❌ Incorrect password', 'error');
@@ -233,7 +236,7 @@ export async function openDatabaseWithPassword(options) {
 				error: err
 			};
 		}
-		
+
 		throw err;
 	}
 }

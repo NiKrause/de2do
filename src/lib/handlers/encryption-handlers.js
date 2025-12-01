@@ -1,10 +1,10 @@
 import { get } from 'svelte/store';
 import { toastStore } from '$lib/toast-store.js';
-import { 
-	currentTodoListNameStore, 
-	currentDbNameStore, 
+import {
+	currentTodoListNameStore,
+	currentDbNameStore,
 	currentDbAddressStore,
-	switchToTodoList 
+	switchToTodoList
 } from '$lib/todo-list-manager.js';
 import { enableDatabaseEncryption, disableDatabaseEncryption } from '$lib/encryption-migration.js';
 import { loadTodos } from '$lib/db-actions.js';
@@ -25,13 +25,13 @@ export function createEncryptionHandlers({ preferences }) {
 			alert('Please enter an encryption password');
 			return { success: false, isCurrentDbEncrypted: false };
 		}
-		
+
 		try {
 			// Get current database info
 			const currentList = get(currentTodoListNameStore);
 			const currentDbName = get(currentDbNameStore);
 			const currentAddress = get(currentDbAddressStore);
-			
+
 			// Migrate to encrypted
 			const result = await enableDatabaseEncryption(
 				currentList,
@@ -41,17 +41,17 @@ export function createEncryptionHandlers({ preferences }) {
 				preferences,
 				null
 			);
-			
+
 			if (result.success) {
 				// Reopen the new encrypted database
 				await switchToTodoList(currentList, preferences, true, password);
-				
+
 				// Load todos from the newly encrypted database
 				await loadTodos();
-				
+
 				return { success: true, isCurrentDbEncrypted: true };
 			}
-			
+
 			return { success: false, isCurrentDbEncrypted: false };
 		} catch (error) {
 			toastStore.show(`Failed to enable encryption: ${error.message}`, 'error');
@@ -65,10 +65,14 @@ export function createEncryptionHandlers({ preferences }) {
 	 * @returns {Promise<{success: boolean, isCurrentDbEncrypted: boolean}>}
 	 */
 	async function handleDisableEncryption(currentPassword) {
-		if (!confirm('Disable encryption? This will create a new unencrypted database and copy all your data to it. The old encrypted database will remain but won\'t be used.')) {
+		if (
+			!confirm(
+				"Disable encryption? This will create a new unencrypted database and copy all your data to it. The old encrypted database will remain but won't be used."
+			)
+		) {
 			return { success: false, isCurrentDbEncrypted: true };
 		}
-		
+
 		// Prompt for current password
 		if (!currentPassword) {
 			currentPassword = prompt('Enter current encryption password:');
@@ -76,13 +80,13 @@ export function createEncryptionHandlers({ preferences }) {
 				return { success: false, isCurrentDbEncrypted: true };
 			}
 		}
-		
+
 		try {
 			// Get current database info
 			const currentList = get(currentTodoListNameStore);
 			const currentDbName = get(currentDbNameStore);
 			const currentAddress = get(currentDbAddressStore);
-			
+
 			// Migrate to unencrypted
 			const result = await disableDatabaseEncryption(
 				currentList,
@@ -92,14 +96,14 @@ export function createEncryptionHandlers({ preferences }) {
 				preferences,
 				null
 			);
-			
+
 			if (result.success) {
 				// Reopen the new unencrypted database
 				await switchToTodoList(currentList, preferences, false, '');
-				
+
 				return { success: true, isCurrentDbEncrypted: false };
 			}
-			
+
 			return { success: false, isCurrentDbEncrypted: true };
 		} catch (error) {
 			toastStore.show(`Failed to disable encryption: ${error.message}`, 'error');

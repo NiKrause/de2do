@@ -1,5 +1,8 @@
 import { get } from 'svelte/store';
-import { openDatabaseWithPasswordPrompt, updateStoresAfterDatabaseOpen } from '$lib/database/database-manager.js';
+import {
+	openDatabaseWithPasswordPrompt,
+	updateStoresAfterDatabaseOpen
+} from '$lib/database/database-manager.js';
 import { openDatabaseByAddress } from '$lib/p2p.js';
 import {
 	switchToTodoList,
@@ -23,9 +26,9 @@ import { getCurrentIdentityId } from '$lib/stores.js';
  */
 export function createHashChangeHandler(context) {
 	return async function handleHashChange() {
-		const { 
-			initializationStore, 
-			isUpdatingFromHash, 
+		const {
+			initializationStore,
+			isUpdatingFromHash,
 			setIsUpdatingFromHash,
 			isEmbedMode,
 			setIsEmbedMode,
@@ -64,15 +67,10 @@ export function createHashChangeHandler(context) {
  * Handle embed mode routes
  */
 async function handleEmbedRoute(hash, context) {
-	const {
-		setIsEmbedMode,
-		setEmbedAllowAdd,
-		setIsUpdatingFromHash,
-		preferences
-	} = context;
+	const { setIsEmbedMode, setEmbedAllowAdd, setIsUpdatingFromHash, preferences } = context;
 
 	setIsEmbedMode(true);
-	
+
 	// Extract address and query params from #/embed/orbitdb/...?allowAdd=true
 	const embedPath = hash.slice(8); // Remove '#/embed/'
 	const [addressPart, queryString] = embedPath.split('?');
@@ -165,7 +163,13 @@ async function handleRegularRoute(hash, context) {
 			await handleAddressRoute(hashValue, preferences);
 		} else {
 			// Not an address - treat as displayName or dbName
-			await handleNameRoute(hashValue, preferences, enableEncryption, encryptionPassword, setIsCurrentDbEncrypted);
+			await handleNameRoute(
+				hashValue,
+				preferences,
+				enableEncryption,
+				encryptionPassword,
+				setIsCurrentDbEncrypted
+			);
 		}
 	} catch (error) {
 		console.error('❌ Error opening database from hash:', error);
@@ -182,10 +186,10 @@ async function handleAddressRoute(hashValue, preferences) {
 	const normalizedAddress = hashValue.startsWith('/') ? hashValue : `/${hashValue}`;
 	console.log(`🔗 Opening database by address from URL: ${normalizedAddress}`);
 	toastStore.show('🌐 Loading database from network...', 'info', 5000);
-	
+
 	await openDatabaseWithPasswordPrompt({ address: normalizedAddress, preferences });
 	const openedDB = get(todoDBStore);
-	
+
 	// Update stores after opening (this handles registry, hierarchy, etc.)
 	await updateStoresAfterDatabaseOpen(openedDB, normalizedAddress, preferences);
 }
@@ -193,7 +197,13 @@ async function handleAddressRoute(hashValue, preferences) {
 /**
  * Handle opening database by name or displayName
  */
-async function handleNameRoute(hashValue, preferences, enableEncryption, encryptionPassword, setIsCurrentDbEncrypted) {
+async function handleNameRoute(
+	hashValue,
+	preferences,
+	enableEncryption,
+	encryptionPassword,
+	setIsCurrentDbEncrypted
+) {
 	const identityId = getCurrentIdentityId();
 
 	// Try to find it in available lists first
@@ -205,12 +215,7 @@ async function handleNameRoute(hashValue, preferences, enableEncryption, encrypt
 		// Found in available lists
 		if (list.address) {
 			// Use the address to open
-			await openDatabaseByAddress(
-				list.address,
-				preferences,
-				enableEncryption,
-				encryptionPassword
-			);
+			await openDatabaseByAddress(list.address, preferences, enableEncryption, encryptionPassword);
 			// Track encryption state
 			const wasEncrypted = enableEncryption && !!encryptionPassword;
 			if (wasEncrypted) {
@@ -221,12 +226,7 @@ async function handleNameRoute(hashValue, preferences, enableEncryption, encrypt
 			currentDbAddressStore.set(list.address);
 		} else {
 			// No address stored, switch normally
-			await switchToTodoList(
-				list.displayName,
-				preferences,
-				enableEncryption,
-				encryptionPassword
-			);
+			await switchToTodoList(list.displayName, preferences, enableEncryption, encryptionPassword);
 			// Track encryption state
 			const wasEncrypted = enableEncryption && !!encryptionPassword;
 			if (wasEncrypted) {
@@ -236,12 +236,7 @@ async function handleNameRoute(hashValue, preferences, enableEncryption, encrypt
 	} else if (identityId && hashValue.startsWith(`${identityId}_`)) {
 		// It's a full dbName from current identity
 		const displayName = extractDisplayName(hashValue, identityId);
-		await switchToTodoList(
-			displayName,
-			preferences,
-			enableEncryption,
-			encryptionPassword
-		);
+		await switchToTodoList(displayName, preferences, enableEncryption, encryptionPassword);
 		// Track encryption state
 		const wasEncrypted = enableEncryption && !!encryptionPassword;
 		if (wasEncrypted) {
@@ -249,12 +244,7 @@ async function handleNameRoute(hashValue, preferences, enableEncryption, encrypt
 		}
 	} else {
 		// Not found, try to open as displayName (will create if doesn't exist)
-		await switchToTodoList(
-			hashValue,
-			preferences,
-			enableEncryption,
-			encryptionPassword
-		);
+		await switchToTodoList(hashValue, preferences, enableEncryption, encryptionPassword);
 		// Track encryption state
 		const wasEncrypted = enableEncryption && !!encryptionPassword;
 		if (wasEncrypted) {

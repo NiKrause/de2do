@@ -11,35 +11,35 @@ function createPasswordManagerStore() {
 		pendingResolve: null,
 		pendingReject: null
 	});
-	
+
 	return {
 		subscribe,
-		
+
 		/**
 		 * Request password for a database
 		 * @param {string} dbName - Database name to show in modal
 		 * @returns {Promise<string>} Promise that resolves with password or rejects on cancel
 		 */
-	requestPassword(dbName) {
-		return new Promise((resolve, reject) => {
-			update(state => ({
-				...state,
-				showModal: true,
-				dbName,
-				// Don't reset retryCount - preserve it if we're in a retry flow
-				// Only reset on first password request (when retryCount is already 0)
-				pendingResolve: resolve,
-				pendingReject: reject
-			}));
-		});
-	},
-		
+		requestPassword(dbName) {
+			return new Promise((resolve, reject) => {
+				update((state) => ({
+					...state,
+					showModal: true,
+					dbName,
+					// Don't reset retryCount - preserve it if we're in a retry flow
+					// Only reset on first password request (when retryCount is already 0)
+					pendingResolve: resolve,
+					pendingReject: reject
+				}));
+			});
+		},
+
 		/**
 		 * Submit password
 		 * @param {string} password - Entered password
 		 */
 		submitPassword(password) {
-			update(state => {
+			update((state) => {
 				if (state.pendingResolve) {
 					state.pendingResolve(password);
 				}
@@ -51,12 +51,12 @@ function createPasswordManagerStore() {
 				};
 			});
 		},
-		
+
 		/**
 		 * Cancel password entry
 		 */
 		cancel() {
-			update(state => {
+			update((state) => {
 				if (state.pendingReject) {
 					state.pendingReject(new Error('Password entry cancelled'));
 				}
@@ -69,14 +69,14 @@ function createPasswordManagerStore() {
 				};
 			});
 		},
-		
+
 		/**
 		 * Increment retry count
 		 * @returns {number} New retry count
 		 */
 		incrementRetry() {
 			let newCount = 0;
-			update(state => {
+			update((state) => {
 				newCount = state.retryCount + 1;
 				return {
 					...state,
@@ -85,12 +85,12 @@ function createPasswordManagerStore() {
 			});
 			return newCount;
 		},
-		
+
 		/**
 		 * Reset retry count
 		 */
 		resetRetry() {
-			update(state => ({
+			update((state) => ({
 				...state,
 				retryCount: 0
 			}));
@@ -116,7 +116,7 @@ export async function requestPasswordWithRetry(dbName, maxRetries = 3) {
 			if (err.message === 'Password entry cancelled') {
 				throw err;
 			}
-			
+
 			if (attempt < maxRetries) {
 				passwordManager.incrementRetry();
 			} else {

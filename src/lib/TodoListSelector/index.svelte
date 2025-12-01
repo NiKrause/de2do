@@ -22,9 +22,9 @@
 	let isUserTyping = false; // Track if user is actively typing
 
 	// Check if current list is encrypted
-	$: currentListEncrypted = $availableTodoListsStore.find(
-		(list) => list.displayName === $currentTodoListNameStore
-	)?.encryptionEnabled || false;
+	$: currentListEncrypted =
+		$availableTodoListsStore.find((list) => list.displayName === $currentTodoListNameStore)
+			?.encryptionEnabled || false;
 
 	// Update inputValue when currentTodoListNameStore changes (but not when user is typing)
 	$: if ($initializationStore.isInitialized && !isUserTyping) {

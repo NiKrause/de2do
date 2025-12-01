@@ -120,11 +120,13 @@
 
 					// Navigate using hash (not goto) - this will trigger the hash handler in main page
 					// Don't encode the address - OrbitDB addresses are URL-safe and the hash handler expects them unencoded
-					const normalizedAddress = newListAddress.startsWith('/') ? newListAddress : `/${newListAddress}`;
-					const newHash = allowAdd 
+					const normalizedAddress = newListAddress.startsWith('/')
+						? newListAddress
+						: `/${newListAddress}`;
+					const newHash = allowAdd
 						? `#/embed${normalizedAddress}?allowAdd=true`
 						: `#/embed${normalizedAddress}`;
-					
+
 					window.location.hash = newHash;
 
 					// Update local dbAddress to match

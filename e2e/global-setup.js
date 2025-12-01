@@ -94,8 +94,8 @@ export default async function globalSetup() {
 					console.warn(`⚠️  Extracted peerId looks like hex (not base58): ${peerId}, skipping...`);
 					return;
 				}
-			// Use the WebSocket port for browser connections
-			relayMultiaddr = `/ip4/127.0.0.1/tcp/${WS_PORT}/ws/p2p/${peerId}`;
+				// Use the WebSocket port for browser connections
+				relayMultiaddr = `/ip4/127.0.0.1/tcp/${WS_PORT}/ws/p2p/${peerId}`;
 
 				// Create .env.development file for Vite
 				const envContent = `# Generated for e2e tests

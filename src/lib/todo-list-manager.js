@@ -438,7 +438,7 @@ export async function switchToTodoList(
 		return false;
 	}
 
-		const trimmedName = todoListName.trim();
+	const trimmedName = todoListName.trim();
 
 	try {
 		const currentUserIdentity = getCurrentIdentityId();
@@ -447,7 +447,7 @@ export async function switchToTodoList(
 		// First, determine which identity this list belongs to
 		// This is needed before we can check encryption settings
 		const availableLists = get(availableTodoListsStore);
-		
+
 		// Check if the target list exists in availableTodoListsStore
 		// This tells us which identity it belongs to
 		const targetListInStore = availableLists.find((list) => {
@@ -468,7 +468,7 @@ export async function switchToTodoList(
 			// This ensures sub-lists are created with the correct owner's identity
 			let currentDbIdentity = null;
 			const currentDbName = get(currentDbNameStore);
-			
+
 			if (currentDbName && currentDbName.includes('_')) {
 				currentDbIdentity = currentDbName.split('_')[0];
 			} else {
@@ -485,7 +485,7 @@ export async function switchToTodoList(
 					}
 				}
 			}
-			
+
 			// ALWAYS use parent's identity for sub-lists (sub-lists belong to the parent's owner)
 			if (currentDbIdentity) {
 				targetIdentityId = currentDbIdentity;
@@ -505,12 +505,12 @@ export async function switchToTodoList(
 		// Use targetIdentityId (which may be different from currentUserIdentity)
 		if (targetIdentityId) {
 			const registryEntry = getRegistryEntry(targetIdentityId, trimmedName);
-			
+
 			// If list is encrypted but no password provided
 			if (registryEntry?.encryptionEnabled && !encryptionPassword) {
 				const dbName = `${targetIdentityId}_${trimmedName}`;
 				const cachedPassword = getCachedPassword(dbName);
-				
+
 				if (cachedPassword) {
 					// Use cached password from this session
 					console.log('🔐 Using cached password for encrypted database');
@@ -525,7 +525,7 @@ export async function switchToTodoList(
 					throw error;
 				}
 			}
-			
+
 			// If encryption enabled, cache the password for this session
 			if (enableEncryption && encryptionPassword) {
 				const dbName = `${targetIdentityId}_${trimmedName}`;
@@ -566,7 +566,9 @@ export async function switchToTodoList(
 
 			// Update URL hash to match the database address
 			if (typeof window !== 'undefined' && existingList.address) {
-				const hash = existingList.address.startsWith('/') ? existingList.address : `/${existingList.address}`;
+				const hash = existingList.address.startsWith('/')
+					? existingList.address
+					: `/${existingList.address}`;
 				if (window.location.hash !== `#${hash}`) {
 					window.history.replaceState(null, '', `#${hash}`);
 				}

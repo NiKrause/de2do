@@ -1,7 +1,7 @@
 <script>
 	import SocialIcons from '$lib/components/ui/SocialIcons.svelte';
 	import ShareEmbedButtons from '$lib/components/todo/ShareEmbedButtons.svelte';
-	
+
 	export let onQRCodeClick = () => {};
 </script>
 

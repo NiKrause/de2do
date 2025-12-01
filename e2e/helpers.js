@@ -10,11 +10,15 @@ import { expect } from '@playwright/test';
  * @param {boolean} [options.skipIfNotFound=false] - Skip consent if modal not found (for re-navigations)
  */
 export async function acceptConsentAndInitialize(page, options = {}) {
-	const { enableNetworkConnection = true, enablePeerConnections = true, skipIfNotFound = false } = options;
+	const {
+		enableNetworkConnection = true,
+		enablePeerConnections = true,
+		skipIfNotFound = false
+	} = options;
 
 	// First, ensure the page has loaded and is ready
 	console.log('🔍 Checking if page loaded successfully...');
-	
+
 	// Collect console errors (set up listener)
 	const consoleErrors = [];
 	const consoleListener = (msg) => {
@@ -23,7 +27,7 @@ export async function acceptConsentAndInitialize(page, options = {}) {
 		}
 	};
 	page.on('console', consoleListener);
-	
+
 	// Wait for page to be in a ready state
 	try {
 		await page.waitForLoadState('networkidle', { timeout: 15000 });
@@ -41,7 +45,9 @@ export async function acceptConsentAndInitialize(page, options = {}) {
 		const pageContent = await page.content();
 		if (pageContent.length < 100) {
 			page.off('console', consoleListener);
-			throw new Error(`Page content is too short (${pageContent.length} chars). Server may not be running or page failed to load.`);
+			throw new Error(
+				`Page content is too short (${pageContent.length} chars). Server may not be running or page failed to load.`
+			);
 		}
 		page.off('console', consoleListener);
 		throw new Error(`Page failed to load: ${error.message}`);
@@ -55,34 +61,36 @@ export async function acceptConsentAndInitialize(page, options = {}) {
 		});
 	} catch (error) {
 		if (skipIfNotFound) {
-			console.log('⚠️ Consent modal not found, skipping (already accepted or page already initialized)');
+			console.log(
+				'⚠️ Consent modal not found, skipping (already accepted or page already initialized)'
+			);
 			page.off('console', consoleListener);
 			return;
 		}
-		
+
 		// Provide better error diagnostics
 		console.error('❌ Consent modal not found. Diagnostics:');
-		
+
 		// Check if page has any content
 		const bodyText = await page.locator('body').textContent();
 		console.log(`📄 Page body length: ${bodyText?.length || 0} characters`);
-		
+
 		// Check for common elements that should exist
-		const hasApp = await page.locator('body').count() > 0;
+		const hasApp = (await page.locator('body').count()) > 0;
 		console.log(`📄 Has body element: ${hasApp}`);
-		
+
 		// Check for any modals
 		const modals = await page.locator('[role="dialog"], .modal, [class*="modal"]').count();
 		console.log(`📄 Found ${modals} potential modal elements`);
-		
+
 		// Check for Svelte app
 		const svelteApp = await page.locator('[data-svelte-h]').count();
 		console.log(`📄 Found ${svelteApp} Svelte elements`);
-		
+
 		if (consoleErrors.length > 0) {
 			console.error('❌ Console errors:', consoleErrors);
 		}
-		
+
 		// Take a screenshot for debugging
 		try {
 			await page.screenshot({ path: 'debug-consent-modal-not-found.png' });
@@ -90,11 +98,13 @@ export async function acceptConsentAndInitialize(page, options = {}) {
 		} catch (screenshotError) {
 			console.warn('⚠️ Could not take screenshot:', screenshotError.message);
 		}
-		
+
 		// Clean up console listener
 		page.off('console', consoleListener);
-		
-		throw new Error(`Consent modal not found after 10s. Page may not have loaded correctly. Original error: ${error.message}`);
+
+		throw new Error(
+			`Consent modal not found after 10s. Page may not have loaded correctly. Original error: ${error.message}`
+		);
 	}
 
 	// Scroll to bottom to ensure modal is in viewport

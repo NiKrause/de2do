@@ -147,6 +147,5 @@ export default defineConfig({
 			include: [/varint/, /node_modules/],
 			transformMixedEsModules: true
 		}
-	},
-
+	}
 });

@@ -19,7 +19,7 @@ A basic decentralized, local-first, peer-to-peer todo application built with `li
 
 ---
 
-- **Progressive Web App**: If clouds are down, this is a PWA which can run from desktops and mobile devices connecting peer-to-peer to other collaborators via a relay or OrbitDB pinning network. 
+- **Progressive Web App**: If clouds are down, this is a PWA which can run from desktops and mobile devices connecting peer-to-peer to other collaborators via a relay or OrbitDB pinning network.
 - **Storacha/Filecoin Integration with UCAN-Auth:** Backup & restore todo lists via Storacha gateway to Filecoin decentralized storage - restore the TodoList's OrbitDB decentralized form the IPFS network
 
 ## 🚀 Live Demo
@@ -45,8 +45,8 @@ Run the simple-todo via a public relay
 
 ```bash
 copy .env.example .env
-npm install 
-npm run dev 
+npm install
+npm run dev
 ```
 
 Run a local relay like so:
@@ -104,6 +104,7 @@ git checkout simplified-tutorial
 ./tutorial-01.js
 
 ```
+
 ## 📄 License
 
 This project is open source and available under the [LICENSE](./LICENSE) file.
