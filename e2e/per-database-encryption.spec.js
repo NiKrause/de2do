@@ -17,7 +17,6 @@ import {
  * 5. Open new browser contexts with URLs to test password prompts
  */
 test.describe.skip('Per-Database Encryption E2E Tests', () => {
-
 	test('should handle multiple projects with different encryption settings', async ({
 		browser
 	}) => {
