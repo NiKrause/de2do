@@ -11,7 +11,7 @@ import {
 } from './helpers.js';
 
 test.describe('Simple Todo P2P Application', () => {
-	test.only('should have webserver running and accessible', async ({ page, request }) => {
+	test('should have webserver running and accessible', async ({ page, request }) => {
 		// Check if the webserver is responding
 		const response = await request.get('/');
 		expect(response.status()).toBe(200);
@@ -26,7 +26,7 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('✅ Webserver is running and accessible');
 	});
 
-	test.only('should show consent modal and proceed with P2P initialization', async ({ page }) => {
+	test('should show consent modal and proceed with P2P initialization', async ({ page }) => {
 		// Navigate to the application
 		await page.goto('/');
 
