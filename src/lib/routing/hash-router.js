@@ -26,19 +26,7 @@ import { getCurrentIdentityId } from '$lib/stores.js';
  */
 export function createHashChangeHandler(context) {
 	return async function handleHashChange() {
-		const {
-			initializationStore,
-			isUpdatingFromHash,
-			setIsUpdatingFromHash,
-			isEmbedMode,
-			setIsEmbedMode,
-			embedAllowAdd,
-			setEmbedAllowAdd,
-			preferences,
-			enableEncryption,
-			encryptionPassword,
-			setIsCurrentDbEncrypted
-		} = context;
+		const { initializationStore, isUpdatingFromHash, setIsEmbedMode, setEmbedAllowAdd } = context;
 
 		const initState = get(initializationStore);
 		if (!initState.isInitialized || isUpdatingFromHash) {
@@ -191,7 +179,7 @@ async function handleAddressRoute(hashValue, preferences) {
 	const openedDB = get(todoDBStore);
 
 	// Update stores after opening (this handles registry, hierarchy, etc.)
-	await updateStoresAfterDatabaseOpen(openedDB, normalizedAddress, preferences);
+	await updateStoresAfterDatabaseOpen(openedDB, normalizedAddress);
 }
 
 /**

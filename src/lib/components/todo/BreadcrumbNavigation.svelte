@@ -1,6 +1,6 @@
 <script>
 	import { todoListHierarchyStore, navigateUp, switchToTodoList } from '../../todo-list-manager.js';
-	import { currentDbAddressStore, availableTodoListsStore } from '../../todo-list-manager.js';
+	import { currentDbAddressStore } from '../../todo-list-manager.js';
 	import { get } from 'svelte/store';
 	import { ChevronRight, ArrowUp } from 'lucide-svelte';
 	import { browser } from '$app/environment';
@@ -9,8 +9,8 @@
 	export let enableEncryption = false;
 	export let encryptionPassword = '';
 
-	// Check if we're in embed mode by checking hash
-	$: isEmbedMode =
+	// Check if we're in embed mode by checking hash (evaluated once on init)
+	const isEmbedMode =
 		browser && typeof window !== 'undefined' && window.location.hash.startsWith('#/embed/');
 
 	async function handleBreadcrumbClick(index) {

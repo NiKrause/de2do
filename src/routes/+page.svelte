@@ -1,12 +1,10 @@
 <script>
-	/* eslint-disable no-undef */
 	import { onMount } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { initializeP2P, initializationStore, libp2pStore } from '$lib/p2p.js';
 	import { peerIdStore } from '$lib/stores.js';
 	import { todosStore, todoDBStore, orbitdbStore } from '$lib/db-actions.js';
 	import ConsentModal from '$lib/components/ui/ConsentModal.svelte';
-	import SocialIcons from '$lib/components/ui/SocialIcons.svelte';
 	import SystemToast from '$lib/components/ui/SystemToast.svelte';
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
 	import ErrorAlert from '$lib/components/ui/ErrorAlert.svelte';
@@ -19,32 +17,22 @@
 	import TodoListSelector from '$lib/components/todo/TodoListSelector.svelte';
 	import UsersList from '$lib/UsersList/index.svelte';
 	import BreadcrumbNavigation from '$lib/components/todo/BreadcrumbNavigation.svelte';
-	import ShareEmbedButtons from '$lib/components/todo/ShareEmbedButtons.svelte';
 	import ManagedPasswordModal from '$lib/components/ui/ManagedPasswordModal.svelte';
 	import AppHeader from '$lib/components/layout/AppHeader.svelte';
 	import EncryptionSettings from '$lib/components/encryption/EncryptionSettings.svelte';
-	import { setupDatabaseDebug, exposeDatabaseToWindow } from '$lib/debug/database-debug.js';
+	import { setupDatabaseDebug } from '$lib/debug/database-debug.js';
 	import { createTodoHandlers } from '$lib/handlers/todo-handlers.js';
-	import { detectEmbedMode, parseEmbedParams } from '$lib/embed/embed-handler.js';
-	import {
-		openDatabaseWithPasswordPrompt,
-		updateStoresAfterDatabaseOpen
-	} from '$lib/database/database-manager.js';
 	import { setupHashRouter } from '$lib/routing/hash-router.js';
 	import {
-		switchToTodoList,
 		currentTodoListNameStore,
 		currentDbNameStore,
 		currentDbAddressStore,
 		availableTodoListsStore
 	} from '$lib/todo-list-manager.js';
-	import { openDatabaseByAddress } from '$lib/p2p.js';
-	import { getCurrentIdentityId } from '$lib/stores.js';
 	import { get } from 'svelte/store';
 	// import { Cloud } from 'lucide-svelte'; // Unused for now
-	import { toastStore } from '$lib/toast-store.js';
 	import { browser } from '$app/environment';
-	import { replaceState, goto } from '$app/navigation';
+	import { replaceState } from '$app/navigation';
 
 	// Expose database address to window for e2e testing
 	// Move reactive statements outside the if block and ensure they always run

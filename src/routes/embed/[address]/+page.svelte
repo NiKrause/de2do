@@ -1,7 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
 	import { initializeP2P, openDatabaseByAddress } from '$lib/p2p.js';
 	import { initializationStore } from '$lib/p2p.js';
 	import {

@@ -38,6 +38,7 @@ export async function createLibp2pConfig(options = {}) {
 	const {
 		privateKey = null,
 		enableNetworkConnection = true,
+		// eslint-disable-next-line no-unused-vars
 		enablePeerConnections = true
 	} = options;
 

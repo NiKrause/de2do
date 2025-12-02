@@ -52,7 +52,7 @@ function buildDatabaseOptions(
 	encryption = null,
 	create = false
 ) {
-	const { enablePersistentStorage = true, enableNetworkConnection = true } = preferences;
+	const { enableNetworkConnection = true } = preferences;
 
 	// Set up access controller - allow the specified identity to write
 	const accessController = OrbitDBAccessController({
@@ -342,7 +342,11 @@ export async function openDatabaseByAddress(
 	}
 
 	// Extract preferences
-	const { enableNetworkConnection = true, enablePeerConnections = true } = preferences;
+	const {
+		enableNetworkConnection = true,
+		// eslint-disable-next-line no-unused-vars
+		enablePeerConnections: _enablePeerConnections = true
+	} = preferences;
 
 	// Set up encryption if enabled
 	let encryption = null;

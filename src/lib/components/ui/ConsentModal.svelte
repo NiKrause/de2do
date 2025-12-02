@@ -1,5 +1,4 @@
 <script>
-	/* eslint-disable no-undef */
 	import { createEventDispatcher } from 'svelte';
 
 	const dispatch = createEventDispatcher();

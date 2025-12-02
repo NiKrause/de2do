@@ -6,6 +6,10 @@ import {
 	getPeerId
 } from './helpers.js';
 
+// Mark intentionally unused test helpers so eslint doesn't complain while this suite is skipped
+void chromium;
+void getPeerId;
+
 /**
  * Comprehensive E2E test for per-database encryption
  *
@@ -450,3 +454,7 @@ async function verifyTodosVisible(page, todoTexts) {
 		await expect(page.locator(`text=${todoText}`).first()).toBeVisible({ timeout: 10000 });
 	}
 }
+
+// Mark helper functions as used for eslint while parts of the test flow are commented out
+void switchToProject;
+void verifyTodosVisible;

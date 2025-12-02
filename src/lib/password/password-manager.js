@@ -4,7 +4,7 @@ import { writable } from 'svelte/store';
  * Password manager state store
  */
 function createPasswordManagerStore() {
-	const { subscribe, set, update } = writable({
+	const { subscribe, update } = writable({
 		showModal: false,
 		dbName: '',
 		retryCount: 0,

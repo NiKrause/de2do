@@ -76,7 +76,6 @@
 		peers.set(newPeers);
 	}
 
-	// eslint-disable-next-line no-unused-vars
 	function setupPeerDiscoveryHandlers() {
 		// Handle peer discovery events
 		const onPeerDiscovery = async (event) => {

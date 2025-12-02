@@ -121,7 +121,6 @@
 		};
 
 		// Import necessary functions
-		const { openDatabaseByAddress, openDatabaseByName } = await import('../p2p.js');
 		const { currentTodoListNameStore, currentDbNameStore, currentDbAddressStore } = await import(
 			'../todo-list-manager.js'
 		);

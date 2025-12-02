@@ -18,7 +18,6 @@ import {
 	selectedUserIdStore
 } from '$lib/todo-list-manager.js';
 import { getCurrentIdentityId } from '$lib/stores.js';
-import { todoDBStore } from '$lib/db-actions.js';
 
 /**
  * Open database with automatic password prompting
@@ -85,7 +84,7 @@ export async function openDatabaseWithPasswordPrompt(options) {
  * @param {string} address - Database address
  * @param {Object} preferences - Network preferences
  */
-export async function updateStoresAfterDatabaseOpen(db, address, preferences) {
+export async function updateStoresAfterDatabaseOpen(db, address) {
 	const currentIdentityId = getCurrentIdentityId();
 	let displayName = db.name || 'Unknown';
 	let dbName = db.name || null;
