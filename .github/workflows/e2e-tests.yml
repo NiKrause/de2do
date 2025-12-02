@@ -29,7 +29,7 @@ jobs:
           sudo apt-get install -y build-essential python3
 
       - name: Install dependencies
-        run: npm ci --ignore-scripts || npm install --ignore-scripts
+        run: npm install --ignore-scripts
 
       - name: Install relay dependencies
         run: |
@@ -40,11 +40,9 @@ jobs:
         run: npx playwright install --with-deps
 
       - name: Run main E2E tests (excluding flaky sync tests)
-        run: npm run test:e2e -- --grep-invert "should share database between browsers|should replicate database when Browser B opens"
+        run: npm run test:e2e 
         env:
           CI: true
-          RELAY_PRIV_KEY: ${{ secrets.RELAY_PRIV_KEY }}
-
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
@@ -92,7 +90,7 @@ jobs:
           sudo apt-get install -y build-essential python3
 
       - name: Install dependencies
-        run: npm ci --ignore-scripts || npm install --ignore-scripts
+        run: npm install --ignore-scripts
 
       - name: Install relay dependencies
         run: |
@@ -111,7 +109,6 @@ jobs:
           command: npm run test:e2e -- simple-todo.spec.js -g "${{ matrix.test }}" --workers=1
         env:
           CI: true
-          RELAY_PRIV_KEY: ${{ secrets.RELAY_PRIV_KEY }}
 
       - name: Upload test results for ${{ matrix.test }}
         uses: actions/upload-artifact@v4
