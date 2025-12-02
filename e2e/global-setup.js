@@ -97,6 +97,11 @@ export default async function globalSetup() {
 				// Use the WebSocket port for browser connections
 				relayMultiaddr = `/ip4/127.0.0.1/tcp/${WS_PORT}/ws/p2p/${peerId}`;
 
+				// Export to process.env so Vite build picks it up
+				// This ensures the web app uses the correct relay multiaddress at build time
+				process.env.VITE_RELAY_BOOTSTRAP_ADDR_DEV = relayMultiaddr;
+				console.log(`✅ Set VITE_RELAY_BOOTSTRAP_ADDR_DEV=${relayMultiaddr}`);
+
 				// Create .env.development file for Vite
 				const envContent = `# Generated for e2e tests
 NODE_ENV=development
