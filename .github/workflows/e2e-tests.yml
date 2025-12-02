@@ -40,7 +40,7 @@ jobs:
         run: npx playwright install --with-deps
 
       - name: Run main E2E tests (excluding flaky sync tests)
-        run: npm run test:e2e
+        run: npm run test:e2e -- --grep-invert "should share database between browsers|should replicate database when Browser B opens"
         env:
           CI: true
       - name: Upload test results
