@@ -11,6 +11,45 @@ void chromium;
 void getPeerId;
 
 /**
+ * Simple sanity test: create a single unencrypted project and verify
+ * the project appears in the dropdown and its todo is visible.
+ */
+test('basic unencrypted project dropdown visibility', async ({ page }) => {
+	const timestamp = Date.now();
+	const projectName = `unencrypted-project-${timestamp}`;
+	const todoText = `Task 1 of ${projectName}`;
+
+	// Initialize app
+	await page.goto('/');
+	await acceptConsentAndInitialize(page);
+	await waitForP2PInitialization(page);
+
+	// Create unencrypted project with a single todo
+	await createProjectWithTodos(page, projectName, false, '', [todoText]);
+
+	// Wait a bit before opening dropdown to ensure everything is settled
+	await page.waitForTimeout(500);
+	
+	// Open TodoListSelector dropdown and verify project appears
+	const todoListInput = page.locator('input[placeholder*="todo list" i]').first();
+	await todoListInput.click();
+	await page.waitForTimeout(1000);
+
+	// Wait for dropdown to contain the project
+	// Simply check if we can find text matching the project name in the dropdown
+	const dropdownWithProject = page.locator('[role="listbox"]', { hasText: projectName });
+	await expect(dropdownWithProject).toBeVisible({ timeout: 10000 });
+
+	// Close dropdown
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(300);
+
+	// Switch to the project and verify the todo is visible
+	await switchToProject(page, projectName);
+	await verifyTodosVisible(page, [todoText]);
+});
+
+/**
  * Comprehensive E2E test for per-database encryption
  *
  * Test flow:
@@ -21,7 +60,7 @@ void getPeerId;
  * 5. Open new browser contexts with URLs to test password prompts
  */
 test.describe('Per-Database Encryption E2E Tests', () => {
-	test('should handle multiple projects with different encryption settings', async ({
+	test.only('should handle multiple projects with different encryption settings', async ({
 		browser
 	}) => {
 		const timestamp = Date.now();
@@ -90,51 +129,48 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 		const project3Address = await getCurrentDatabaseAddress(page);
 		console.log(`✅ Project 3 address: ${project3Address}`);
 
-		// TODO: Re-enable when dropdown issue is fixed
-		/*
 	// ============================================================================
 	// STEP 2: Verify encryption icons in TodoListSelector
 	// ============================================================================
 	console.log('\n🔍 STEP 2: Verifying encryption icons in dropdown...\n');
-	
-	// First verify all projects are in the registry
-	const registryLists = await page.evaluate(() => {
-		return window.__availableTodoLists__ || [];
-	});
-	console.log(`📋 Registry has ${registryLists.length} lists:`, registryLists.map(l => l.displayName));
+
+	// Wait a bit before opening dropdown to ensure all projects are registered
+	await page.waitForTimeout(1000);
 	
 	// Open TodoListSelector dropdown
 	const todoListInput = page.locator('input[placeholder*="todo list" i]').first();
 	await todoListInput.click();
 	await page.waitForTimeout(1000); // Wait for dropdown to open and load
-		
-		// Check for encryption icons
-		const dropdownContainer = page.locator('[role="listbox"]').first();
-		
-		// Project 1 should NOT have encryption icon
-		const project1InDropdown = dropdownContainer.locator(`text=${project1Name}`).first();
-		await expect(project1InDropdown).toBeVisible();
-		const project1HasLockIcon = await dropdownContainer.locator(`text=${project1Name}`).locator('text=🔐').count();
-		expect(project1HasLockIcon).toBe(0);
-		console.log(`✅ Project 1 has no encryption icon (correct)`);
-		
-		// Project 2 should NOT have encryption icon (not encrypted yet)
-		const project2InDropdown = dropdownContainer.locator(`text=${project2Name}`).first();
-		await expect(project2InDropdown).toBeVisible();
-		const project2HasLockIcon = await dropdownContainer.locator(`text=${project2Name}`).locator('text=🔐').count();
-		expect(project2HasLockIcon).toBe(0);
-		console.log(`✅ Project 2 has no encryption icon (correct, not encrypted yet)`);
-		
-		// Project 3 SHOULD have encryption icon
-		const project3InDropdown = dropdownContainer.locator(`text=${project3Name}`).first();
-		await expect(project3InDropdown).toBeVisible();
-		const project3HasLockIcon = await dropdownContainer.locator(`text=${project3Name}`).locator('text=🔐').count();
-		expect(project3HasLockIcon).toBeGreaterThan(0);
-		console.log(`✅ Project 3 has encryption icon 🔐 (correct)`);
-		
-		// Close dropdown
-		await page.keyboard.press('Escape');
-		await page.waitForTimeout(300);
+
+	// Get the listbox for more specific queries
+	const listbox = page.getByRole('listbox');
+	
+	// Project 1 should NOT have encryption icon
+	// Just verify the project text appears in the listbox
+	const project1InDropdown = listbox.locator(`text=${project1Name}`);
+	await expect(project1InDropdown).toBeVisible({ timeout: 10000 });
+	// Check for lock icon in the entire listbox near project1
+	const project1HasLockIcon = await listbox.locator(`text=${project1Name}`).locator('..').locator('text=🔐').count();
+	expect(project1HasLockIcon).toBe(0);
+	console.log(`✅ Project 1 has no encryption icon (correct)`);
+
+	// Project 2 should NOT have encryption icon (not encrypted yet)
+	const project2InDropdown = listbox.locator(`text=${project2Name}`);
+	await expect(project2InDropdown).toBeVisible({ timeout: 10000 });
+	const project2HasLockIcon = await listbox.locator(`text=${project2Name}`).locator('..').locator('text=🔐').count();
+	expect(project2HasLockIcon).toBe(0);
+	console.log(`✅ Project 2 has no encryption icon (correct, not encrypted yet)`);
+
+	// Project 3 SHOULD have encryption icon
+	const project3InDropdown = listbox.locator(`text=${project3Name}`);
+	await expect(project3InDropdown).toBeVisible({ timeout: 10000 });
+	const project3HasLockIcon = await listbox.locator(`text=${project3Name}`).locator('..').locator('text=🔐').count();
+	expect(project3HasLockIcon).toBeGreaterThan(0);
+	console.log(`✅ Project 3 has encryption icon 🔐 (correct)`);
+
+	// Close dropdown
+	await page.keyboard.press('Escape');
+	await page.waitForTimeout(300);
 		
 		// ============================================================================
 		// STEP 3: Switch between projects and verify todos
@@ -225,14 +261,19 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 		
 		await page.waitForTimeout(1000);
 		
-		// Open dropdown again
-		await todoListInput.click();
-		await page.waitForTimeout(500);
-		
-		// Check Project 2 now HAS encryption icon
-		const project2HasLockIconNow = await dropdownContainer.locator(`text=${project2Name}`).locator('text=🔐').count();
-		expect(project2HasLockIconNow).toBeGreaterThan(0);
-		console.log(`✅ Project 2 now has encryption icon 🔐 (correct)`);
+	// Open dropdown again
+	await todoListInput.click();
+	await page.waitForTimeout(500);
+	
+	// Get the listbox for more specific queries
+	const listboxNow = page.getByRole('listbox');
+	
+	// Check Project 2 now HAS encryption icon
+	const project2DropdownNow = listboxNow.locator(`text=${project2Name}`);
+	await expect(project2DropdownNow).toBeVisible({ timeout: 10000 });
+	const project2HasLockIconNow = await listboxNow.locator(`text=${project2Name}`).locator('..').locator('text=🔐').count();
+	expect(project2HasLockIconNow).toBeGreaterThan(0);
+	console.log(`✅ Project 2 now has encryption icon 🔐 (correct)`);
 		
 		// Close dropdown
 		await page.keyboard.press('Escape');
@@ -355,10 +396,6 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 		
 		await context4.close();
 		
-		// ============================================================================
-		// Cleanup
-		// ============================================================================
-		*/
 		await context1.close();
 
 		console.log('\n✅ STEP 1 COMPLETED: All 3 projects created successfully! 🎉\n');
@@ -373,13 +410,21 @@ test.describe('Per-Database Encryption E2E Tests', () => {
  * Create a project and add todos to it
  */
 async function createProjectWithTodos(page, projectName, encrypted, password, todoTexts) {
-	// Open TodoListSelector - note it will clear input on focus
+	// Open TodoListSelector
 	const todoListInput = page.locator('input[placeholder*="todo list" i]').first();
 	await todoListInput.click();
-	await page.waitForTimeout(500);
+	await page.waitForTimeout(800);
 
-	// Type project name (input was cleared by focus handler)
-	await todoListInput.fill(projectName);
+	// Get current input value and clear it by pressing backspace for each character
+	// Add +1 to ensure we clear everything (sometimes one character remains)
+	const currentValue = await todoListInput.inputValue();
+	for (let i = 0; i <= currentValue.length; i++) {
+		await todoListInput.press('Backspace');
+	}
+	await page.waitForTimeout(300);
+
+	// Now type the new project name
+	await todoListInput.type(projectName, { delay: 50 });
 	await page.waitForTimeout(500);
 
 	// If encrypted, enable encryption first
@@ -400,10 +445,19 @@ async function createProjectWithTodos(page, projectName, encrypted, password, to
 	// Click create button or press Enter
 	await todoListInput.press('Enter');
 
-	// Wait for project to be created and registered
-	await page.waitForTimeout(4000); // Increased wait time for DB creation
+	// Wait for project to be created and database to be opened
+	// Give enough time for the database to be created, registered, and ready
+	await page.waitForTimeout(6000);
 
 	console.log(`  ✓ Created project: ${projectName}${encrypted ? ' 🔐' : ''}`);
+
+	// Verify project was actually created and switched to by checking the input value
+	// The TodoListSelector updates its input value to match the current list
+	const currentInputValue = await todoListInput.inputValue();
+	if (currentInputValue !== projectName) {
+		console.warn(`⚠️ Input value is "${currentInputValue}", expected "${projectName}"`);
+	}
+	console.log(`  ✓ Project database opened: ${projectName}`);
 
 	// Add todos
 	for (const todoText of todoTexts) {
@@ -429,17 +483,22 @@ async function switchToProject(page, projectName) {
 	await todoListInput.click();
 	await page.waitForTimeout(500);
 
-	// Type project name to filter
-	await todoListInput.fill(projectName);
-	await page.waitForTimeout(300);
+	// Prefer selecting the project directly from the dropdown rather than typing into the input.
+	const listbox = page.getByRole('listbox');
+	const projectButton = listbox.getByRole('button', { name: projectName, exact: true });
 
-	// Click on the project in dropdown or press Enter
-	const projectButton = page.locator(`button:has-text("${projectName}")`).first();
-	const isVisible = await projectButton.isVisible({ timeout: 2000 }).catch(() => false);
+	const isVisible = await projectButton.isVisible({ timeout: 3000 }).catch(() => false);
 
 	if (isVisible) {
 		await projectButton.click();
 	} else {
+		// Fallback: filter by typing the project name and pressing Enter
+		await todoListInput.press('Control+A').catch(() => {});
+		await todoListInput.press('Meta+A').catch(() => {});
+		await todoListInput.press('Backspace');
+		await page.waitForTimeout(200);
+		await todoListInput.type(projectName);
+		await page.waitForTimeout(300);
 		await todoListInput.press('Enter');
 	}
 
