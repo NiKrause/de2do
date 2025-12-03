@@ -5,6 +5,7 @@
 	import { peerIdStore } from '$lib/stores.js';
 	import { todosStore, todoDBStore, orbitdbStore } from '$lib/db-actions.js';
 	import ConsentModal from '$lib/components/ui/ConsentModal.svelte';
+	import WebAuthnSetup from '$lib/components/identity/WebAuthnSetup.svelte';
 	import SystemToast from '$lib/components/ui/SystemToast.svelte';
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
 	import ErrorAlert from '$lib/components/ui/ErrorAlert.svelte';
@@ -73,6 +74,7 @@
 
 	// Modal state
 	let showModal = true;
+	let showWebAuthnSetup = false;
 	let rememberDecision = false;
 	let preferences = {
 		enablePersistentStorage: true,
@@ -111,6 +113,19 @@
 			}
 		} catch {
 			// ignore storage errors
+		}
+
+		// Show WebAuthn setup modal before initializing P2P
+		showWebAuthnSetup = true;
+	};
+
+	const handleWebAuthnSetupComplete = async (event) => {
+		showWebAuthnSetup = false;
+
+		// If WebAuthn credential was created, store flag to use it
+		if (event?.detail?.identity) {
+			console.log('✅ WebAuthn credential created, will use for P2P initialization');
+			// The flag is already stored by the WebAuthn identity module
 		}
 
 		try {
@@ -310,6 +325,16 @@
 		rememberLabel="Don't show this again on this device"
 		proceedButtonText="Accept & Continue"
 		on:proceed={handleModalClose}
+	/>
+{/if}
+
+<!-- WebAuthn Setup Modal - shown after consent -->
+{#if showWebAuthnSetup}
+	<WebAuthnSetup
+		bind:show={showWebAuthnSetup}
+		optional={true}
+		on:created={handleWebAuthnSetupComplete}
+		on:skip={handleWebAuthnSetupComplete}
 	/>
 {/if}
 
