@@ -147,10 +147,10 @@ export async function acceptConsentAndInitialize(page, options = {}) {
 	page.off('console', consoleListener);
 
 	console.log('✅ Consent accepted');
-	
+
 	// Handle WebAuthn setup modal (if it appears)
 	await handleWebAuthnModal(page);
-	
+
 	console.log('✅ P2P initialization started');
 }
 
@@ -165,7 +165,7 @@ export async function waitForP2PInitialization(page, timeout = 30000) {
 
 	// Wait for todo input to be available (indicates OrbitDB is ready)
 	await page.waitForSelector('[data-testid="todo-input"]', { timeout: 10000 });
-	
+
 	// Wait for footer to be displayed (indicates successful P2P initialization)
 	// The footer appears when initializationStore.isInitialized is true
 	await page.waitForSelector('footer', { timeout, state: 'visible' });
@@ -188,33 +188,33 @@ export async function waitForPeerCount(page, minPeers = 1, timeout = 60000) {
 		const debugInfo = await page.evaluate(() => {
 			const footer = document.querySelector('footer');
 			if (!footer) return { hasFooter: false };
-			
+
 			const peersLabel = Array.from(footer.querySelectorAll('span')).find((s) =>
 				s.textContent?.includes('Peers:')
 			);
 			if (!peersLabel) return { hasFooter: true, hasPeersLabel: false };
-			
+
 			const countSpan = peersLabel.nextElementSibling;
 			if (!countSpan) return { hasFooter: true, hasPeersLabel: true, hasCountSpan: false };
-			
+
 			const countText = countSpan.textContent;
 			const match = countText?.match(/\((\d+)\)/);
 			const count = match ? parseInt(match[1], 10) : 0;
-			
+
 			// Also check libp2p peers directly
 			let libp2pPeerCount = 0;
 			if (window.__libp2p__) {
 				try {
 					libp2pPeerCount = window.__libp2p__.getPeers()?.length || 0;
-				} catch (e) {
+				} catch {
 					// ignore
 				}
 			}
-			
-			return { 
-				hasFooter: true, 
-				hasPeersLabel: true, 
-				hasCountSpan: true, 
+
+			return {
+				hasFooter: true,
+				hasPeersLabel: true,
+				hasCountSpan: true,
 				countText,
 				count,
 				libp2pPeerCount
@@ -306,12 +306,12 @@ export async function getPeerId(page) {
 		// The footer shows "...xxxxx" (last 5 chars), but we need the full ID
 		// For now, return what we have - tests will need to be updated
 		const shortId = peerIdCode.textContent?.trim();
-		
+
 		// Try to get full peer ID from window object if available
 		if (window.__libp2p__ && window.__libp2p__.peerId) {
 			return window.__libp2p__.peerId.toString();
 		}
-		
+
 		return shortId || null;
 	});
 }
@@ -325,7 +325,7 @@ export async function getPeerId(page) {
 export async function getConnectedPeerIds(page) {
 	return await page.evaluate(() => {
 		const peers = [];
-		
+
 		// Try to get peers from libp2p instance if available
 		if (window.__libp2p__) {
 			try {
@@ -334,11 +334,11 @@ export async function getConnectedPeerIds(page) {
 					peers.push(peerId.toString());
 				});
 				return peers;
-			} catch (e) {
+			} catch {
 				// Fall through to footer method
 			}
 		}
-		
+
 		// Fallback: try to get from footer hover (won't work without hover)
 		// This is a limitation - we may need to expose peer IDs differently
 		return peers;
@@ -635,7 +635,7 @@ export async function handleWebAuthnModal(page, timeout = 5000) {
 			timeout: 5000
 		});
 		console.log('✅ WebAuthn modal dismissed');
-	} catch (error) {
+	} catch {
 		// Modal didn't appear - this is fine, it might not show in all scenarios
 		console.log('ℹ️ WebAuthn modal did not appear (expected in many cases)');
 	}

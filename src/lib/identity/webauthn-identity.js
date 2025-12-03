@@ -97,10 +97,9 @@ export function getStoredCredentialInfo() {
 /**
  * Create a new WebAuthn credential and identity
  * @param {string} userName - Display name for the credential (e.g., "Simple Todo User")
- * @param {boolean} requireUserVerification - Whether to require biometric/PIN verification
  * @returns {Promise<Object>} Object with identity and credentialInfo
  */
-export async function createWebAuthnIdentity(userName = 'Simple Todo User', requireUserVerification = true) {
+export async function createWebAuthnIdentity(userName = 'Simple Todo User') {
 	if (!isWebAuthnAvailable()) {
 		throw new Error('WebAuthn is not available in this browser');
 	}
@@ -125,7 +124,9 @@ export async function createWebAuthnIdentity(userName = 'Simple Todo User', requ
 		storeWebAuthnCredential(credentialInfo);
 
 		// Also store in our own format for compatibility
-		const userHandleBase64 = btoa(String.fromCharCode(...new TextEncoder().encode(credentialInfo.userId)));
+		const userHandleBase64 = btoa(
+			String.fromCharCode(...new TextEncoder().encode(credentialInfo.userId))
+		);
 		localStorage.setItem(STORAGE_KEY_CREDENTIAL_ID, credentialInfo.credentialId);
 		localStorage.setItem(STORAGE_KEY_CREDENTIAL_TYPE, 'webauthn');
 		localStorage.setItem(STORAGE_KEY_USER_HANDLE, userHandleBase64);
@@ -146,16 +147,18 @@ export async function createWebAuthnIdentity(userName = 'Simple Todo User', requ
 		};
 	} catch (error) {
 		console.error('❌ Failed to create WebAuthn identity:', error);
-		
+
 		// Provide user-friendly error messages
 		if (error.name === 'NotAllowedError') {
 			throw new Error('Authentication was cancelled or not allowed. Please try again.');
 		} else if (error.name === 'InvalidStateError') {
-			throw new Error('A credential for this device already exists. Please use the existing credential or clear your credentials.');
+			throw new Error(
+				'A credential for this device already exists. Please use the existing credential or clear your credentials.'
+			);
 		} else if (error.name === 'NotSupportedError') {
 			throw new Error('WebAuthn is not supported on this device.');
 		}
-		
+
 		throw error;
 	}
 }
@@ -194,14 +197,14 @@ export async function authenticateWithWebAuthn() {
 		};
 	} catch (error) {
 		console.error('❌ Failed to authenticate with WebAuthn:', error);
-		
+
 		// Provide user-friendly error messages
 		if (error.name === 'NotAllowedError') {
 			throw new Error('Authentication was cancelled. Please try again.');
 		} else if (error.name === 'InvalidStateError') {
 			throw new Error('Invalid authentication state. Your credentials may be corrupted.');
 		}
-		
+
 		throw error;
 	}
 }
@@ -214,7 +217,7 @@ export function clearWebAuthnCredentials() {
 	try {
 		// Clear using the library function
 		clearCredential();
-		
+
 		// Also clear our own storage keys
 		localStorage.removeItem(STORAGE_KEY_CREDENTIAL_ID);
 		localStorage.removeItem(STORAGE_KEY_CREDENTIAL_TYPE);

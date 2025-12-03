@@ -1,8 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
-	import { initializeP2P, initializationStore, libp2pStore } from '$lib/p2p.js';
-	import { peerIdStore } from '$lib/stores.js';
+	import { initializeP2P, initializationStore } from '$lib/p2p.js';
 	import { todosStore, todoDBStore, orbitdbStore } from '$lib/db-actions.js';
 	import ConsentModal from '$lib/components/ui/ConsentModal.svelte';
 	import WebAuthnSetup from '$lib/components/identity/WebAuthnSetup.svelte';
@@ -11,7 +10,7 @@
 	import ErrorAlert from '$lib/components/ui/ErrorAlert.svelte';
 	import AddTodoForm from '$lib/components/todo/AddTodoForm.svelte';
 	import TodoList from '$lib/components/todo/TodoList.svelte';
-import AppFooter from '$lib/components/layout/AppFooter.svelte';
+	import AppFooter from '$lib/components/layout/AppFooter.svelte';
 	import StorachaIntegration from '$lib/components/integration/StorachaIntegration.svelte';
 	import QRCodeModal from '$lib/components/ui/QRCodeModal.svelte';
 	import TodoListSelector from '$lib/components/todo/TodoListSelector.svelte';
@@ -69,7 +68,6 @@ import AppFooter from '$lib/components/layout/AppFooter.svelte';
 	const CONSENT_KEY = `consentAccepted@${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}`;
 
 	let error = null;
-	let myPeerId = null;
 
 	// Modal state
 	let showModal = true;
@@ -424,7 +422,6 @@ import AppFooter from '$lib/components/layout/AppFooter.svelte';
 			on:toggleComplete={handleToggleComplete}
 			on:createSubList={handleCreateSubList}
 		/>
-
 
 		<!-- Storacha Test Suite - Temporarily disabled
 		<StorachaTest />

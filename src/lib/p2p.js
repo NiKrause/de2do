@@ -2,7 +2,13 @@ import { writable, get } from 'svelte/store';
 
 import { createLibp2p } from 'libp2p';
 import { createHelia } from 'helia';
-import { createOrbitDB, OrbitDBAccessController, MemoryStorage, Identities, useIdentityProvider } from '@orbitdb/core';
+import {
+	createOrbitDB,
+	OrbitDBAccessController,
+	MemoryStorage,
+	Identities,
+	useIdentityProvider
+} from '@orbitdb/core';
 import SimpleEncryption from '@le-space/orbitdb-simple-encryption';
 import { createLibp2pConfig } from './libp2p-config.js';
 // Dynamic import to avoid circular dependency with db-actions.js
@@ -11,11 +17,11 @@ import { LevelBlockstore } from 'blockstore-level';
 import { LevelDatastore } from 'datastore-level';
 import { systemToasts, showToast } from './toast-store.js';
 import { currentIdentityStore, peerIdStore } from './stores.js';
+import { isWebAuthnAvailable, hasExistingCredentials } from './identity/webauthn-identity.js';
 import {
-	isWebAuthnAvailable,
-	hasExistingCredentials
-} from './identity/webauthn-identity.js';
-import { OrbitDBWebAuthnIdentityProviderFunction, loadWebAuthnCredential } from '@le-space/orbitdb-identity-provider-webauthn-did';
+	OrbitDBWebAuthnIdentityProviderFunction,
+	loadWebAuthnCredential
+} from '@le-space/orbitdb-identity-provider-webauthn-did';
 
 // Export libp2p instance for plugins
 export const libp2pStore = writable(null);
@@ -437,17 +443,17 @@ export async function initializeP2P(preferences = {}) {
 			enableNetworkConnection
 		});
 
-	libp2p = await createLibp2p(config);
-	libp2pStore.set(libp2p); // Make available to plugins
-	
-	// Expose to window for e2e testing
-	if (typeof window !== 'undefined') {
-		window.__libp2p__ = libp2p;
-	}
-	
-	console.log(
-		`✅ libp2p node created with network connection: ${enableNetworkConnection ? 'enabled' : 'disabled'}, peer connections: ${enablePeerConnections ? 'enabled' : 'disabled'}`
-	);
+		libp2p = await createLibp2p(config);
+		libp2pStore.set(libp2p); // Make available to plugins
+
+		// Expose to window for e2e testing
+		if (typeof window !== 'undefined') {
+			window.__libp2p__ = libp2p;
+		}
+
+		console.log(
+			`✅ libp2p node created with network connection: ${enableNetworkConnection ? 'enabled' : 'disabled'}, peer connections: ${enablePeerConnections ? 'enabled' : 'disabled'}`
+		);
 
 		// Add pubsub event listeners to debug OrbitDB subscriptions
 		if (libp2p.services.pubsub) {
@@ -486,41 +492,44 @@ export async function initializeP2P(preferences = {}) {
 		libp2p.addEventListener('peer:discovery', (event) => {
 			const { id: peerId, multiaddrs } = event.detail || {};
 			if (!peerId || !multiaddrs) return;
-			
+
 			// Filter for dialable addresses (webrtc, webtransport, websocket)
 			const dialableAddrs = multiaddrs.filter((addr) => {
 				const addrStr = addr.toString();
-				return addrStr.includes('/webrtc') || 
-					   addrStr.includes('/webtransport') || 
-					   addrStr.includes('/ws');
+				return (
+					addrStr.includes('/webrtc') ||
+					addrStr.includes('/webtransport') ||
+					addrStr.includes('/ws')
+				);
 			});
-			
+
 			if (dialableAddrs.length === 0) return;
-			
+
 			const peerIdShort = peerId.toString().slice(0, 12) + '...';
 			console.log('🔍 Peer discovered with dialable addresses:', {
 				peerId: peerIdShort,
 				addresses: dialableAddrs.map((a) => a.toString())
 			});
-			
+
 			// Check if we already have a direct connection
 			const existingConnections = libp2p.getConnections(peerId);
-			const hasDirectConnection = existingConnections?.some(conn => {
+			const hasDirectConnection = existingConnections?.some((conn) => {
 				const addr = conn.remoteAddr?.toString() || '';
 				return !addr.includes('/p2p-circuit');
 			});
-			
+
 			if (hasDirectConnection) {
 				console.log('✅ Already have direct connection to:', peerIdShort);
 				return;
 			}
-			
+
 			// Auto-dial if peer connections are enabled (fire-and-forget)
 			if (enablePeerConnections) {
 				console.log('🔗 Auto-dialing peer:', peerIdShort);
 				// Don't await - let dial happen in background
 				// Dial by peerId to let libp2p route through relay and upgrade to direct
-				libp2p.dial(peerId)
+				libp2p
+					.dial(peerId)
 					.then(() => {
 						console.log('✅ Successfully dialed peer:', peerIdShort);
 					})
@@ -628,78 +637,78 @@ export async function initializeP2P(preferences = {}) {
 		// Show toast for Helia creation
 		systemToasts.showHeliaCreated();
 
-	// Create OrbitDB instance
-	console.log('🛬 Creating OrbitDB instance...');
-	
-	// Try to use WebAuthn identity if available and enabled
-	let webauthnCredential = null;
-	const useWebAuthn = preferences.useWebAuthn !== false; // Default to true
-	
-	if (useWebAuthn && isWebAuthnAvailable() && hasExistingCredentials()) {
-		try {
-			console.log('🔐 Loading WebAuthn credential...');
-			webauthnCredential = loadWebAuthnCredential();
-			if (webauthnCredential) {
-				console.log('✅ WebAuthn credential loaded successfully');
-				showToast('🔐 Using hardware-secured identity', 'success', 3000);
+		// Create OrbitDB instance
+		console.log('🛬 Creating OrbitDB instance...');
+
+		// Try to use WebAuthn identity if available and enabled
+		let webauthnCredential = null;
+		const useWebAuthn = preferences.useWebAuthn !== false; // Default to true
+
+		if (useWebAuthn && isWebAuthnAvailable() && hasExistingCredentials()) {
+			try {
+				console.log('🔐 Loading WebAuthn credential...');
+				webauthnCredential = loadWebAuthnCredential();
+				if (webauthnCredential) {
+					console.log('✅ WebAuthn credential loaded successfully');
+					showToast('🔐 Using hardware-secured identity', 'success', 3000);
+				}
+			} catch (error) {
+				console.warn('⚠️ Failed to load WebAuthn credential, falling back to default:', error);
+				showToast('⚠️ WebAuthn load failed, using software identity', 'warning', 3000);
 			}
-		} catch (error) {
-			console.warn('⚠️ Failed to load WebAuthn credential, falling back to default:', error);
-			showToast('⚠️ WebAuthn load failed, using software identity', 'warning', 3000);
 		}
-	}
-	
-	// Create OrbitDB with WebAuthn identity if available
-	if (webauthnCredential) {
-		try {
-			// Register WebAuthn provider
-			useIdentityProvider(OrbitDBWebAuthnIdentityProviderFunction);
-			
-			// Create identities instance
-			const identities = await Identities({ ipfs: helia });
-			
-			// Create WebAuthn identity
-			const identity = await identities.createIdentity({
-				provider: OrbitDBWebAuthnIdentityProviderFunction({
-					webauthnCredential
-				})
-			});
-			
-			console.log('🔍 Created WebAuthn identity:', {
-				id: identity.id,
-				type: identity.type,
-				hash: identity.hash
-			});
-			
-			// Create OrbitDB with WebAuthn identity
+
+		// Create OrbitDB with WebAuthn identity if available
+		if (webauthnCredential) {
+			try {
+				// Register WebAuthn provider
+				useIdentityProvider(OrbitDBWebAuthnIdentityProviderFunction);
+
+				// Create identities instance
+				const identities = await Identities({ ipfs: helia });
+
+				// Create WebAuthn identity
+				const identity = await identities.createIdentity({
+					provider: OrbitDBWebAuthnIdentityProviderFunction({
+						webauthnCredential
+					})
+				});
+
+				console.log('🔍 Created WebAuthn identity:', {
+					id: identity.id,
+					type: identity.type,
+					hash: identity.hash
+				});
+
+				// Create OrbitDB with WebAuthn identity
+				orbitdb = await createOrbitDB({
+					ipfs: helia,
+					identities,
+					identity,
+					id: 'simple-todo-app',
+					directory: './orbitdb'
+				});
+
+				showToast('✅ Authenticated with hardware-secured identity', 'success', 3000);
+			} catch (error) {
+				console.error('❌ Failed to create OrbitDB with WebAuthn identity:', error);
+				showToast('⚠️ WebAuthn failed, using software identity', 'warning', 3000);
+
+				// Fall back to default identity
+				orbitdb = await createOrbitDB({
+					ipfs: helia,
+					id: 'simple-todo-app',
+					directory: './orbitdb'
+				});
+			}
+		} else {
+			// Create OrbitDB with default identity
 			orbitdb = await createOrbitDB({
 				ipfs: helia,
-				identities,
-				identity,
 				id: 'simple-todo-app',
 				directory: './orbitdb'
 			});
-			
-			showToast('✅ Authenticated with hardware-secured identity', 'success', 3000);
-		} catch (error) {
-			console.error('❌ Failed to create OrbitDB with WebAuthn identity:', error);
-			showToast('⚠️ WebAuthn failed, using software identity', 'warning', 3000);
-			
-			// Fall back to default identity
-			orbitdb = await createOrbitDB({
-				ipfs: helia,
-				id: 'simple-todo-app',
-				directory: './orbitdb'
-			});
 		}
-	} else {
-		// Create OrbitDB with default identity
-		orbitdb = await createOrbitDB({
-			ipfs: helia,
-			id: 'simple-todo-app',
-			directory: './orbitdb'
-		});
-	}
 
 		// Show toast for OrbitDB creation
 		systemToasts.showOrbitDBCreated();

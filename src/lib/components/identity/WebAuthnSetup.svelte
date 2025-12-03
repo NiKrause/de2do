@@ -2,9 +2,6 @@
 	import { onMount } from 'svelte';
 	import { createEventDispatcher } from 'svelte';
 	import {
-		isWebAuthnAvailable,
-		isPlatformAuthenticatorAvailable,
-		hasExistingCredentials,
 		createWebAuthnIdentity,
 		getWebAuthnCapabilities,
 		clearWebAuthnCredentials
@@ -41,13 +38,13 @@
 		try {
 			const { identity, credentialInfo } = await createWebAuthnIdentity();
 			success = 'WebAuthn credential created successfully!';
-			
+
 			// Notify parent component
 			dispatch('created', { identity, credentialInfo });
-			
+
 			// Update capabilities
 			capabilities = await getWebAuthnCapabilities();
-			
+
 			setTimeout(() => {
 				show = false;
 			}, 1500);
@@ -65,7 +62,11 @@
 	}
 
 	function handleClearCredentials() {
-		if (confirm('Are you sure you want to clear your WebAuthn credentials? You will need to create new ones to use hardware authentication.')) {
+		if (
+			confirm(
+				'Are you sure you want to clear your WebAuthn credentials? You will need to create new ones to use hardware authentication.'
+			)
+		) {
 			clearWebAuthnCredentials();
 			capabilities.hasExistingCredentials = false;
 			success = 'Credentials cleared. You can now create new ones.';
@@ -75,7 +76,7 @@
 
 {#if show}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+		class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black"
 		data-testid="webauthn-setup-modal"
 	>
 		<div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
@@ -107,11 +108,7 @@
 				{#if !capabilities.available}
 					<div class="rounded-lg bg-yellow-50 p-4">
 						<div class="flex">
-							<svg
-								class="h-5 w-5 text-yellow-400"
-								fill="currentColor"
-								viewBox="0 0 20 20"
-							>
+							<svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
 								<path
 									fill-rule="evenodd"
 									d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
@@ -130,11 +127,7 @@
 				{:else if capabilities.hasExistingCredentials}
 					<div class="rounded-lg bg-green-50 p-4">
 						<div class="flex">
-							<svg
-								class="h-5 w-5 text-green-400"
-								fill="currentColor"
-								viewBox="0 0 20 20"
-							>
+							<svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
 								<path
 									fill-rule="evenodd"
 									d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -144,8 +137,7 @@
 							<div class="ml-3">
 								<h3 class="text-sm font-medium text-green-800">Credentials Already Set Up</h3>
 								<p class="mt-1 text-sm text-green-700">
-									You already have WebAuthn credentials configured. They will be used
-									automatically.
+									You already have WebAuthn credentials configured. They will be used automatically.
 								</p>
 								<button
 									on:click={handleClearCredentials}
@@ -235,7 +227,7 @@
 					<button
 						on:click={handleSkip}
 						disabled={isLoading}
-						class="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+						class="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						Skip for Now
 					</button>
@@ -245,15 +237,11 @@
 					<button
 						on:click={handleSetupWebAuthn}
 						disabled={isLoading}
-						class="flex-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+						class="flex-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{#if isLoading}
 							<span class="flex items-center justify-center gap-2">
-								<svg
-									class="h-4 w-4 animate-spin"
-									fill="none"
-									viewBox="0 0 24 24"
-								>
+								<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
 									<circle
 										class="opacity-25"
 										cx="12"
@@ -277,14 +265,14 @@
 				{:else if capabilities.hasExistingCredentials}
 					<button
 						on:click={handleSkip}
-						class="flex-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+						class="flex-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
 					>
 						Continue
 					</button>
 				{:else}
 					<button
 						on:click={handleSkip}
-						class="flex-1 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+						class="flex-1 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none"
 					>
 						Continue with Software Identity
 					</button>

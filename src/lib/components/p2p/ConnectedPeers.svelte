@@ -86,75 +86,91 @@
 			const { id: peerId, multiaddrs } = event.detail;
 			const peerIdStr = peerId?.toString();
 
-		console.log('🔍 Peer discovered:', formatPeerId(peerIdStr));
+			console.log('🔍 Peer discovered:', formatPeerId(peerIdStr));
 
-		// Skip if already discovered
-		if (currentPeers.some((peer) => peer.peerId === peerIdStr)) {
-			return;
-		}
+			// Skip if already discovered
+			if (currentPeers.some((peer) => peer.peerId === peerIdStr)) {
+				return;
+			}
 
-		// Check existing connections
-		const existingConnections = libp2p.getConnections(peerId);
-		
-		// Extract transport protocols from discovered addresses
-		const detectedTransports = extractTransportsFromMultiaddrs(multiaddrs);
-		const hasWebRTCAddress = detectedTransports.includes('webrtc');
-		
-		// Check if we only have relay connections
-		const hasOnlyRelayConnection = existingConnections?.length > 0 && 
-			existingConnections.every(conn => {
-				const addr = conn.remoteAddr?.toString() || '';
-				return addr.includes('/p2p-circuit');
+			// Check existing connections
+			const existingConnections = libp2p.getConnections(peerId);
+
+			// Extract transport protocols from discovered addresses
+			const detectedTransports = extractTransportsFromMultiaddrs(multiaddrs);
+			const hasWebRTCAddress = detectedTransports.includes('webrtc');
+
+			// Check if we only have relay connections
+			const hasOnlyRelayConnection =
+				existingConnections?.length > 0 &&
+				existingConnections.every((conn) => {
+					const addr = conn.remoteAddr?.toString() || '';
+					return addr.includes('/p2p-circuit');
+				});
+
+			// Check if we have any direct (non-relay) connection
+			const hasDirectConnection =
+				existingConnections?.length > 0 &&
+				existingConnections.some((conn) => {
+					const addr = conn.remoteAddr?.toString() || '';
+					return !addr.includes('/p2p-circuit');
+				});
+
+			// Skip only if we already have a direct connection
+			// Allow dialing if: no connection, only relay connection, or discovered new WebRTC addresses
+			if (hasDirectConnection) {
+				console.log(
+					'✅ Already have direct connection to:',
+					formatPeerId(peerIdStr),
+					'- skipping dial'
+				);
+				return;
+			}
+
+			// Log upgrade opportunity
+			if (hasOnlyRelayConnection && hasWebRTCAddress) {
+				console.log(
+					'🚀 Attempting WebRTC upgrade for relay-connected peer:',
+					formatPeerId(peerIdStr)
+				);
+			} else if (hasOnlyRelayConnection) {
+				console.log(
+					'🔄 Attempting to dial relay-connected peer with new addresses:',
+					formatPeerId(peerIdStr)
+				);
+			}
+
+			// Store peer info
+			discoveredPeersInfo.set(peerIdStr, {
+				peerId: peerIdStr,
+				transports: detectedTransports,
+				multiaddrs: multiaddrs
 			});
-		
-		// Check if we have any direct (non-relay) connection
-		const hasDirectConnection = existingConnections?.length > 0 && 
-			existingConnections.some(conn => {
-				const addr = conn.remoteAddr?.toString() || '';
-				return !addr.includes('/p2p-circuit');
-			});
-		
-		// Skip only if we already have a direct connection
-		// Allow dialing if: no connection, only relay connection, or discovered new WebRTC addresses
-		if (hasDirectConnection) {
-			console.log('✅ Already have direct connection to:', formatPeerId(peerIdStr), '- skipping dial');
-			return;
-		}
-		
-		// Log upgrade opportunity
-		if (hasOnlyRelayConnection && hasWebRTCAddress) {
-			console.log('🚀 Attempting WebRTC upgrade for relay-connected peer:', formatPeerId(peerIdStr));
-		} else if (hasOnlyRelayConnection) {
-			console.log('🔄 Attempting to dial relay-connected peer with new addresses:', formatPeerId(peerIdStr));
-		}
 
-		// Store peer info
-		discoveredPeersInfo.set(peerIdStr, {
-			peerId: peerIdStr,
-			transports: detectedTransports,
-			multiaddrs: multiaddrs
-		});
-
-		// Auto-connect if enabled
-		if (autoConnect) {
-			try {
-				// Prefer dialing the discovered multiaddrs (bias towards WebRTC)
-				await libp2p.dial(multiaddrs);
-				console.log('✅ Dialed discovered multiaddrs for:', formatPeerId(peerIdStr));
-			} catch (err1) {
-				console.warn('⚠️ Dial via multiaddrs failed, falling back to peerId:', formatPeerId(peerIdStr), err1?.message);
+			// Auto-connect if enabled
+			if (autoConnect) {
 				try {
-					await libp2p.dial(peerId);
-					console.log('✅ Fallback dial by peerId succeeded for:', formatPeerId(peerIdStr));
-				} catch (err2) {
-					console.warn('❌ Failed to connect to peer:', formatPeerId(peerIdStr), err2?.message);
-					// Don't delete peer info if we already have a relay connection
-					if (!hasOnlyRelayConnection) {
-						discoveredPeersInfo.delete(peerIdStr);
+					// Prefer dialing the discovered multiaddrs (bias towards WebRTC)
+					await libp2p.dial(multiaddrs);
+					console.log('✅ Dialed discovered multiaddrs for:', formatPeerId(peerIdStr));
+				} catch (err1) {
+					console.warn(
+						'⚠️ Dial via multiaddrs failed, falling back to peerId:',
+						formatPeerId(peerIdStr),
+						err1?.message
+					);
+					try {
+						await libp2p.dial(peerId);
+						console.log('✅ Fallback dial by peerId succeeded for:', formatPeerId(peerIdStr));
+					} catch (err2) {
+						console.warn('❌ Failed to connect to peer:', formatPeerId(peerIdStr), err2?.message);
+						// Don't delete peer info if we already have a relay connection
+						if (!hasOnlyRelayConnection) {
+							discoveredPeersInfo.delete(peerIdStr);
+						}
 					}
 				}
 			}
-		}
 		};
 
 		// Handle successful connections

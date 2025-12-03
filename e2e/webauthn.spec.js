@@ -17,7 +17,7 @@ test.describe('WebAuthn Authentication', () => {
 
 		// Note: WebAuthn setup modal might appear automatically or be triggered
 		// We'll check if the modal appears or if there's a way to access it
-		
+
 		// For now, just verify the app loads correctly
 		const heading = page.locator('h1');
 		await expect(heading).toContainText(/Simple Todo/i);
@@ -47,19 +47,19 @@ test.describe('WebAuthn Authentication', () => {
 	test('should detect platform authenticator availability', async ({ page }) => {
 		// Create a test to check if platform authenticator detection works
 		await page.goto('/');
-		
+
 		// Evaluate WebAuthn capabilities in browser context
 		const capabilities = await page.evaluate(async () => {
 			if (typeof window.PublicKeyCredential === 'undefined') {
 				return { available: false, platformAuthenticator: false };
 			}
-			
+
 			try {
-				const platformAuthenticator = 
+				const platformAuthenticator =
 					await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-				return { 
-					available: true, 
-					platformAuthenticator 
+				return {
+					available: true,
+					platformAuthenticator
 				};
 			} catch {
 				return { available: true, platformAuthenticator: false };
@@ -67,7 +67,7 @@ test.describe('WebAuthn Authentication', () => {
 		});
 
 		console.log('WebAuthn capabilities:', capabilities);
-		
+
 		// Just verify the capability detection runs without errors
 		expect(capabilities).toHaveProperty('available');
 		expect(capabilities).toHaveProperty('platformAuthenticator');
@@ -81,11 +81,11 @@ test.describe('WebAuthn Authentication', () => {
 			try {
 				const testKey = 'test_webauthn_credential_id';
 				const testValue = 'test_credential_id_12345';
-				
+
 				localStorage.setItem(testKey, testValue);
 				const retrieved = localStorage.getItem(testKey);
 				localStorage.removeItem(testKey);
-				
+
 				return retrieved === testValue;
 			} catch {
 				return false;
@@ -117,7 +117,6 @@ test.describe('WebAuthn Authentication', () => {
 	test('should handle WebAuthn authentication failure gracefully', async ({ page, context }) => {
 		// Mock WebAuthn to throw an error during credential creation
 		await context.addInitScript(() => {
-			const originalCreate = navigator.credentials.create;
 			// @ts-ignore
 			navigator.credentials.create = async () => {
 				throw new DOMException('User cancelled', 'NotAllowedError');
