@@ -437,11 +437,17 @@ export async function initializeP2P(preferences = {}) {
 			enableNetworkConnection
 		});
 
-		libp2p = await createLibp2p(config);
-		libp2pStore.set(libp2p); // Make available to plugins
-		console.log(
-			`✅ libp2p node created with network connection: ${enableNetworkConnection ? 'enabled' : 'disabled'}, peer connections: ${enablePeerConnections ? 'enabled' : 'disabled'}`
-		);
+	libp2p = await createLibp2p(config);
+	libp2pStore.set(libp2p); // Make available to plugins
+	
+	// Expose to window for e2e testing
+	if (typeof window !== 'undefined') {
+		window.__libp2p__ = libp2p;
+	}
+	
+	console.log(
+		`✅ libp2p node created with network connection: ${enableNetworkConnection ? 'enabled' : 'disabled'}, peer connections: ${enablePeerConnections ? 'enabled' : 'disabled'}`
+	);
 
 		// Add pubsub event listeners to debug OrbitDB subscriptions
 		if (libp2p.services.pubsub) {
@@ -476,16 +482,51 @@ export async function initializeP2P(preferences = {}) {
 			});
 		}
 
-		// Add WebRTC connection debugging
+		// Auto-dial discovered peers
 		libp2p.addEventListener('peer:discovery', (event) => {
 			const { id: peerId, multiaddrs } = event.detail || {};
 			if (!peerId || !multiaddrs) return;
-			const webrtcAddrs = multiaddrs.filter((addr) => addr.toString().includes('/webrtc'));
-			if (webrtcAddrs.length > 0) {
-				console.log('🌐 WebRTC: Peer discovered with WebRTC addresses:', {
-					peerId: peerId.toString().slice(0, 12) + '...',
-					webrtcAddresses: webrtcAddrs.map((a) => a.toString())
-				});
+			
+			// Filter for dialable addresses (webrtc, webtransport, websocket)
+			const dialableAddrs = multiaddrs.filter((addr) => {
+				const addrStr = addr.toString();
+				return addrStr.includes('/webrtc') || 
+					   addrStr.includes('/webtransport') || 
+					   addrStr.includes('/ws');
+			});
+			
+			if (dialableAddrs.length === 0) return;
+			
+			const peerIdShort = peerId.toString().slice(0, 12) + '...';
+			console.log('🔍 Peer discovered with dialable addresses:', {
+				peerId: peerIdShort,
+				addresses: dialableAddrs.map((a) => a.toString())
+			});
+			
+			// Check if we already have a direct connection
+			const existingConnections = libp2p.getConnections(peerId);
+			const hasDirectConnection = existingConnections?.some(conn => {
+				const addr = conn.remoteAddr?.toString() || '';
+				return !addr.includes('/p2p-circuit');
+			});
+			
+			if (hasDirectConnection) {
+				console.log('✅ Already have direct connection to:', peerIdShort);
+				return;
+			}
+			
+			// Auto-dial if peer connections are enabled (fire-and-forget)
+			if (enablePeerConnections) {
+				console.log('🔗 Auto-dialing peer:', peerIdShort);
+				// Don't await - let dial happen in background
+				// Dial by peerId to let libp2p route through relay and upgrade to direct
+				libp2p.dial(peerId)
+					.then(() => {
+						console.log('✅ Successfully dialed peer:', peerIdShort);
+					})
+					.catch((error) => {
+						console.warn('⚠️ Failed to dial peer:', peerIdShort, error.message);
+					});
 			}
 		});
 

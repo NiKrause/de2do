@@ -11,8 +11,7 @@
 	import ErrorAlert from '$lib/components/ui/ErrorAlert.svelte';
 	import AddTodoForm from '$lib/components/todo/AddTodoForm.svelte';
 	import TodoList from '$lib/components/todo/TodoList.svelte';
-	import ConnectedPeers from '$lib/components/p2p/ConnectedPeers.svelte';
-	import PeerIdCard from '$lib/components/p2p/PeerIdCard.svelte';
+import AppFooter from '$lib/components/layout/AppFooter.svelte';
 	import StorachaIntegration from '$lib/components/integration/StorachaIntegration.svelte';
 	import QRCodeModal from '$lib/components/ui/QRCodeModal.svelte';
 	import TodoListSelector from '$lib/components/todo/TodoListSelector.svelte';
@@ -293,11 +292,6 @@
 		}
 	}
 
-	// Subscribe to the peerIdStore
-	$: myPeerId = $peerIdStore;
-
-	let connectedPeersRef;
-
 	// Setup database debugging utilities
 	setupDatabaseDebug();
 </script>
@@ -341,7 +335,7 @@
 <!-- Password modal for encrypted databases -->
 <ManagedPasswordModal />
 
-<main class="container mx-auto max-w-4xl p-6">
+<main class="container mx-auto max-w-4xl p-6 pb-20">
 	{#if !isEmbedMode}
 		<AppHeader on:qrcode={() => (showQRCodeModal = true)} />
 	{/if}
@@ -431,14 +425,6 @@
 			on:createSubList={handleCreateSubList}
 		/>
 
-		<!-- P2P Status -->
-		<div class="grid gap-6 md:grid-cols-2">
-			<!-- Connected Peers -->
-			<ConnectedPeers bind:this={connectedPeersRef} libp2p={$libp2pStore} />
-
-			<!-- My Identity -->
-			<PeerIdCard peerId={myPeerId} />
-		</div>
 
 		<!-- Storacha Test Suite - Temporarily disabled
 		<StorachaTest />
@@ -518,3 +504,8 @@
 
 <!-- QR Code Modal -->
 <QRCodeModal bind:show={showQRCodeModal} />
+
+<!-- App Footer with Peer Info -->
+{#if $initializationStore.isInitialized && !isEmbedMode}
+	<AppFooter />
+{/if}

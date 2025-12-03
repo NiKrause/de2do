@@ -146,7 +146,12 @@ export async function acceptConsentAndInitialize(page, options = {}) {
 	// Clean up console listener
 	page.off('console', consoleListener);
 
-	console.log('✅ Consent accepted and P2P initialization started');
+	console.log('✅ Consent accepted');
+	
+	// Handle WebAuthn setup modal (if it appears)
+	await handleWebAuthnModal(page);
+	
+	console.log('✅ P2P initialization started');
 }
 
 /**
@@ -158,11 +163,12 @@ export async function acceptConsentAndInitialize(page, options = {}) {
 export async function waitForP2PInitialization(page, timeout = 30000) {
 	console.log('⏳ Waiting for P2P initialization...');
 
-	// Wait for peer ID to be displayed (indicates successful P2P initialization)
-	await page.waitForSelector('[data-testid="peer-id"]', { timeout });
-
 	// Wait for todo input to be available (indicates OrbitDB is ready)
 	await page.waitForSelector('[data-testid="todo-input"]', { timeout: 10000 });
+	
+	// Wait for footer to be displayed (indicates successful P2P initialization)
+	// The footer appears when initializationStore.isInitialized is true
+	await page.waitForSelector('footer', { timeout, state: 'visible' });
 
 	console.log('✅ P2P initialization completed');
 }
@@ -177,25 +183,75 @@ export async function waitForP2PInitialization(page, timeout = 30000) {
 export async function waitForPeerCount(page, minPeers = 1, timeout = 60000) {
 	console.log(`⏳ Waiting for at least ${minPeers} peer(s)...`);
 
-	await page.waitForFunction(
-		(min) => {
-			// Look for the Connected Peers section
-			const heading = Array.from(document.querySelectorAll('h2')).find((h) =>
-				h.textContent?.includes('Connected Peers')
+	// Add periodic logging to see what's happening
+	const checkInterval = setInterval(async () => {
+		const debugInfo = await page.evaluate(() => {
+			const footer = document.querySelector('footer');
+			if (!footer) return { hasFooter: false };
+			
+			const peersLabel = Array.from(footer.querySelectorAll('span')).find((s) =>
+				s.textContent?.includes('Peers:')
 			);
-			if (!heading) return false;
-
-			// Extract count from heading text like "Connected Peers (2)"
-			const match = heading.textContent?.match(/\((\d+)\)/);
+			if (!peersLabel) return { hasFooter: true, hasPeersLabel: false };
+			
+			const countSpan = peersLabel.nextElementSibling;
+			if (!countSpan) return { hasFooter: true, hasPeersLabel: true, hasCountSpan: false };
+			
+			const countText = countSpan.textContent;
+			const match = countText?.match(/\((\d+)\)/);
 			const count = match ? parseInt(match[1], 10) : 0;
+			
+			// Also check libp2p peers directly
+			let libp2pPeerCount = 0;
+			if (window.__libp2p__) {
+				try {
+					libp2pPeerCount = window.__libp2p__.getPeers()?.length || 0;
+				} catch (e) {
+					// ignore
+				}
+			}
+			
+			return { 
+				hasFooter: true, 
+				hasPeersLabel: true, 
+				hasCountSpan: true, 
+				countText,
+				count,
+				libp2pPeerCount
+			};
+		});
+		console.log(`🔍 Footer debug:`, JSON.stringify(debugInfo));
+	}, 5000);
 
-			return count >= min;
-		},
-		minPeers,
-		{ timeout }
-	);
+	try {
+		await page.waitForFunction(
+			(min) => {
+				// Look for the footer with peer count
+				const footer = document.querySelector('footer');
+				if (!footer) return false;
 
-	console.log(`✅ Peer count reached at least ${minPeers}`);
+				// Find "Peers:" label and extract count from the next element
+				const peersLabel = Array.from(footer.querySelectorAll('span')).find((s) =>
+					s.textContent?.includes('Peers:')
+				);
+				if (!peersLabel) return false;
+
+				// The count is in the next sibling span with format "(X)"
+				const countSpan = peersLabel.nextElementSibling;
+				if (!countSpan) return false;
+
+				const match = countSpan.textContent?.match(/\((\d+)\)/);
+				const count = match ? parseInt(match[1], 10) : 0;
+
+				return count >= min;
+			},
+			minPeers,
+			{ timeout }
+		);
+		console.log(`✅ Peer count reached at least ${minPeers}`);
+	} finally {
+		clearInterval(checkInterval);
+	}
 }
 
 /**
@@ -206,12 +262,20 @@ export async function waitForPeerCount(page, minPeers = 1, timeout = 60000) {
  */
 export async function getPeerCount(page) {
 	return await page.evaluate(() => {
-		const heading = Array.from(document.querySelectorAll('h2')).find((h) =>
-			h.textContent?.includes('Connected Peers')
-		);
-		if (!heading) return 0;
+		// Look for the footer with peer count
+		const footer = document.querySelector('footer');
+		if (!footer) return 0;
 
-		const match = heading.textContent?.match(/\((\d+)\)/);
+		// Find "Peers:" label and extract count from the next element
+		const peersLabel = Array.from(footer.querySelectorAll('span')).find((s) =>
+			s.textContent?.includes('Peers:')
+		);
+		if (!peersLabel) return 0;
+
+		const countSpan = peersLabel.nextElementSibling;
+		if (!countSpan) return 0;
+
+		const match = countSpan.textContent?.match(/\((\d+)\)/);
 		return match ? parseInt(match[1], 10) : 0;
 	});
 }
@@ -224,8 +288,31 @@ export async function getPeerCount(page) {
  */
 export async function getPeerId(page) {
 	return await page.evaluate(() => {
-		const peerIdElement = document.querySelector('[data-testid="peer-id"]');
-		return peerIdElement?.textContent?.trim() || null;
+		// Look for PeerID in the footer
+		const footer = document.querySelector('footer');
+		if (!footer) return null;
+
+		// Find "PeerID:" label and get the next code element
+		const peerIdLabel = Array.from(footer.querySelectorAll('span')).find((s) =>
+			s.textContent?.includes('PeerID:')
+		);
+		if (!peerIdLabel) return null;
+
+		// The peer ID is in a code element that follows
+		const peerIdCode = peerIdLabel.nextElementSibling;
+		if (!peerIdCode) return null;
+
+		// Extract the actual peer ID (might need to reconstruct from shortened version)
+		// The footer shows "...xxxxx" (last 5 chars), but we need the full ID
+		// For now, return what we have - tests will need to be updated
+		const shortId = peerIdCode.textContent?.trim();
+		
+		// Try to get full peer ID from window object if available
+		if (window.__libp2p__ && window.__libp2p__.peerId) {
+			return window.__libp2p__.peerId.toString();
+		}
+		
+		return shortId || null;
 	});
 }
 
@@ -238,25 +325,22 @@ export async function getPeerId(page) {
 export async function getConnectedPeerIds(page) {
 	return await page.evaluate(() => {
 		const peers = [];
-		// Find the Connected Peers section
-		const heading = Array.from(document.querySelectorAll('h2')).find((h) =>
-			h.textContent?.includes('Connected Peers')
-		);
-		if (!heading) return peers;
-
-		// Find the parent container
-		const container = heading.closest('.rounded-lg');
-		if (!container) return peers;
-
-		// Find all peer ID code elements
-		const peerElements = container.querySelectorAll('code');
-		peerElements.forEach((el) => {
-			const text = el.textContent?.trim();
-			if (text && text.length > 0) {
-				peers.push(text);
+		
+		// Try to get peers from libp2p instance if available
+		if (window.__libp2p__) {
+			try {
+				const peerIds = window.__libp2p__.getPeers();
+				peerIds.forEach((peerId) => {
+					peers.push(peerId.toString());
+				});
+				return peers;
+			} catch (e) {
+				// Fall through to footer method
 			}
-		});
-
+		}
+		
+		// Fallback: try to get from footer hover (won't work without hover)
+		// This is a limitation - we may need to expose peer IDs differently
 		return peers;
 	});
 }
@@ -512,4 +596,47 @@ export async function waitForTodoText(page, todoText, timeout = 30000, options =
 
 	// If all strategies failed, throw the last error
 	throw lastError || new Error(`Todo "${todoText}" not found after ${adjustedTimeout}ms`);
+}
+
+/**
+ * Helper to handle WebAuthn setup modal (skip it for tests)
+ *
+ * @param {import('@playwright/test').Page} page - Playwright page instance
+ * @param {number} [timeout=5000] - Timeout in milliseconds to wait for modal
+ */
+export async function handleWebAuthnModal(page, timeout = 5000) {
+	console.log('🔍 Checking for WebAuthn setup modal...');
+
+	try {
+		// Wait for WebAuthn modal to appear (with short timeout)
+		await page.waitForSelector('[data-testid="webauthn-setup-modal"]', {
+			state: 'attached',
+			timeout
+		});
+
+		console.log('✅ WebAuthn setup modal found, skipping...');
+
+		// Click the "Skip for Now" button
+		const skipButton = page.getByRole('button', { name: /Skip for Now/i });
+		if (await skipButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+			await skipButton.click();
+			console.log('✅ Clicked "Skip for Now" button');
+		} else {
+			// Try alternative buttons if Skip is not available
+			const continueButton = page.getByRole('button', { name: /Continue/i });
+			if (await continueButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+				await continueButton.click();
+				console.log('✅ Clicked "Continue" button');
+			}
+		}
+
+		// Wait for modal to disappear
+		await expect(page.locator('[data-testid="webauthn-setup-modal"]')).not.toBeVisible({
+			timeout: 5000
+		});
+		console.log('✅ WebAuthn modal dismissed');
+	} catch (error) {
+		// Modal didn't appear - this is fine, it might not show in all scenarios
+		console.log('ℹ️ WebAuthn modal did not appear (expected in many cases)');
+	}
 }
