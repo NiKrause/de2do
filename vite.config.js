@@ -65,14 +65,25 @@ export default defineConfig({
 			protocolImports: true
 		}),
 		VitePWA({
-			// PWA configuration optimized for mobile browsers and IndexedDB
+			// PWA configuration optimized for offline-first operation
 			registerType: 'autoUpdate',
+			injectRegister: 'auto',
 			workbox: {
 				// Increase the maximum file size limit to 5MB to handle large P2P libraries
 				maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
-				// Use network-first strategy to avoid interfering with OrbitDB/libp2p
+				// Precache all build assets (HTML, JS, CSS) for true offline support
+				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
+				// Exclude OrbitDB and large files from precaching
+				globIgnores: ['**/orbitdb/**', '**/ipfs/**', '**/node_modules/**'],
+				// Manually add index.html to precache (SvelteKit fallback)
+				additionalManifestEntries: [
+					{ url: 'index.html', revision: null },
+					{ url: '/', revision: null }
+				],
+				// Runtime caching strategies for dynamic content
 				runtimeCaching: [
 					{
+						// For navigation requests, use cache first for instant offline loading
 						urlPattern: ({ request }) => {
 							// Only cache navigation requests, avoid OrbitDB/IPFS requests
 							return (
@@ -81,30 +92,52 @@ export default defineConfig({
 								!request.url.includes('/orbitdb/')
 							);
 						},
-						handler: 'NetworkFirst',
+						handler: 'CacheFirst',
 						options: {
 							cacheName: 'navigation-cache',
-							networkTimeoutSeconds: 3,
+							expiration: {
+								maxEntries: 50,
+								maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+							},
 							cacheableResponse: {
 								statuses: [0, 200]
 							}
 						}
 					},
 					{
+						// For static assets, use cache first with background updates
 						urlPattern: ({ request }) => {
-							return request.destination === 'style' || request.destination === 'script';
+							return request.destination === 'style' || request.destination === 'script' || request.destination === 'font';
 						},
-						handler: 'StaleWhileRevalidate',
+						handler: 'CacheFirst',
 						options: {
-							cacheName: 'assets-cache'
+							cacheName: 'assets-cache',
+							expiration: {
+								maxEntries: 100,
+								maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+							}
+						}
+					},
+					{
+						// For images, use cache first with longer expiration
+						urlPattern: ({ request }) => {
+							return request.destination === 'image';
+						},
+						handler: 'CacheFirst',
+						options: {
+							cacheName: 'images-cache',
+							expiration: {
+								maxEntries: 60,
+								maxAgeSeconds: 60 * 24 * 60 * 60 // 60 days
+							}
 						}
 					}
 				],
 				// Skip waiting for immediate activation
 				skipWaiting: true,
 				clientsClaim: true,
-				// Exclude OrbitDB and large files from precaching
-				globIgnores: ['**/orbitdb/**', '**/ipfs/**', '**/node_modules/**']
+				// Clean old caches on activation
+				cleanupOutdatedCaches: true
 			},
 			// Use existing manifest.json
 			manifest: false, // We'll use our custom manifest.json
@@ -113,7 +146,6 @@ export default defineConfig({
 				enabled: process.env.NODE_ENV === 'development',
 				type: 'module'
 			}
-			// Enable periodic SW updates (removed - not available in current version)
 		})
 	],
 	define: {
