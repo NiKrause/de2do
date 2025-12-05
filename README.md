@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/NiKrause/simple-todo/workflows/CI/badge.svg)](https://github.com/NiKrause/simple-todo/actions)
 [![Version](https://img.shields.io/badge/version-0.1.23-blue.svg)](https://github.com/NiKrause/simple-todo)
-[![IPFS](https://img.shields.io/badge/IPFS-k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs-brightgreen.svg)](https://dweb.link/ipfs/QmQnFAod3WuXfKzT17H3F4GgbWSVXrHnm9kDyEhadiVBAm)
+[![IPFS](https://img.shields.io/badge/IPFS-k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs-brightgreen.svg)](https://dweb.link/ipfs/Qmaai4ci7PpySrJRWxfLw9mcD4BavxCXFTX5zGmB54V95R
 [![License](https://img.shields.io/badge/license-Open%20Source-blue.svg)](./LICENSE)
 
 <div align="center" style="width: 100%;">
@@ -25,9 +25,9 @@ A basic decentralized, local-first, peer-to-peer todo application built with `li
 ## 🚀 Live Demo
 
 - **HTTP**: https://simple-todo.le-space.de
-- **IPFS (dweb.link)**: https://dweb.link/ipfs/QmQnFAod3WuXfKzT17H3F4GgbWSVXrHnm9kDyEhadiVBAm
-- **IPFS (w3s.link)**: https://w3s.link/ipfs/QmQnFAod3WuXfKzT17H3F4GgbWSVXrHnm9kDyEhadiVBAm
-- **IPFS (storacha.link)**: https://storacha.link/ipfs/QmQnFAod3WuXfKzT17H3F4GgbWSVXrHnm9kDyEhadiVBAm
+- **IPFS (dweb.link)**: https://dweb.link/ipfs/Qmaai4ci7PpySrJRWxfLw9mcD4BavxCXFTX5zGmB54V95R
+- **IPFS (w3s.link)**: https://w3s.link/ipfs/Qmaai4ci7PpySrJRWxfLw9mcD4BavxCXFTX5zGmB54V95R
+- **IPFS (storacha.link)**: https://storacha.link/ipfs/Qmaai4ci7PpySrJRWxfLw9mcD4BavxCXFTX5zGmB54V95R
 
 ### Key Features
 
