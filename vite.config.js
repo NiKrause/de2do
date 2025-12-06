@@ -107,7 +107,11 @@ export default defineConfig({
 					{
 						// For static assets, use cache first with background updates
 						urlPattern: ({ request }) => {
-							return request.destination === 'style' || request.destination === 'script' || request.destination === 'font';
+							return (
+								request.destination === 'style' ||
+								request.destination === 'script' ||
+								request.destination === 'font'
+							);
 						},
 						handler: 'CacheFirst',
 						options: {

@@ -505,11 +505,21 @@ export async function switchToTodoList(
 		// Use targetIdentityId (which may be different from currentUserIdentity)
 		if (targetIdentityId) {
 			const registryEntry = getRegistryEntry(targetIdentityId, trimmedName);
+			console.log(`🔍 Registry lookup for ${trimmedName}:`, {
+				targetIdentityId,
+				trimmedName,
+				found: !!registryEntry,
+				encryptionEnabled: registryEntry?.encryptionEnabled,
+				dbName: registryEntry?.dbName,
+				address: registryEntry?.address
+			});
 
 			// If list is encrypted but no password provided
 			if (registryEntry?.encryptionEnabled && !encryptionPassword) {
 				const dbName = `${targetIdentityId}_${trimmedName}`;
+				console.log(`  → Database is encrypted, checking password cache for dbName: ${dbName}`);
 				const cachedPassword = getCachedPassword(dbName);
+				console.log(`  → Password cache lookup result: ${cachedPassword ? 'FOUND' : 'NOT FOUND'}`);
 
 				if (cachedPassword) {
 					// Use cached password from this session
@@ -529,6 +539,7 @@ export async function switchToTodoList(
 			// If encryption enabled, cache the password for this session
 			if (enableEncryption && encryptionPassword) {
 				const dbName = `${targetIdentityId}_${trimmedName}`;
+				console.log(`  → Caching password for dbName: ${dbName}`);
 				cachePassword(dbName, encryptionPassword);
 				console.log('🔐 Cached encryption password for session');
 			}
@@ -551,6 +562,9 @@ export async function switchToTodoList(
 			console.log(
 				`✅ Found existing list in registry, opening by address: ${existingList.address.slice(0, 30)}...`
 			);
+			console.log(`  → Registry entry encryptionEnabled: ${existingList.encryptionEnabled}`);
+			console.log(`  → enableEncryption parameter: ${enableEncryption}`);
+			console.log(`  → Password provided: ${encryptionPassword ? `YES (length: ${encryptionPassword.length}, first 3: ${encryptionPassword.substring(0, 3)}***)` : 'NO'}`);
 			const { openDatabaseByAddress } = await import('./p2p.js');
 
 			await openDatabaseByAddress(

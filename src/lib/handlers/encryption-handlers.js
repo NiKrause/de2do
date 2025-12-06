@@ -32,6 +32,10 @@ export function createEncryptionHandlers({ preferences }) {
 			const currentDbName = get(currentDbNameStore);
 			const currentAddress = get(currentDbAddressStore);
 
+			console.log('🔐 Starting encryption migration...');
+			console.log(`  → Current address: ${currentAddress}`);
+			console.log(`  → Password length: ${password.length}, first 3 chars: ${password.substring(0, 3)}***`);
+
 			// Migrate to encrypted
 			const result = await enableDatabaseEncryption(
 				currentList,
@@ -43,11 +47,21 @@ export function createEncryptionHandlers({ preferences }) {
 			);
 
 			if (result.success) {
+				console.log('✅ Migration completed successfully, reopening database...');
+				console.log(`🔑 Original address: ${currentAddress}`);
+				console.log(`🔑 New address from migration: ${result.newAddress}`);
+				console.log(`  → Address match: ${currentAddress === result.newAddress ? 'YES ✅' : 'NO ❌'}`);
+				console.log(`  → About to call switchToTodoList with: list=${currentList}, encryption=true, password length=${password.length}`);
+				console.log(`  → Password first 3 chars: ${password.substring(0, 3)}***`);
 				// Reopen the new encrypted database
-				await switchToTodoList(currentList, preferences, true, password);
+				const switched = await switchToTodoList(currentList, preferences, true, password);
+				console.log(`🔄 switchToTodoList result: ${switched}`);
+				console.log(`  → Password should now be cached for ${currentList}`);
 
 				// Load todos from the newly encrypted database
+				console.log('📋 Loading todos from encrypted database...');
 				await loadTodos();
+				console.log('✅ Todos loaded after migration');
 
 				return { success: true, isCurrentDbEncrypted: true };
 			}

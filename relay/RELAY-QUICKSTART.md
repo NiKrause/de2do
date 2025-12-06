@@ -17,14 +17,14 @@ This project now includes a production-ready P2P relay server with the following
 ```
 simple-todo/
 ├── relay/
-│   ├── relay-enhanced.js       # Main relay server
-│   ├── package.json           # Clean dependencies (no Storacha)
+│   ├── relay-enhanced.js     # Main relay server
+│   ├── package.json          # relay dependencies
 │   ├── Dockerfile            # Container for relay
 │   └── services/
 │       ├── storage.js        # Persistent storage management
 │       ├── pinning.js        # OrbitDB pinning (no Storacha)
-│       └── express.js        # HTTP API endpoints
-├── docker-compose.yml        # Full stack orchestration
+│       └── express.js        # HTTP API endpoints for metrics and maintenance
+├── docker-compose.yml       # Runs app and relay
 ├── Dockerfile               # SvelteKit app container
 ├── test-relay.js            # Integration test script
 └── RELAY-QUICKSTART.md      # This guide

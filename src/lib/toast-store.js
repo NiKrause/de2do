@@ -113,5 +113,6 @@ export const systemToasts = {
 			toastTypes.STORAGE_TEST_FAILED.message,
 			toastTypes.STORAGE_TEST_FAILED.type,
 			toastTypes.STORAGE_TEST_FAILED.duration
-		)
+		),
+	showError: (message) => showToast(message, 'error', 5000)
 };

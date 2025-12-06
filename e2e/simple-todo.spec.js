@@ -7,7 +7,8 @@ import {
 	getConnectedPeerIds,
 	getPeerCount,
 	getCurrentDatabaseAddress,
-	waitForTodoText
+	waitForTodoText,
+	handleWebAuthnModal
 } from './helpers.js';
 
 test.describe('Simple Todo P2P Application', () => {
@@ -227,9 +228,13 @@ test.describe('Simple Todo P2P Application', () => {
 
 		await expect(page.locator('[data-testid="consent-modal"]')).not.toBeVisible();
 
-		// Wait for todo input to be ready
+		// Handle WebAuthn modal if present
+		await handleWebAuthnModal(page);
+
+		// Wait for todo input to be ready and enabled
 		const todoInput = page.locator('[data-testid="todo-input"]');
 		await expect(todoInput).toBeVisible({ timeout: 15000 });
+		await expect(todoInput).toBeEnabled({ timeout: 10000 });
 
 		// Test adding multiple todos
 		const todos = [

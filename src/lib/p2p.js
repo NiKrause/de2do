@@ -160,7 +160,22 @@ export async function openTodoList(
 		todoDB = await orbitdb.open(dbName, dbOptions);
 	}
 
-	console.log('🔍 TodoDB records:', (await todoDB.all()).length);
+	// Try to read entries, but handle decryption errors gracefully
+	// This can happen after migration if old entries are still in cache
+	let entryCount = 0;
+	try {
+		entryCount = (await todoDB.all()).length;
+		console.log('🔍 TodoDB records:', entryCount);
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		if (errorMessage.includes('decrypt')) {
+			console.warn('⚠️ Could not read entries immediately after opening (decryption error):', errorMessage);
+			console.warn('   This may happen after migration - entries will be loaded after sync');
+			entryCount = 0;
+		} else {
+			throw error; // Re-throw if it's not a decryption error
+		}
+	}
 	console.log('✅ Database opened successfully:', todoDB);
 
 	// Initialize database stores and actions (dynamic import to avoid circular dependency)
@@ -306,7 +321,22 @@ export async function openDatabaseByName(
 			todoDB = await orbitdb.open(dbName, dbOptions);
 		}
 
-		console.log('🔍 TodoDB records:', (await todoDB.all()).length);
+		// Try to read entries, but handle decryption errors gracefully
+		// This can happen after migration if old entries are still in cache
+		let entryCount = 0;
+		try {
+			entryCount = (await todoDB.all()).length;
+			console.log('🔍 TodoDB records:', entryCount);
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			if (errorMessage.includes('decrypt')) {
+				console.warn('⚠️ Could not read entries immediately after opening (decryption error):', errorMessage);
+				console.warn('   This may happen after migration - entries will be loaded after sync');
+				entryCount = 0;
+			} else {
+				throw error; // Re-throw if it's not a decryption error
+			}
+		}
 		console.log('✅ Database opened successfully by name:', todoDB);
 
 		// Initialize database stores and actions (dynamic import to avoid circular dependency)
@@ -363,14 +393,21 @@ export async function openDatabaseByAddress(
 	let encryption = null;
 	if (enableEncryption && encryptionPassword) {
 		console.log('🔐 Setting up encryption for database...');
+		console.log(`  → Password length: ${encryptionPassword.length}, first 3 chars: ${encryptionPassword.substring(0, 3)}***`);
 		const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
 		const replicationEncryption = await SimpleEncryption({ password: encryptionPassword });
 		encryption = { data: dataEncryption, replication: replicationEncryption };
+		console.log(`  → Encryption instances created successfully`);
+	} else if (enableEncryption && !encryptionPassword) {
+		console.warn('⚠️ Encryption enabled but no password provided!');
 	}
 
 	// Open database with sync enabled so it can discover peers via pubsub
 	// Note: sync is a runtime option, not stored in manifest, so we must pass it explicitly
-	console.log('⏳ Opening database...');
+	console.log('⏳ Opening database by address...');
+	console.log(`  → Address: ${dbAddress}`);
+	console.log(`  → Encryption enabled: ${enableEncryption}`);
+	console.log(`  → Password provided: ${encryptionPassword ? `YES (length: ${encryptionPassword.length})` : 'NO'}`);
 	const dbOptions = {
 		sync: enableNetworkConnection
 	};
@@ -378,9 +415,12 @@ export async function openDatabaseByAddress(
 	// Add encryption if enabled
 	if (encryption) {
 		dbOptions.encryption = encryption;
+		console.log(`  → Encryption added to dbOptions`);
 	}
 
 	todoDB = await orbitdb.open(dbAddress, dbOptions);
+	console.log(`  → Database opened, address: ${todoDB.address}`);
+	console.log(`  → Address match: ${dbAddress === todoDB.address ? 'YES ✅' : 'NO ❌'}`);
 
 	// Log database sync state to debug
 	console.log('🔍 Database sync state:', {
@@ -392,8 +432,22 @@ export async function openDatabaseByAddress(
 		encryption: encryption ? 'enabled' : 'disabled'
 	});
 
-	const entryCount = (await todoDB.all()).length;
-	console.log(`✅ Database opened successfully (${entryCount} entries)`);
+	// Try to read entries, but handle decryption errors gracefully
+	// This can happen after migration if old entries are still in cache
+	let entryCount = 0;
+	try {
+		entryCount = (await todoDB.all()).length;
+		console.log(`✅ Database opened successfully (${entryCount} entries)`);
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		if (errorMessage.includes('decrypt')) {
+			console.warn('⚠️ Could not read entries immediately after opening (decryption error):', errorMessage);
+			console.warn('   This may happen after migration - entries will be loaded after sync');
+			console.log(`✅ Database opened successfully (entries will load after sync)`);
+		} else {
+			throw error; // Re-throw if it's not a decryption error
+		}
+	}
 
 	// Initialize database stores and actions (dynamic import to avoid circular dependency)
 	const { initializeDatabase } = await import('./db-actions.js');
