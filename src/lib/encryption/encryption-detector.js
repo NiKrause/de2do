@@ -87,136 +87,21 @@ async function waitForDatabaseSync(db, timeoutMs = 5000) {
 }
 
 /**
- * Detect if a database is encrypted using the official isDatabaseEncrypted function
- * from @le-space/orbitdb-simple-encryption
- *
- * This is the single source of truth for encryption detection across the app.
+ * Detect if a database is encrypted
+ * Always returns false - databases are opened as unencrypted by default
+ * Password can be added manually later if needed
  *
  * @param {Object} db - OrbitDB database instance
- * @param {Object} options - Detection options
- * @param {boolean} options.isRemoteAccess - Whether this is remote access (URL, address-based)
- * @returns {Promise<boolean>} True if database is encrypted, false otherwise
+ * @param {Object} options - Detection options (ignored)
+ * @returns {Promise<boolean>} Always returns false
  */
 export async function detectDatabaseEncryption(db, options = {}) {
-	const { isRemoteAccess = false } = options;
-
 	if (!db) {
 		console.warn('⚠️ detectDatabaseEncryption: No database provided');
 		return false;
 	}
 
-	try {
-		console.log('🔍 Checking if database is encrypted:', {
-			address: db.address,
-			isRemoteAccess
-		});
-
-		// Get current entries to check state
-		let entries = await db.all();
-		console.log(`📊 Database has ${entries.length} entries initially`);
-
-		// Special case: Empty database accessed remotely
-		// When opening a database by address/URL that has 0 entries, we need to wait
-		// for sync before determining encryption status. The database might be:
-		// 1. Actually empty (unencrypted)
-		// 2. Encrypted and not synced yet
-		// 3. Unencrypted but not synced yet
-		if (entries.length === 0 && isRemoteAccess) {
-			console.log('⏳ Empty database accessed remotely - waiting for sync before encryption detection...');
-			
-			// Check peer count to determine wait time
-			const peerCount = db.peers?.length || 0;
-			const hasPeers = peerCount > 0;
-			const waitTime = hasPeers ? 15000 : 5000; // Wait longer if peers are connected
-			
-			console.log(`   → Peers connected: ${peerCount}, wait time: ${waitTime}ms`);
-			
-			// Wait for sync events
-			const { syncOccurred, entries: syncedEntries } = await waitForDatabaseSync(db, waitTime);
-			
-			if (syncOccurred && syncedEntries.length > 0) {
-				entries = syncedEntries;
-				console.log(`📊 After sync event: ${entries.length} entries`);
-				
-				// Check if entries have undefined values (encryption indicator)
-				const hasUndefinedValues = entries.some((e) => e.value === undefined);
-				if (hasUndefinedValues) {
-					console.log('🔐 Database is encrypted - entries have undefined values');
-					return true;
-				}
-				// Entries have values, fall through to normal detection below
-			} else if (syncOccurred) {
-				// Sync occurred but no entries - might be encrypted with replication encryption
-				entries = syncedEntries;
-				console.log(`📊 Sync occurred but no entries received`);
-			} else {
-				console.log('   → No sync event occurred within timeout');
-			}
-			
-			// If still empty after waiting for sync, check isDatabaseEncrypted()
-			// to determine if it's actually encrypted or just empty
-			if (entries.length === 0) {
-				console.log('   → Still empty after sync wait - checking isDatabaseEncrypted()...');
-				console.log('   → Database state:', {
-					address: db.address,
-					name: db.name,
-					opened: db.opened,
-					sync: db.sync,
-					peers: peerCount,
-					hasEncryptionOption: !!db.options?.encryption
-				});
-				
-				// KEY INSIGHT: For remote access, if no sync occurred OR sync occurred but no entries,
-				// the database is likely encrypted with replication encryption. We can't sync without
-				// the password, so we should show the password dialog.
-				// This is the safest assumption - if we can't sync or get entries, assume encrypted.
-				if (!syncOccurred || (syncOccurred && entries.length === 0)) {
-					console.log('🔐 No sync or no entries for remote database - assuming encrypted');
-					console.log(`   → syncOccurred: ${syncOccurred}, entries.length: ${entries.length}`);
-					console.log('   → Cannot sync encrypted database without password (replication encryption)');
-					console.log('   → Showing password dialog to allow user to enter password');
-					return true; // Assume encrypted, show password dialog
-				}
-				
-				const isEncrypted = await isDatabaseEncrypted(db);
-				console.log(`   → isDatabaseEncrypted() returned: ${isEncrypted}`);
-				
-				if (isEncrypted) {
-					console.log('🔐 Database is encrypted (confirmed by isDatabaseEncrypted)');
-					return true;
-				} else {
-					console.log('✅ Database is not encrypted (just empty)');
-					return false;
-				}
-			}
-			// If entries arrived, fall through to normal detection logic below
-		}
-
-		// Use official isDatabaseEncrypted check
-		const isEncrypted = await isDatabaseEncrypted(db);
-
-		// Double-check: even if isDatabaseEncrypted says false, verify values
-		// If we have entries with undefined values, the database IS encrypted
-		if (!isEncrypted && entries.length > 0) {
-			const hasUndefinedValues = entries.some((e) => e.value === undefined);
-			if (hasUndefinedValues) {
-				console.warn('⚠️ Override: entries have undefined values - database IS encrypted!');
-				return true;
-			}
-		}
-
-		if (isEncrypted) {
-			console.log('🔐 Database is encrypted');
-		} else {
-			console.log('✅ Database is not encrypted');
-		}
-
-		return isEncrypted;
-	} catch (err) {
-		console.error('❌ Error detecting database encryption:', err);
-		// If we can't determine encryption status, assume it might be encrypted
-		// This is safer than assuming unencrypted
-		console.warn('⚠️ Assuming database might be encrypted due to detection error');
-		return true;
-	}
+	// Always return false - open as unencrypted by default
+	// Password can be added manually later if needed
+	return false;
 }

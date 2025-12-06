@@ -16,7 +16,6 @@
 	import TodoListSelector from '$lib/components/todo/TodoListSelector.svelte';
 	import UsersList from '$lib/UsersList/index.svelte';
 	import BreadcrumbNavigation from '$lib/components/todo/BreadcrumbNavigation.svelte';
-	import ManagedPasswordModal from '$lib/components/ui/ManagedPasswordModal.svelte';
 	import AppHeader from '$lib/components/layout/AppHeader.svelte';
 	import EncryptionSettings from '$lib/components/encryption/EncryptionSettings.svelte';
 	import { setupDatabaseDebug } from '$lib/debug/database-debug.js';
@@ -329,9 +328,6 @@
 		on:skip={handleWebAuthnSetupComplete}
 	/>
 {/if}
-
-<!-- Password modal for encrypted databases -->
-<ManagedPasswordModal />
 
 <main class="container mx-auto max-w-4xl p-6 pb-20">
 	{#if !isEmbedMode}

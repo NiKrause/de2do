@@ -1,9 +1,7 @@
 import { get } from 'svelte/store';
 import {
-	openDatabaseWithEncryptionDetection,
-	openDatabaseWithPassword
+	openDatabaseWithEncryptionDetection
 } from './database-opener.js';
-import { passwordManager } from '$lib/password/password-manager.js';
 import { loadTodos } from '$lib/db-actions.js';
 import { toastStore } from '$lib/toast-store.js';
 import {
@@ -20,59 +18,19 @@ import {
 import { getCurrentIdentityId } from '$lib/stores.js';
 
 /**
- * Open database with automatic password prompting
+ * Open database (always as unencrypted, password can be added manually later)
  * @param {Object} options - Opening options
  * @returns {Promise<Object>} Result with success flag
  */
 export async function openDatabaseWithPasswordPrompt(options) {
 	const { address, name, displayName, preferences } = options;
 
-	// First attempt: try without encryption
+	// Always open as unencrypted - password can be added manually later
 	const result = await openDatabaseWithEncryptionDetection({
 		address,
 		name,
 		displayName,
-		preferences,
-		onPasswordRequired: async (dbInfo) => {
-			// Database is encrypted, request password
-			const dbNameForModal =
-				dbInfo.displayName || dbInfo.name || dbInfo.address?.split('/').pop() || 'Database';
-
-			try {
-				const password = await passwordManager.requestPassword(dbNameForModal);
-
-				// Try to open with password
-				const passwordResult = await openDatabaseWithPassword({
-					address: dbInfo.address,
-					name: dbInfo.name,
-					displayName: dbInfo.displayName,
-					preferences,
-					password
-				});
-
-				if (passwordResult.wrongPassword) {
-					// Wrong password, increment retry and request again
-					const retryCount = passwordManager.incrementRetry();
-					if (retryCount < 3) {
-						toastStore.show(`❌ Incorrect password. Attempt ${retryCount}/3`, 'error');
-						// Recursive call for retry
-						return await openDatabaseWithPasswordPrompt(options);
-					} else {
-						toastStore.show('❌ Too many failed attempts', 'error');
-						passwordManager.cancel();
-						return { success: false, error: 'Too many failed attempts' };
-					}
-				}
-
-				return passwordResult;
-			} catch (err) {
-				if (err.message === 'Password entry cancelled') {
-					toastStore.show('⚠️ Database open cancelled', 'info');
-					return { success: false, cancelled: true };
-				}
-				throw err;
-			}
-		}
+		preferences
 	});
 
 	return result;
