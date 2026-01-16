@@ -85,6 +85,19 @@ export async function loadTodos() {
 					return null;
 				}
 
+				// Skip entries with undefined values - these are encrypted entries
+				// that can't be decrypted (database opened without encryption)
+				if (todo.value === undefined) {
+					console.log(`🔒 Skipping encrypted entry at index ${index} (value is undefined)`);
+					return null;
+				}
+
+				// Skip entries where value is not an object
+				if (todo.value !== null && typeof todo.value !== 'object') {
+					console.warn(`⚠️ Invalid todo value at index ${index}:`, todo.value);
+					return null;
+				}
+
 				return {
 					id: todo.hash,
 					key: todo.key,
@@ -112,15 +125,24 @@ export async function loadTodos() {
 			todoDBType: typeof todoDB
 		});
 
-		// Check if this is a decryption error (wrong password)
-		if (error.message && error.message.includes('decrypt')) {
-			console.error('❌ Decryption error detected - wrong password or encrypted database');
-			systemToasts.showError('Failed to decrypt database entries. Wrong password?');
-			// Note: The password was already accepted during open, but entries arrived later
-			// We can't re-prompt here easily, so just show error
-			// TODO: Consider implementing re-authentication flow
+		const errorMessage = error?.message || '';
+		
+		// Check if this is a decryption error (wrong password or encrypted database opened without encryption)
+		// This can happen when:
+		// 1. Database is encrypted but opened without password
+		// 2. Wrong password was used
+		// 3. OrbitDB throws TypeError when trying to read entry.value from undecryptable entries
+		if (
+			errorMessage.includes('decrypt') ||
+			(error instanceof TypeError && /reading 'value'/.test(errorMessage))
+		) {
+			console.error('❌ Decryption error detected - encrypted database opened without password');
+			// Don't show error toast - this is expected when opening encrypted DB without password
+			// Just set empty todos array
+			todosStore.set([]);
+			return;
 		} else {
-			systemToasts.showError(`Failed to load todos: ${error.message}`);
+			systemToasts.showError(`Failed to load todos: ${errorMessage}`);
 		}
 	}
 }
