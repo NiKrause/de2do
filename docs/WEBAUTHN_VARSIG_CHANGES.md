@@ -60,3 +60,20 @@ This document summarizes the changes made to align Simple Todo with the WebAuthn
   - `orbitdb.identity.id` matches `did:key:...`
 - Validate passkey prompts occur on DB writes (expected for varsig).
 
+
+## Varsig PRF Bridge (SimpleEncryption)
+
+We now reuse the **varsig passkey credential** to unlock a PRF-derived secret key for SimpleEncryption. This avoids creating a second WebAuthn credential for the keystore flow when varsig is active.
+
+### What the bridge does
+- Uses the **varsig credentialId** to call WebAuthn `navigator.credentials.get()` with the **PRF extension**.
+- Derives an AES key from PRF output and uses it to **wrap/unwrap** a randomly generated secret key (sk).
+- Stores the wrapped key (ciphertext + iv + salt) in localStorage, keyed by credentialId.
+
+### Why it is "custom"
+The upstream varsig credential creation does not request PRF during registration, and the keystore flow uses a different credential format. The bridge stitches these pieces together by:
+- using varsig credentialId for PRF assertions
+- using the existing PRF wrap/unwrap helpers
+- keeping SimpleEncryption independent of keystore identities
+
+If PRF is unavailable for the varsig credential, the app falls back to password encryption.

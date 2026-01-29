@@ -1,10 +1,9 @@
 import {
-	loadWebAuthnCredential,
-	storeWebAuthnCredential,
 	WebAuthnDIDProvider,
 	generateSecretKey,
 	wrapSKWithPRF,
-	unwrapSKWithPRF
+	unwrapSKWithPRF,
+	loadWebAuthnVarsigCredential
 } from '@le-space/orbitdb-identity-provider-webauthn-did';
 
 const STORAGE_PREFIX = 'simple-encryption-sk-v1:';
@@ -38,32 +37,12 @@ export async function getWebAuthnEncryptionKey({ allowCreate = true } = {}) {
 	if (typeof window === 'undefined') return null;
 	if (!WebAuthnDIDProvider.isSupported()) return null;
 
-	let credential;
-	try {
-		credential = loadWebAuthnCredential();
-	} catch (error) {
-		console.warn('Failed to load WebAuthn credential for encryption:', error);
-	}
-
-	if (!credential?.rawCredentialId && allowCreate) {
-		try {
-			credential = await WebAuthnDIDProvider.createCredential({
-				userId: `simple-todo-encryption-${Date.now()}`,
-				displayName: 'Simple Todo Encryption',
-				domain: window.location.hostname,
-				encryptKeystore: true,
-				keystoreEncryptionMethod: 'prf'
-			});
-			storeWebAuthnCredential(credential);
-		} catch (error) {
-			console.warn('Failed to create WebAuthn credential for encryption:', error);
-			return null;
-		}
-	}
-
-	if (!credential?.rawCredentialId) {
+	const varsigCredential = loadWebAuthnVarsigCredential();
+	if (!varsigCredential?.credentialId) {
 		return null;
 	}
+
+	const credential = { rawCredentialId: varsigCredential.credentialId };
 
 	const storageKey = toStorageKey(credential);
 	const rpId = window.location.hostname;
@@ -101,7 +80,7 @@ export async function getWebAuthnEncryptionKey({ allowCreate = true } = {}) {
 			credential.rawCredentialId,
 			sk,
 			rpId,
-			credential.prfInput
+			undefined
 		);
 		if (storageKey) {
 			localStorage.setItem(
