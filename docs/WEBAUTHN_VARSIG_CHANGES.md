@@ -167,5 +167,5 @@ flowchart TD
 
   VarsigCred -->|localStorage key| A[webauthn-varsig-credential]
   VarsigId -->|localStorage key| B[webauthn-varsig-orbitdb-identity]
-  PrfKey -->|localStorage key| C[simple-encryption-sk-v1:{credentialId}]
+  PrfKey -->|localStorage key| C[simple-encryption-sk-v1:credentialId]
 ```
