@@ -6,6 +6,7 @@ import { concat, bytesToBase64url, base64urlToBytes } from 'iso-webauthn-varsig'
 import { CID } from 'multiformats/cid';
 import { WebAuthnVarsigProvider } from '@le-space/orbitdb-identity-provider-webauthn-did';
 import { createWebAuthnVarsigIdentity } from '@le-space/orbitdb-identity-provider-webauthn-did';
+import { showToast } from '../toast-store.js';
 
 const STORAGE_KEY_IDENTITY = 'webauthn-varsig-orbitdb-identity';
 const IDENTITY_CODEC = dagCbor;
@@ -17,6 +18,14 @@ const DEFAULT_DOMAIN_LABELS = {
 	publicKey: 'orbitdb-pubkey:',
 	entry: 'orbitdb-entry:'
 };
+let lastPasskeyToastAt = 0;
+
+function showPasskeyPrompt(reason) {
+	const now = Date.now();
+	if (now - lastPasskeyToastAt < 1500) return;
+	lastPasskeyToastAt = now;
+	showToast(`🔐 Passkey required: ${reason}`, 'default', 3000);
+}
 
 function serializeIdentity(identity) {
 	return JSON.stringify({
@@ -138,7 +147,10 @@ export async function getOrCreateVarsigIdentity(credential) {
 					...cached,
 					bytes,
 					hash,
-					sign: (_identity, data) => provider.sign(data, DEFAULT_DOMAIN_LABELS.entry),
+					sign: (_identity, data) => {
+						showPasskeyPrompt('sign database entry');
+						return provider.sign(data, DEFAULT_DOMAIN_LABELS.entry);
+					},
 					verify: (signature, data) =>
 						provider.verify(signature, cached.publicKey, data, DEFAULT_DOMAIN_LABELS.entry)
 				};
@@ -154,6 +166,7 @@ export async function getOrCreateVarsigIdentity(credential) {
 		}
 	}
 
+	showPasskeyPrompt('create varsig identity (2 confirmations)');
 	const identity = await createWebAuthnVarsigIdentity({ credential });
 	storeCachedVarsigIdentity(identity);
 	console.log('🔐 Varsig identity created and cached', {
@@ -161,7 +174,16 @@ export async function getOrCreateVarsigIdentity(credential) {
 		type: identity.type,
 		hash: identity.hash
 	});
-	return identity;
+	const provider = new WebAuthnVarsigProvider(credential);
+	return {
+		...identity,
+		sign: (_identity, data) => {
+			showPasskeyPrompt('sign database entry');
+			return provider.sign(data, DEFAULT_DOMAIN_LABELS.entry);
+		},
+		verify: (signature, data) =>
+			provider.verify(signature, identity.publicKey, data, DEFAULT_DOMAIN_LABELS.entry)
+	};
 }
 
 async function decodeIdentityFromBytes(bytes) {

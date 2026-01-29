@@ -10,6 +10,7 @@ import {
 	clearWebAuthnVarsigCredential
 } from '@le-space/orbitdb-identity-provider-webauthn-did';
 import { getOrCreateVarsigIdentity } from './varsig-identity.js';
+import { showToast } from '../toast-store.js';
 
 // Legacy storage keys for WebAuthn credentials (kept for compatibility)
 const STORAGE_KEY_CREDENTIAL_ID = 'webauthn_credential_id';
@@ -178,6 +179,7 @@ export async function createWebAuthnIdentity(userName = 'Simple Todo User') {
 
 		if (WebAuthnVarsigProvider.isSupported()) {
 			try {
+				showToast('🔐 Passkey required: create varsig credential', 'default', 3000);
 				const varsigCredential = await WebAuthnVarsigProvider.createCredential({
 					userId,
 					displayName: userName,
@@ -212,6 +214,7 @@ export async function createWebAuthnIdentity(userName = 'Simple Todo User') {
 			}
 		}
 
+		showToast('🔐 Passkey required: create WebAuthn credential', 'default', 3000);
 		const credentialInfo = await WebAuthnDIDProvider.createCredential({
 			userId,
 			displayName: userName,
