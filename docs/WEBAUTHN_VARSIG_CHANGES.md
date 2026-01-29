@@ -77,3 +77,95 @@ The upstream varsig credential creation does not request PRF during registration
 - keeping SimpleEncryption independent of keystore identities
 
 If PRF is unavailable for the varsig credential, the app falls back to password encryption.
+
+## Sequence Diagrams
+
+### Varsig identity creation (fresh browser)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant User
+  participant App
+  participant WebAuthn
+  participant Auth as Authenticator
+  participant Storage as localStorage
+  participant OrbitDB
+
+  User->>App: Start app, accept consent
+  App->>WebAuthn: createCredential (varsig + PRF)
+  WebAuthn->>Auth: Register passkey
+  Auth-->>WebAuthn: Attestation
+  WebAuthn-->>App: Credential (credentialId, publicKey, did)
+  App->>Storage: storeWebAuthnVarsigCredential
+  App->>WebAuthn: get() for id varsig (orbitdb-id:)
+  WebAuthn->>Auth: User verification
+  Auth-->>WebAuthn: Assertion
+  WebAuthn-->>App: Varsig for id
+  App->>WebAuthn: get() for pubkey varsig (orbitdb-pubkey:)
+  WebAuthn->>Auth: User verification
+  Auth-->>WebAuthn: Assertion
+  WebAuthn-->>App: Varsig for pubkey
+  App->>Storage: store varsig identity cache
+  App->>OrbitDB: createOrbitDB(identity=varsig)
+```
+
+### Varsig identity reuse (subsequent runs)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant App
+  participant Storage as localStorage
+  participant WebAuthn
+  participant OrbitDB
+
+  App->>Storage: load varsig identity cache
+  App->>Storage: load varsig credential
+  App->>WebAuthn: verify cached identity (varsig verify)
+  App-->>App: identity valid
+  App->>OrbitDB: createOrbitDB(identity=varsig)
+```
+
+### SimpleEncryption PRF (varsig credential bridge)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant User
+  participant App
+  participant WebAuthn
+  participant Auth as Authenticator
+  participant Storage as localStorage
+
+  App->>Storage: load varsig credential (credentialId)
+  alt wrapped SK exists
+    App->>WebAuthn: get() with PRF (unwrap)
+    WebAuthn->>Auth: User verification
+    Auth-->>WebAuthn: PRF output
+    WebAuthn-->>App: PRF output
+    App-->>App: unwrap SK
+  else no wrapped SK
+    App->>WebAuthn: get() with PRF (wrap)
+    WebAuthn->>Auth: User verification
+    Auth-->>WebAuthn: PRF output
+    WebAuthn-->>App: PRF output
+    App-->>App: wrap new SK
+    App->>Storage: store wrapped SK + salt
+  end
+
+  Note over App,Storage: Wrapped SK cached under key: simple-encryption-sk-v1:{credentialId}
+```
+
+### Where credentials are stored
+
+```mermaid
+flowchart TD
+  VarsigCred[Varsig credential]
+  VarsigId[Varsig identity cache]
+  PrfKey[Wrapped SK for SimpleEncryption]
+
+  VarsigCred -->|localStorage key| A[webauthn-varsig-credential]
+  VarsigId -->|localStorage key| B[webauthn-varsig-orbitdb-identity]
+  PrfKey -->|localStorage key| C[simple-encryption-sk-v1:{credentialId}]
+```
