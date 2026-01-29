@@ -19,9 +19,27 @@ import { systemToasts, showToast } from './toast-store.js';
 import { currentIdentityStore, peerIdStore } from './stores.js';
 import { isWebAuthnAvailable, hasExistingCredentials } from './identity/webauthn-identity.js';
 import {
+	getOrCreateVarsigIdentity,
+	createWebAuthnVarsigIdentitiesWithStorage,
+	createIpfsIdentityStorage
+} from './identity/varsig-identity.js';
+import {
 	OrbitDBWebAuthnIdentityProviderFunction,
-	loadWebAuthnCredential
+	loadWebAuthnCredential,
+	loadWebAuthnVarsigCredential,
+	WebAuthnVarsigProvider
 } from '@le-space/orbitdb-identity-provider-webauthn-did';
+
+function describeEncryptionSecret(secret) {
+	if (!secret) return 'NO';
+	if (typeof secret === 'string') {
+		return `YES (length: ${secret.length}, first 3 chars: ${secret.substring(0, 3)}***)`;
+	}
+	if (secret?.subarray) {
+		return `YES (bytes: ${secret.length})`;
+	}
+	return 'YES';
+}
 
 // Export libp2p instance for plugins
 export const libp2pStore = writable(null);
@@ -133,8 +151,7 @@ export async function openTodoList(
 	if (enableEncryption && encryptionPassword) {
 		console.log('🔐 Setting up encryption for database...');
 		const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
-		const replicationEncryption = await SimpleEncryption({ password: encryptionPassword });
-		encryption = { data: dataEncryption, replication: replicationEncryption };
+		encryption = { data: dataEncryption };
 	}
 
 	// Build standard database options using shared function
@@ -246,8 +263,7 @@ export async function openDatabaseByName(
 			if (enableEncryption && encryptionPassword) {
 				console.log('🔐 Setting up encryption for database...');
 				const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
-				const replicationEncryption = await SimpleEncryption({ password: encryptionPassword });
-				encryption = { data: dataEncryption, replication: replicationEncryption };
+				encryption = { data: dataEncryption };
 			}
 
 			// Build standard database options using the OTHER identity's ID
@@ -292,8 +308,7 @@ export async function openDatabaseByName(
 	if (enableEncryption && encryptionPassword) {
 		console.log('🔐 Setting up encryption for database...');
 		const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
-		const replicationEncryption = await SimpleEncryption({ password: encryptionPassword });
-		encryption = { data: dataEncryption, replication: replicationEncryption };
+		encryption = { data: dataEncryption };
 	}
 
 	// Build standard database options using shared function
@@ -393,10 +408,12 @@ export async function openDatabaseByAddress(
 	let encryption = null;
 	if (enableEncryption && encryptionPassword) {
 		console.log('🔐 Setting up encryption for database...');
-		console.log(`  → Password length: ${encryptionPassword.length}, first 3 chars: ${encryptionPassword.substring(0, 3)}***`);
+		console.log(`  → Password provided: ${describeEncryptionSecret(encryptionPassword)}`);
 		const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
-		const replicationEncryption = await SimpleEncryption({ password: encryptionPassword });
-		encryption = { data: dataEncryption, replication: replicationEncryption };
+		encryption = { 
+			data: dataEncryption
+		};
+
 		console.log(`  → Encryption instances created successfully`);
 	} else if (enableEncryption && !encryptionPassword) {
 		console.warn('⚠️ Encryption enabled but no password provided!');
@@ -407,7 +424,7 @@ export async function openDatabaseByAddress(
 	console.log('⏳ Opening database by address...');
 	console.log(`  → Address: ${dbAddress}`);
 	console.log(`  → Encryption enabled: ${enableEncryption}`);
-	console.log(`  → Password provided: ${encryptionPassword ? `YES (length: ${encryptionPassword.length})` : 'NO'}`);
+	console.log(`  → Password provided: ${describeEncryptionSecret(encryptionPassword)}`);
 	const dbOptions = {
 		sync: enableNetworkConnection
 	};
@@ -696,15 +713,29 @@ export async function initializeP2P(preferences = {}) {
 
 		// Try to use WebAuthn identity if available and enabled
 		let webauthnCredential = null;
+		let varsigCredential = null;
+		let useVarsig = false;
 		const useWebAuthn = preferences.useWebAuthn !== false; // Default to true
 
 		if (useWebAuthn && isWebAuthnAvailable() && hasExistingCredentials()) {
 			try {
-				console.log('🔐 Loading WebAuthn credential...');
-				webauthnCredential = loadWebAuthnCredential();
-				if (webauthnCredential) {
-					console.log('✅ WebAuthn credential loaded successfully');
-					showToast('🔐 Using hardware-secured identity', 'success', 3000);
+				if (WebAuthnVarsigProvider.isSupported()) {
+					console.log('🔐 Loading WebAuthn varsig credential...');
+					varsigCredential = loadWebAuthnVarsigCredential();
+					if (varsigCredential) {
+						useVarsig = true;
+						console.log('✅ WebAuthn varsig credential loaded successfully');
+						showToast('🔐 Using hardware-secured identity (varsig)', 'success', 3000);
+					}
+				}
+
+				if (!useVarsig) {
+					console.log('🔐 Loading WebAuthn keystore credential...');
+					webauthnCredential = loadWebAuthnCredential();
+					if (webauthnCredential) {
+						console.log('✅ WebAuthn credential loaded successfully');
+						showToast('🔐 Using WebAuthn-encrypted keystore', 'success', 3000);
+					}
 				}
 			} catch (error) {
 				console.warn('⚠️ Failed to load WebAuthn credential, falling back to default:', error);
@@ -712,8 +743,70 @@ export async function initializeP2P(preferences = {}) {
 			}
 		}
 
-		// Create OrbitDB with WebAuthn identity if available
-		if (webauthnCredential) {
+		let orbitdbCreated = false;
+
+		// Create OrbitDB with WebAuthn varsig identity if available
+		if (useVarsig && varsigCredential) {
+			try {
+				const identity = await getOrCreateVarsigIdentity(varsigCredential);
+				const identityStorage = createIpfsIdentityStorage(helia);
+				const identities = createWebAuthnVarsigIdentitiesWithStorage(
+					identity,
+					identityStorage,
+					varsigCredential
+				);
+
+				console.log('🔍 Created WebAuthn varsig identity:', {
+					id: identity.id,
+					type: identity.type,
+					hash: identity.hash
+				});
+
+				orbitdb = await createOrbitDB({
+					ipfs: helia,
+					identities,
+					identity,
+					id: 'simple-todo-app',
+					directory: './orbitdb'
+				});
+
+				const orbitdbIdentity = orbitdb?.identity;
+				console.log('🔍 OrbitDB identity after varsig init:', {
+					id: orbitdbIdentity?.id,
+					type: orbitdbIdentity?.type,
+					expectedId: identity.id,
+					expectedType: identity.type
+				});
+				if (typeof identity.id === 'string' && !identity.id.startsWith('did:key:')) {
+					throw new Error(
+						`Varsig identity id is not did:key (got "${identity.id}")`
+					);
+				}
+				if (
+					!orbitdbIdentity ||
+					orbitdbIdentity.type !== 'webauthn-varsig' ||
+					orbitdbIdentity.id !== identity.id
+				) {
+					throw new Error(
+						'Varsig identity was not applied to OrbitDB (identity mismatch).'
+					);
+				}
+
+				orbitdbCreated = true;
+				showToast('✅ Authenticated with hardware-secured identity (varsig)', 'success', 3000);
+			} catch (error) {
+				console.error('❌ Failed to create OrbitDB with varsig identity:', error);
+				showToast(
+					'❌ Varsig identity required but not applied. Initialization stopped.',
+					'error',
+					5000
+				);
+				throw error;
+			}
+		}
+
+		// Create OrbitDB with WebAuthn keystore identity if available
+		if (!orbitdbCreated && !useVarsig && webauthnCredential) {
 			try {
 				// Register WebAuthn provider
 				useIdentityProvider(OrbitDBWebAuthnIdentityProviderFunction);
@@ -724,7 +817,12 @@ export async function initializeP2P(preferences = {}) {
 				// Create WebAuthn identity
 				const identity = await identities.createIdentity({
 					provider: OrbitDBWebAuthnIdentityProviderFunction({
-						webauthnCredential
+						webauthnCredential,
+						useKeystoreDID: true,
+						keystore: identities.keystore,
+						keystoreKeyType: 'Ed25519',
+						encryptKeystore: true,
+						keystoreEncryptionMethod: 'prf'
 					})
 				});
 
@@ -743,7 +841,8 @@ export async function initializeP2P(preferences = {}) {
 					directory: './orbitdb'
 				});
 
-				showToast('✅ Authenticated with hardware-secured identity', 'success', 3000);
+				orbitdbCreated = true;
+				showToast('✅ Authenticated with WebAuthn-encrypted keystore', 'success', 3000);
 			} catch (error) {
 				console.error('❌ Failed to create OrbitDB with WebAuthn identity:', error);
 				showToast('⚠️ WebAuthn failed, using software identity', 'warning', 3000);
@@ -754,14 +853,16 @@ export async function initializeP2P(preferences = {}) {
 					id: 'simple-todo-app',
 					directory: './orbitdb'
 				});
+				orbitdbCreated = true;
 			}
-		} else {
+		} else if (!orbitdbCreated) {
 			// Create OrbitDB with default identity
 			orbitdb = await createOrbitDB({
 				ipfs: helia,
 				id: 'simple-todo-app',
 				directory: './orbitdb'
 			});
+			orbitdbCreated = true;
 		}
 
 		// Show toast for OrbitDB creation

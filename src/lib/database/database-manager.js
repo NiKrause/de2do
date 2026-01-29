@@ -6,6 +6,7 @@ import {
 import { passwordManager } from '$lib/password/password-manager.js';
 import { loadTodos } from '$lib/db-actions.js';
 import { toastStore } from '$lib/toast-store.js';
+import { getWebAuthnEncryptionKey } from '$lib/encryption/webauthn-encryption.js';
 import {
 	listAvailableTodoLists,
 	availableTodoListsStore,
@@ -24,7 +25,7 @@ import { getCurrentIdentityId } from '$lib/stores.js';
  * @param {Object} options - Opening options
  * @returns {Promise<Object>} Result with success flag
  */
-export async function openDatabaseWithPasswordPrompt(options) {
+export async function openDatabaseWithPasswordPrompt(options, { skipWebAuthn = false } = {}) {
 	const { address, name, displayName, preferences } = options;
 
 	// First attempt: try without encryption
@@ -39,7 +40,15 @@ export async function openDatabaseWithPasswordPrompt(options) {
 				dbInfo.displayName || dbInfo.name || dbInfo.address?.split('/').pop() || 'Database';
 
 			try {
-				const password = await passwordManager.requestPassword(dbNameForModal);
+				let password = null;
+				let usedWebAuthn = false;
+				if (!skipWebAuthn) {
+					password = await getWebAuthnEncryptionKey({ allowCreate: false });
+					usedWebAuthn = Boolean(password?.subarray);
+				}
+				if (!password) {
+					password = await passwordManager.requestPassword(dbNameForModal);
+				}
 
 				// Try to open with password
 				const passwordResult = await openDatabaseWithPassword({
@@ -50,13 +59,35 @@ export async function openDatabaseWithPasswordPrompt(options) {
 					password
 				});
 
+				if (passwordResult.wrongPassword && usedWebAuthn) {
+					const manualPassword = await passwordManager.requestPassword(dbNameForModal);
+					const manualResult = await openDatabaseWithPassword({
+						address: dbInfo.address,
+						name: dbInfo.name,
+						displayName: dbInfo.displayName,
+						preferences,
+						password: manualPassword
+					});
+					if (manualResult.wrongPassword) {
+						const retryCount = passwordManager.incrementRetry();
+						if (retryCount < 3) {
+							toastStore.show(`❌ Incorrect password. Attempt ${retryCount}/3`, 'error');
+							return await openDatabaseWithPasswordPrompt(options, { skipWebAuthn: true });
+						}
+						toastStore.show('❌ Too many failed attempts', 'error');
+						passwordManager.cancel();
+						return { success: false, error: 'Too many failed attempts' };
+					}
+					return manualResult;
+				}
+
 				if (passwordResult.wrongPassword) {
 					// Wrong password, increment retry and request again
 					const retryCount = passwordManager.incrementRetry();
 					if (retryCount < 3) {
 						toastStore.show(`❌ Incorrect password. Attempt ${retryCount}/3`, 'error');
 						// Recursive call for retry
-						return await openDatabaseWithPasswordPrompt(options);
+						return await openDatabaseWithPasswordPrompt(options, { skipWebAuthn: true });
 					} else {
 						toastStore.show('❌ Too many failed attempts', 'error');
 						passwordManager.cancel();
@@ -148,7 +179,7 @@ export async function updateStoresAfterDatabaseOpen(db, address) {
 			// Persist in registry
 			try {
 				const { addTodoListToRegistry } = await import('$lib/todo-list-manager.js');
-				await addTodoListToRegistry(displayName, dbName, normalizedAddress, null);
+				await addTodoListToRegistry(displayName, dbName, normalizedAddress, null, false, null);
 			} catch (e) {
 				console.warn('Could not persist to registry:', e);
 			}

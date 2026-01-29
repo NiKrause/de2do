@@ -146,7 +146,7 @@ export async function detectDatabaseEncryption(db, options = {}) {
 				}
 				// Entries have values, fall through to normal detection below
 			} else if (syncOccurred) {
-				// Sync occurred but no entries - might be encrypted with replication encryption
+				// Sync occurred but no entries - could still be empty or not yet replicated
 				entries = syncedEntries;
 				console.log(`📊 Sync occurred but no entries received`);
 			} else {
@@ -166,21 +166,9 @@ export async function detectDatabaseEncryption(db, options = {}) {
 					hasEncryptionOption: !!db.options?.encryption
 				});
 				
-				// KEY INSIGHT: For remote access, if no sync occurred OR sync occurred but no entries,
-				// the database is likely encrypted with replication encryption. We can't sync without
-				// the password, so we should show the password dialog.
-				// This is the safest assumption - if we can't sync or get entries, assume encrypted.
-				if (!syncOccurred || (syncOccurred && entries.length === 0)) {
-					console.log('🔐 No sync or no entries for remote database - assuming encrypted');
-					console.log(`   → syncOccurred: ${syncOccurred}, entries.length: ${entries.length}`);
-					console.log('   → Cannot sync encrypted database without password (replication encryption)');
-					console.log('   → Showing password dialog to allow user to enter password');
-					return true; // Assume encrypted, show password dialog
-				}
-				
 				const isEncrypted = await isDatabaseEncrypted(db);
 				console.log(`   → isDatabaseEncrypted() returned: ${isEncrypted}`);
-				
+
 				if (isEncrypted) {
 					console.log('🔐 Database is encrypted (confirmed by isDatabaseEncrypted)');
 					return true;

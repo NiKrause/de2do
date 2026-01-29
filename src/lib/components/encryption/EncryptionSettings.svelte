@@ -1,6 +1,7 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
 	import { createEncryptionHandlers } from '$lib/handlers/encryption-handlers.js';
+	import { isWebAuthnEncryptionAvailable } from '$lib/encryption/webauthn-encryption.js';
 
 	export let isCurrentDbEncrypted = false;
 	export let enableEncryption = false;
@@ -12,6 +13,13 @@
 
 	// Create encryption handlers
 	$: encryptionHandlers = createEncryptionHandlers({ preferences });
+	$: webauthnEncryptionAvailable = isWebAuthnEncryptionAvailable();
+	let useWebAuthnPreferred = null;
+	$: if (webauthnEncryptionAvailable === false) {
+		useWebAuthnPreferred = false;
+	} else if (webauthnEncryptionAvailable === true && useWebAuthnPreferred === null) {
+		useWebAuthnPreferred = true;
+	}
 
 	async function handleDisableClick() {
 		const result = await encryptionHandlers.handleDisableEncryption('');
@@ -28,7 +36,9 @@
 
 	async function handleEnableClick() {
 		console.log('🔐 EncryptionSettings: handleEnableClick called');
-		const result = await encryptionHandlers.handleEnableEncryption(encryptionPassword);
+		const result = await encryptionHandlers.handleEnableEncryption(encryptionPassword, {
+			preferWebAuthn: useWebAuthnPreferred
+		});
 		console.log('🔐 EncryptionSettings: handler result =', result);
 
 		if (result.success) {
@@ -57,7 +67,11 @@
 	}
 
 	function handleKeyDown(e) {
-		if (e.key === 'Enter' && encryptionPassword.trim() && !disabled) {
+		if (
+			e.key === 'Enter' &&
+			(encryptionPassword.trim() || webauthnEncryptionAvailable) &&
+			!disabled
+		) {
 			e.preventDefault();
 			handleEnableClick();
 		}
@@ -102,6 +116,31 @@
 			</div>
 		</div>
 		{#if enableEncryption}
+			{#if webauthnEncryptionAvailable}
+				<div class="flex items-center gap-3 text-sm text-gray-700">
+					<span class="font-medium">Use</span>
+					<label class="flex items-center gap-2">
+						<input
+							type="radio"
+							name="encryption-method"
+							class="h-4 w-4 text-blue-600 focus:ring-blue-500"
+							bind:group={useWebAuthnPreferred}
+							value={true}
+						/>
+						<span>WebAuthn</span>
+					</label>
+					<label class="flex items-center gap-2">
+						<input
+							type="radio"
+							name="encryption-method"
+							class="h-4 w-4 text-blue-600 focus:ring-blue-500"
+							bind:group={useWebAuthnPreferred}
+							value={false}
+						/>
+						<span>Password</span>
+					</label>
+				</div>
+			{/if}
 			<div class="flex-1">
 				<label for="encryption-password" class="mb-1 block text-sm font-medium text-gray-700">
 					Encryption Password
@@ -110,7 +149,11 @@
 					id="encryption-password"
 					type="password"
 					bind:value={encryptionPassword}
-					placeholder="Enter password for encryption"
+					placeholder={
+						webauthnEncryptionAvailable && useWebAuthnPreferred
+							? 'Enter password (optional if WebAuthn is available)'
+							: 'Enter password for encryption'
+					}
 					on:keydown={handleKeyDown}
 					class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
 				/>
@@ -119,10 +162,18 @@
 				id="apply-encryption-button"
 				type="button"
 				on:click={handleEnableClick}
-				disabled={disabled || !encryptionPassword.trim()}
+				disabled={
+					disabled ||
+					(!encryptionPassword.trim() &&
+						(!webauthnEncryptionAvailable || !useWebAuthnPreferred))
+				}
 				class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 			>
-				Apply Encryption
+				{#if webauthnEncryptionAvailable && useWebAuthnPreferred && !encryptionPassword.trim()}
+					Use WebAuthn Encryption
+				{:else}
+					Apply Encryption
+				{/if}
 			</button>
 		{/if}
 	{/if}

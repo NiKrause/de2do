@@ -3,13 +3,61 @@ import {
 	OrbitDBWebAuthnIdentityProvider,
 	storeWebAuthnCredential,
 	loadWebAuthnCredential,
-	clearWebAuthnCredential as clearCredential
+	clearWebAuthnCredential as clearCredential,
+	WebAuthnVarsigProvider,
+	storeWebAuthnVarsigCredential,
+	loadWebAuthnVarsigCredential,
+	clearWebAuthnVarsigCredential
 } from '@le-space/orbitdb-identity-provider-webauthn-did';
+import { getOrCreateVarsigIdentity } from './varsig-identity.js';
 
-// Storage keys for WebAuthn credentials
+// Legacy storage keys for WebAuthn credentials (kept for compatibility)
 const STORAGE_KEY_CREDENTIAL_ID = 'webauthn_credential_id';
 const STORAGE_KEY_CREDENTIAL_TYPE = 'webauthn_credential_type';
 const STORAGE_KEY_USER_HANDLE = 'webauthn_user_handle';
+
+function toBase64(bytes) {
+	if (!bytes || bytes.length === 0) return '';
+	let binary = '';
+	for (let i = 0; i < bytes.length; i += 1) {
+		binary += String.fromCharCode(bytes[i]);
+	}
+	return btoa(binary);
+}
+
+function persistCredentialMetadata({ type, credentialId, userId }) {
+	try {
+		const encodedId =
+			credentialId instanceof Uint8Array
+				? toBase64(credentialId)
+				: typeof credentialId === 'string'
+					? credentialId
+					: '';
+		if (encodedId) {
+			localStorage.setItem(STORAGE_KEY_CREDENTIAL_ID, encodedId);
+		}
+		if (type) {
+			localStorage.setItem(STORAGE_KEY_CREDENTIAL_TYPE, type);
+		}
+		if (userId) {
+			const userHandleBase64 = toBase64(new TextEncoder().encode(userId));
+			localStorage.setItem(STORAGE_KEY_USER_HANDLE, userHandleBase64);
+		}
+	} catch (error) {
+		console.warn('Failed to persist WebAuthn credential metadata:', error);
+	}
+}
+
+function shouldFallbackToKeystore(error) {
+	if (!error) return false;
+	const name = error.name || '';
+	const message = String(error.message || '');
+	return (
+		name === 'NotSupportedError' ||
+		message.includes('not supported') ||
+		message.includes('No supported credential')
+	);
+}
 
 /**
  * Check if WebAuthn is available in the current browser
@@ -19,7 +67,8 @@ export function isWebAuthnAvailable() {
 	return (
 		typeof window !== 'undefined' &&
 		window.PublicKeyCredential !== undefined &&
-		typeof window.PublicKeyCredential === 'function'
+		typeof window.PublicKeyCredential === 'function' &&
+		WebAuthnDIDProvider.isSupported()
 	);
 }
 
@@ -33,7 +82,7 @@ export async function isPlatformAuthenticatorAvailable() {
 	}
 
 	try {
-		return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+		return await WebAuthnDIDProvider.isPlatformAuthenticatorAvailable();
 	} catch (error) {
 		console.warn('Failed to check platform authenticator availability:', error);
 		return false;
@@ -59,10 +108,9 @@ function getBrowserName() {
  */
 export function hasExistingCredentials() {
 	try {
-		return (
-			localStorage.getItem(STORAGE_KEY_CREDENTIAL_ID) !== null &&
-			localStorage.getItem(STORAGE_KEY_USER_HANDLE) !== null
-		);
+		const varsigCredential = loadWebAuthnVarsigCredential();
+		const webauthnCredential = loadWebAuthnCredential();
+		return Boolean(varsigCredential || webauthnCredential);
 	} catch (error) {
 		console.warn('Failed to check existing credentials:', error);
 		return false;
@@ -75,6 +123,24 @@ export function hasExistingCredentials() {
  */
 export function getStoredCredentialInfo() {
 	try {
+		const varsigCredential = loadWebAuthnVarsigCredential();
+		if (varsigCredential) {
+			return {
+				credentialId: toBase64(varsigCredential.credentialId),
+				credentialType: 'webauthn-varsig',
+				userHandle: null
+			};
+		}
+
+		const webauthnCredential = loadWebAuthnCredential();
+		if (webauthnCredential) {
+			return {
+				credentialId: webauthnCredential.credentialId || '',
+				credentialType: 'webauthn-keystore',
+				userHandle: null
+			};
+		}
+
 		const credentialId = localStorage.getItem(STORAGE_KEY_CREDENTIAL_ID);
 		const credentialType = localStorage.getItem(STORAGE_KEY_CREDENTIAL_TYPE);
 		const userHandle = localStorage.getItem(STORAGE_KEY_USER_HANDLE);
@@ -104,46 +170,81 @@ export async function createWebAuthnIdentity(userName = 'Simple Todo User') {
 		throw new Error('WebAuthn is not available in this browser');
 	}
 
-	console.log('🔐 Creating WebAuthn identity...');
+	console.log('🔐 Creating WebAuthn identity (varsig preferred)...');
 
 	try {
-		// Create WebAuthn credential using the DID provider
 		const userId = `simple-todo-user-${Date.now()}`;
+		const domain = window.location.hostname;
+
+		if (WebAuthnVarsigProvider.isSupported()) {
+			try {
+				const varsigCredential = await WebAuthnVarsigProvider.createCredential({
+					userId,
+					displayName: userName,
+					domain
+				});
+
+				console.log('✅ WebAuthn varsig credential created');
+				storeWebAuthnVarsigCredential(varsigCredential);
+				persistCredentialMetadata({
+					type: 'webauthn-varsig',
+					credentialId: varsigCredential.credentialId,
+					userId
+				});
+
+				const identity = await getOrCreateVarsigIdentity(varsigCredential);
+
+				console.log('✅ OrbitDB varsig identity created:', {
+					id: identity.id,
+					type: identity.type
+				});
+
+				return {
+					identity,
+					credentialInfo: varsigCredential,
+					type: 'webauthn-varsig'
+				};
+			} catch (error) {
+				if (!shouldFallbackToKeystore(error)) {
+					throw error;
+				}
+				console.warn('⚠️ Varsig unavailable, falling back to encrypted keystore:', error);
+			}
+		}
+
 		const credentialInfo = await WebAuthnDIDProvider.createCredential({
 			userId,
 			displayName: userName,
-			domain: window.location.hostname
+			domain,
+			encryptKeystore: true,
+			keystoreEncryptionMethod: 'prf'
 		});
 
-		console.log('✅ WebAuthn credential created:', {
+		console.log('✅ WebAuthn credential created (keystore fallback):', {
 			credentialId: credentialInfo.credentialId,
 			userId: credentialInfo.userId
 		});
 
-		// Store the credential for future use
 		storeWebAuthnCredential(credentialInfo);
+		persistCredentialMetadata({
+			type: 'webauthn-keystore',
+			credentialId: credentialInfo.credentialId,
+			userId
+		});
 
-		// Also store in our own format for compatibility
-		const userHandleBase64 = btoa(
-			String.fromCharCode(...new TextEncoder().encode(credentialInfo.userId))
-		);
-		localStorage.setItem(STORAGE_KEY_CREDENTIAL_ID, credentialInfo.credentialId);
-		localStorage.setItem(STORAGE_KEY_CREDENTIAL_TYPE, 'webauthn');
-		localStorage.setItem(STORAGE_KEY_USER_HANDLE, userHandleBase64);
-
-		// Create OrbitDB identity from the credential
 		const identity = await OrbitDBWebAuthnIdentityProvider.createIdentity({
 			webauthnCredential: credentialInfo
 		});
 
-		console.log('✅ OrbitDB identity created:', {
+		console.log('✅ OrbitDB identity created (keystore fallback):', {
 			id: identity.id,
 			type: identity.type
 		});
 
 		return {
 			identity,
-			credentialInfo
+			credentialInfo,
+			type: 'webauthn-keystore'
 		};
 	} catch (error) {
 		console.error('❌ Failed to create WebAuthn identity:', error);
@@ -172,16 +273,25 @@ export async function authenticateWithWebAuthn() {
 		throw new Error('WebAuthn is not available in this browser');
 	}
 
-	// Load credential from storage
+	const varsigCredential = loadWebAuthnVarsigCredential();
+	if (varsigCredential) {
+		const identity = await getOrCreateVarsigIdentity(varsigCredential);
+
+		return {
+			identity,
+			credentialInfo: varsigCredential,
+			type: 'webauthn-varsig'
+		};
+	}
+
 	const storedCredential = loadWebAuthnCredential();
 	if (!storedCredential) {
 		throw new Error('No existing WebAuthn credentials found. Please create credentials first.');
 	}
 
-	console.log('🔐 Authenticating with WebAuthn...');
+	console.log('🔐 Authenticating with WebAuthn (keystore fallback)...');
 
 	try {
-		// Create OrbitDB identity from stored credential
 		const identity = await OrbitDBWebAuthnIdentityProvider.createIdentity({
 			webauthnCredential: storedCredential
 		});
@@ -193,7 +303,8 @@ export async function authenticateWithWebAuthn() {
 
 		return {
 			identity,
-			credentialInfo: storedCredential
+			credentialInfo: storedCredential,
+			type: 'webauthn-keystore'
 		};
 	} catch (error) {
 		console.error('❌ Failed to authenticate with WebAuthn:', error);
@@ -217,6 +328,7 @@ export function clearWebAuthnCredentials() {
 	try {
 		// Clear using the library function
 		clearCredential();
+		clearWebAuthnVarsigCredential();
 
 		// Also clear our own storage keys
 		localStorage.removeItem(STORAGE_KEY_CREDENTIAL_ID);
@@ -236,16 +348,29 @@ export async function getWebAuthnCapabilities() {
 	const available = isWebAuthnAvailable();
 	let platformAuthenticator = false;
 	let browserName = 'Unknown';
+	let varsigSupported = false;
+	let hasVarsigCredentials = false;
+	let hasKeystoreCredentials = false;
 
 	if (available) {
 		platformAuthenticator = await isPlatformAuthenticatorAvailable();
 		browserName = getBrowserName();
+		varsigSupported = WebAuthnVarsigProvider.isSupported();
+		try {
+			hasVarsigCredentials = Boolean(loadWebAuthnVarsigCredential());
+			hasKeystoreCredentials = Boolean(loadWebAuthnCredential());
+		} catch (error) {
+			console.warn('Failed to read WebAuthn credential storage:', error);
+		}
 	}
 
 	return {
 		available,
 		platformAuthenticator,
 		browserName,
-		hasExistingCredentials: hasExistingCredentials()
+		hasExistingCredentials: hasExistingCredentials(),
+		varsigSupported,
+		hasVarsigCredentials,
+		hasKeystoreCredentials
 	};
 }

@@ -8,6 +8,20 @@ import {
 } from '$lib/todo-list-manager.js';
 import { enableDatabaseEncryption, disableDatabaseEncryption } from '$lib/encryption-migration.js';
 import { loadTodos } from '$lib/db-actions.js';
+import { getWebAuthnEncryptionKey } from '$lib/encryption/webauthn-encryption.js';
+
+function hasEncryptionSecret(secret) {
+	if (!secret) return false;
+	if (typeof secret === 'string') return secret.trim().length > 0;
+	return Boolean(secret?.subarray && secret.length > 0);
+}
+
+function getEncryptionMethodFromSecret(secret) {
+	if (!secret) return null;
+	if (secret?.subarray) return 'webauthn-prf';
+	if (typeof secret === 'string' && secret.trim()) return 'password';
+	return null;
+}
 
 /**
  * Factory function to create encryption event handlers
@@ -20,10 +34,17 @@ export function createEncryptionHandlers({ preferences }) {
 	 * @param {string} password - Encryption password
 	 * @returns {Promise<{success: boolean, isCurrentDbEncrypted: boolean}>}
 	 */
-	async function handleEnableEncryption(password) {
-		if (!password || !password.trim()) {
-			alert('Please enter an encryption password');
-			return { success: false, isCurrentDbEncrypted: false };
+	async function handleEnableEncryption(password, options = {}) {
+		const { preferWebAuthn = true } = options;
+		let encryptionSecret = password;
+		if (!hasEncryptionSecret(encryptionSecret)) {
+			if (preferWebAuthn) {
+				encryptionSecret = await getWebAuthnEncryptionKey({ allowCreate: true });
+			}
+			if (!encryptionSecret) {
+				alert('Please enter an encryption password');
+				return { success: false, isCurrentDbEncrypted: false };
+			}
 		}
 
 		try {
@@ -34,14 +55,21 @@ export function createEncryptionHandlers({ preferences }) {
 
 			console.log('🔐 Starting encryption migration...');
 			console.log(`  → Current address: ${currentAddress}`);
-			console.log(`  → Password length: ${password.length}, first 3 chars: ${password.substring(0, 3)}***`);
+			if (typeof encryptionSecret === 'string') {
+				console.log(
+					`  → Password length: ${encryptionSecret.length}, first 3 chars: ${encryptionSecret.substring(0, 3)}***`
+				);
+			} else {
+				console.log(`  → Password bytes: ${encryptionSecret.length}`);
+			}
 
 			// Migrate to encrypted
 			const result = await enableDatabaseEncryption(
 				currentList,
 				currentDbName,
 				currentAddress,
-				password,
+				encryptionSecret,
+				getEncryptionMethodFromSecret(encryptionSecret),
 				preferences,
 				null
 			);
@@ -51,10 +79,23 @@ export function createEncryptionHandlers({ preferences }) {
 				console.log(`🔑 Original address: ${currentAddress}`);
 				console.log(`🔑 New address from migration: ${result.newAddress}`);
 				console.log(`  → Address match: ${currentAddress === result.newAddress ? 'YES ✅' : 'NO ❌'}`);
-				console.log(`  → About to call switchToTodoList with: list=${currentList}, encryption=true, password length=${password.length}`);
-				console.log(`  → Password first 3 chars: ${password.substring(0, 3)}***`);
+				if (typeof encryptionSecret === 'string') {
+					console.log(
+						`  → About to call switchToTodoList with: list=${currentList}, encryption=true, password length=${encryptionSecret.length}`
+					);
+					console.log(`  → Password first 3 chars: ${encryptionSecret.substring(0, 3)}***`);
+				} else {
+					console.log(
+						`  → About to call switchToTodoList with: list=${currentList}, encryption=true, password bytes=${encryptionSecret.length}`
+					);
+				}
 				// Reopen the new encrypted database
-				const switched = await switchToTodoList(currentList, preferences, true, password);
+				const switched = await switchToTodoList(
+					currentList,
+					preferences,
+					true,
+					encryptionSecret
+				);
 				console.log(`🔄 switchToTodoList result: ${switched}`);
 				console.log(`  → Password should now be cached for ${currentList}`);
 
@@ -88,10 +129,13 @@ export function createEncryptionHandlers({ preferences }) {
 		}
 
 		// Prompt for current password
-		if (!currentPassword) {
-			currentPassword = prompt('Enter current encryption password:');
+		if (!hasEncryptionSecret(currentPassword)) {
+			currentPassword = await getWebAuthnEncryptionKey({ allowCreate: false });
 			if (!currentPassword) {
-				return { success: false, isCurrentDbEncrypted: true };
+				currentPassword = prompt('Enter current encryption password:');
+				if (!currentPassword) {
+					return { success: false, isCurrentDbEncrypted: true };
+				}
 			}
 		}
 
