@@ -115,16 +115,13 @@ export async function acceptConsentAndInitialize(page, options = {}) {
 
 	// Toggle network connection if needed
 	if (!enableNetworkConnection) {
-		const consentModal = page.locator('[data-testid="consent-modal"]');
-		const toggleButtons = consentModal.locator('button.relative.inline-flex');
-		await toggleButtons.nth(1).click(); // Second toggle is Network
+		const networkToggle = page.getByTestId('consent-network-toggle');
+		await networkToggle.click();
 	}
 
 	// Toggle peer connections if needed (only if network is enabled)
 	if (!enablePeerConnections && enableNetworkConnection) {
-		const consentModal = page.locator('[data-testid="consent-modal"]');
-		// Find the peer connections checkbox (third toggle)
-		const peerCheckbox = consentModal.locator('#peer-connections');
+		const peerCheckbox = page.getByTestId('consent-peer-checkbox');
 		if (await peerCheckbox.isVisible()) {
 			const isChecked = await peerCheckbox.isChecked();
 			if (isChecked) {
@@ -134,8 +131,7 @@ export async function acceptConsentAndInitialize(page, options = {}) {
 	}
 
 	// Click Accept & Continue button
-	const consentModal = page.locator('[data-testid="consent-modal"]');
-	const proceedButton = consentModal.getByRole('button', { name: 'Accept & Continue' });
+	const proceedButton = page.getByTestId('consent-accept-button');
 	await expect(proceedButton).toBeVisible({ timeout: 10000 });
 	await expect(proceedButton).toBeEnabled({ timeout: 5000 });
 	await proceedButton.click();

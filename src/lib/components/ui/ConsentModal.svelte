@@ -122,6 +122,7 @@
 							<button
 								on:click={handleStorageToggle}
 								aria-label="Toggle browser storage"
+								data-testid="consent-storage-toggle"
 								class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none {enablePersistentStorage
 									? 'bg-blue-600'
 									: 'bg-gray-400'}"
@@ -143,6 +144,7 @@
 							<button
 								on:click={handleNetworkToggle}
 								aria-label="Toggle network connection"
+								data-testid="consent-network-toggle"
 								class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none {enableNetworkConnection
 									? 'bg-blue-600'
 									: 'bg-gray-400'}"
@@ -166,6 +168,7 @@
 									id="peer-connections"
 									checked={enablePeerConnections}
 									on:change={handlePeerToggle}
+									data-testid="consent-peer-checkbox"
 									class="h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
 								/>
 								<label for="peer-connections" class="cursor-pointer text-xs text-gray-700">
@@ -204,12 +207,14 @@
 							<input
 								type="checkbox"
 								bind:checked={rememberDecision}
+								data-testid="consent-remember-checkbox"
 								class="h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
 							/>
 							<span class="text-xs text-gray-700">{rememberLabel}</span>
 						</label>
 						<button
 							on:click={handleProceed}
+							data-testid="consent-accept-button"
 							class="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium whitespace-nowrap text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
 						>
 							{proceedButtonText}

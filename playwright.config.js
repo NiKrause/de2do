@@ -7,8 +7,10 @@ export default defineConfig({
 
 	// Web server configuration
 	webServer: {
-		// Build first, then start preview server
-		command: 'npm run build && npm run preview',
+		// Build first in CI, reuse existing build locally
+		command: process.env.CI
+			? 'npm run build && npm run preview -- --host 127.0.0.1 --port 4174'
+			: 'npm run preview -- --host 127.0.0.1 --port 4174',
 		port: 4174,
 		// Use the test environment file and set development mode
 		env: {
@@ -16,8 +18,8 @@ export default defineConfig({
 			VITE_NODE_ENV: 'development'
 		},
 		// Wait for server to be ready (increased for build time)
-		timeout: 120000 // Increased timeout to allow for build + server startup
-		// reuseExistingServer: !process.env.CI
+		timeout: 120000, // Increased timeout to allow for build + server startup
+		reuseExistingServer: !process.env.CI
 	},
 
 	// Test configuration
@@ -121,7 +123,7 @@ export default defineConfig({
 
 	// Use baseURL for all tests
 	use: {
-		baseURL: 'http://localhost:4174',
+		baseURL: 'http://127.0.0.1:4174',
 		// Take screenshots on failure
 		screenshot: 'only-on-failure',
 		// Record video on failure

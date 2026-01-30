@@ -103,6 +103,9 @@
 		// Extract preferences from the event detail
 		preferences = event?.detail || {};
 		console.log('🔧 DEBUG: Received preferences from ConsentModal:', preferences);
+		if (browser) {
+			window.__lastConsentPreferences__ = preferences;
+		}
 
 		try {
 			if (rememberDecision) {

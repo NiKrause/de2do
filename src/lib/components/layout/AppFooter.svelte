@@ -144,6 +144,7 @@
 			<span class="text-gray-500">Peers:</span>
 			<span
 				class="cursor-help font-semibold text-green-600 hover:text-green-700"
+				data-testid="peer-count"
 				role="button"
 				tabindex="0"
 				onmouseenter={handleMouseEnter}
