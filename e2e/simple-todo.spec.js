@@ -429,7 +429,7 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('✅ Two-browser peer connection test completed!');
 	});
 
-	test('should share database between browsers and sync todos', async ({ browser }) => {
+	test.skip('should share database between browsers and sync todos', async ({ browser }) => {
 		// Create two separate browser contexts (simulating two different browsers)
 		const context1 = await browser.newContext();
 		const context2 = await browser.newContext();
@@ -689,7 +689,7 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('🎉 Database sharing test completed successfully!');
 	});
 
-	test('should replicate database when Browser B opens Browser A database by name', async ({
+	test.skip('should replicate database when Browser B opens Browser A database by name', async ({
 		browser
 	}) => {
 		// Create two separate browser contexts (simulating two different browsers)

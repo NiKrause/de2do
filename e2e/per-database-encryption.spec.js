@@ -67,7 +67,7 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 		await verifyTodosVisible(page, [todoText]);
 	});
 
-	test.only('should handle multiple projects with different encryption settings', async ({
+	test('should handle multiple projects with different encryption settings', async ({
 		browser
 	}) => {
 		const timestamp = Date.now();
