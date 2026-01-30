@@ -16,15 +16,17 @@ const browserstackCapabilities = {
 	'browserstack.debug': 'true',
 	'browserstack.console': 'verbose',
 	'browserstack.networkLogs': 'true',
-	'browserstack.local': 'true',  // Enable local tunnel
+	'browserstack.local': 'true', // Enable local tunnel
 	'browserstack.localIdentifier': BS_BUILD_NAME || 'simple-todo-local'
 };
 
 export default defineConfig({
-	webServer: BS_LOCAL_ENABLED ? undefined : {
-		command: 'pnpm run build && pnpm run preview',
-		port: 4173
-	},
+	webServer: BS_LOCAL_ENABLED
+		? undefined
+		: {
+				command: 'pnpm run build && pnpm run preview',
+				port: 4173
+			},
 	testDir: 'e2e',
 	timeout: 60000,
 	expect: {
@@ -41,127 +43,129 @@ export default defineConfig({
 		trace: 'on-first-retry'
 	},
 	// Configure projects for different browsers and platforms
-	projects: BS_LOCAL_ENABLED ? [
-		// Desktop browsers
-		{
-			name: 'Chrome Windows',
-			use: {
-				...browserstackCapabilities,
-				'browserstack.os': 'Windows',
-				'browserstack.osVersion': '11',
-				'browserstack.browser': 'chrome',
-				'browserstack.browserVersion': 'latest'
-			}
-		},
-		{
-			name: 'Firefox Windows',
-			use: {
-				...browserstackCapabilities,
-				'browserstack.os': 'Windows',
-				'browserstack.osVersion': '11',
-				'browserstack.browser': 'firefox',
-				'browserstack.browserVersion': 'latest'
-			}
-		},
-		{
-			name: 'Edge Windows',
-			use: {
-				...browserstackCapabilities,
-				'browserstack.os': 'Windows',
-				'browserstack.osVersion': '11',
-				'browserstack.browser': 'edge',
-				'browserstack.browserVersion': 'latest'
-			}
-		},
-		{
-			name: 'Chrome macOS',
-			use: {
-				...browserstackCapabilities,
-				'browserstack.os': 'OS X',
-				'browserstack.osVersion': 'Monterey',
-				'browserstack.browser': 'chrome',
-				'browserstack.browserVersion': 'latest'
-			}
-		},
-		{
-			name: 'Firefox macOS',
-			use: {
-				...browserstackCapabilities,
-				'browserstack.os': 'OS X',
-				'browserstack.osVersion': 'Monterey',
-				'browserstack.browser': 'firefox',
-				'browserstack.browserVersion': 'latest'
-			}
-		},
-		{
-			name: 'Safari macOS',
-			use: {
-				...browserstackCapabilities,
-				'browserstack.os': 'OS X',
-				'browserstack.osVersion': 'Monterey',
-				'browserstack.browser': 'safari',
-				'browserstack.browserVersion': 'latest'
-			}
-		},
-		{
-			name: 'Chrome Linux',
-			use: {
-				...browserstackCapabilities,
-				'browserstack.os': 'Linux',
-				'browserstack.osVersion': 'Ubuntu 20.04',
-				'browserstack.browser': 'chrome',
-				'browserstack.browserVersion': 'latest'
-			}
-		},
-		// Mobile browsers
-		{
-			name: 'iPhone Safari',
-			use: {
-				...browserstackCapabilities,
-				'browserstack.os': 'ios',
-				'browserstack.osVersion': '16',
-				'browserstack.device': 'iPhone 14',
-				'browserstack.browser': 'safari',
-				'browserstack.realMobile': 'true'
-			}
-		},
-		{
-			name: 'Android Chrome',
-			use: {
-				...browserstackCapabilities,
-				'browserstack.os': 'android',
-				'browserstack.osVersion': '12.0',
-				'browserstack.device': 'Samsung Galaxy S22',
-				'browserstack.browser': 'chrome',
-				'browserstack.realMobile': 'true'
-			}
-		},
-		// Alternative browsers
-		{
-			name: 'Opera Windows',
-			use: {
-				...browserstackCapabilities,
-				'browserstack.os': 'Windows',
-				'browserstack.osVersion': '11',
-				'browserstack.browser': 'opera',
-				'browserstack.browserVersion': 'latest'
-			}
-		}
-		// Note: Brave browser testing requires special setup not available in standard BrowserStack
-		// For Brave testing, use local installation with channel: 'brave' in local projects
-	] : [
-		// Local testing projects
-		{
-			name: 'chromium',
-			use: { ...devices['Desktop Chrome'] }
-		},
-		{
-			name: 'firefox',
-			use: { ...devices['Desktop Firefox'] }
-		},
-		{
-			name: 'webkit',
-			use: { ...devices['Desktop Safari'] }
-		}
-	]
+	projects: BS_LOCAL_ENABLED
+		? [
+				// Desktop browsers
+				{
+					name: 'Chrome Windows',
+					use: {
+						...browserstackCapabilities,
+						'browserstack.os': 'Windows',
+						'browserstack.osVersion': '11',
+						'browserstack.browser': 'chrome',
+						'browserstack.browserVersion': 'latest'
+					}
+				},
+				{
+					name: 'Firefox Windows',
+					use: {
+						...browserstackCapabilities,
+						'browserstack.os': 'Windows',
+						'browserstack.osVersion': '11',
+						'browserstack.browser': 'firefox',
+						'browserstack.browserVersion': 'latest'
+					}
+				},
+				{
+					name: 'Edge Windows',
+					use: {
+						...browserstackCapabilities,
+						'browserstack.os': 'Windows',
+						'browserstack.osVersion': '11',
+						'browserstack.browser': 'edge',
+						'browserstack.browserVersion': 'latest'
+					}
+				},
+				{
+					name: 'Chrome macOS',
+					use: {
+						...browserstackCapabilities,
+						'browserstack.os': 'OS X',
+						'browserstack.osVersion': 'Monterey',
+						'browserstack.browser': 'chrome',
+						'browserstack.browserVersion': 'latest'
+					}
+				},
+				{
+					name: 'Firefox macOS',
+					use: {
+						...browserstackCapabilities,
+						'browserstack.os': 'OS X',
+						'browserstack.osVersion': 'Monterey',
+						'browserstack.browser': 'firefox',
+						'browserstack.browserVersion': 'latest'
+					}
+				},
+				{
+					name: 'Safari macOS',
+					use: {
+						...browserstackCapabilities,
+						'browserstack.os': 'OS X',
+						'browserstack.osVersion': 'Monterey',
+						'browserstack.browser': 'safari',
+						'browserstack.browserVersion': 'latest'
+					}
+				},
+				{
+					name: 'Chrome Linux',
+					use: {
+						...browserstackCapabilities,
+						'browserstack.os': 'Linux',
+						'browserstack.osVersion': 'Ubuntu 20.04',
+						'browserstack.browser': 'chrome',
+						'browserstack.browserVersion': 'latest'
+					}
+				},
+				// Mobile browsers
+				{
+					name: 'iPhone Safari',
+					use: {
+						...browserstackCapabilities,
+						'browserstack.os': 'ios',
+						'browserstack.osVersion': '16',
+						'browserstack.device': 'iPhone 14',
+						'browserstack.browser': 'safari',
+						'browserstack.realMobile': 'true'
+					}
+				},
+				{
+					name: 'Android Chrome',
+					use: {
+						...browserstackCapabilities,
+						'browserstack.os': 'android',
+						'browserstack.osVersion': '12.0',
+						'browserstack.device': 'Samsung Galaxy S22',
+						'browserstack.browser': 'chrome',
+						'browserstack.realMobile': 'true'
+					}
+				},
+				// Alternative browsers
+				{
+					name: 'Opera Windows',
+					use: {
+						...browserstackCapabilities,
+						'browserstack.os': 'Windows',
+						'browserstack.osVersion': '11',
+						'browserstack.browser': 'opera',
+						'browserstack.browserVersion': 'latest'
+					}
+				}
+				// Note: Brave browser testing requires special setup not available in standard BrowserStack
+				// For Brave testing, use local installation with channel: 'brave' in local projects
+			]
+		: [
+				// Local testing projects
+				{
+					name: 'chromium',
+					use: { ...devices['Desktop Chrome'] }
+				},
+				{
+					name: 'firefox',
+					use: { ...devices['Desktop Firefox'] }
+				},
+				{
+					name: 'webkit',
+					use: { ...devices['Desktop Safari'] }
+				}
+			]
 });

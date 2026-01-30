@@ -78,7 +78,9 @@ export function createEncryptionHandlers({ preferences }) {
 				console.log('✅ Migration completed successfully, reopening database...');
 				console.log(`🔑 Original address: ${currentAddress}`);
 				console.log(`🔑 New address from migration: ${result.newAddress}`);
-				console.log(`  → Address match: ${currentAddress === result.newAddress ? 'YES ✅' : 'NO ❌'}`);
+				console.log(
+					`  → Address match: ${currentAddress === result.newAddress ? 'YES ✅' : 'NO ❌'}`
+				);
 				if (typeof encryptionSecret === 'string') {
 					console.log(
 						`  → About to call switchToTodoList with: list=${currentList}, encryption=true, password length=${encryptionSecret.length}`
@@ -90,12 +92,7 @@ export function createEncryptionHandlers({ preferences }) {
 					);
 				}
 				// Reopen the new encrypted database
-				const switched = await switchToTodoList(
-					currentList,
-					preferences,
-					true,
-					encryptionSecret
-				);
+				const switched = await switchToTodoList(currentList, preferences, true, encryptionSecret);
 				console.log(`🔄 switchToTodoList result: ${switched}`);
 				console.log(`  → Password should now be cached for ${currentList}`);
 

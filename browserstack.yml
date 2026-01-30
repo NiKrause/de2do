@@ -34,11 +34,11 @@ platforms:
     browserVersion: latest
   - os: OS X
     osVersion: Sequoia
-    browserName: firefox  # Changed from playwright-firefox
+    browserName: firefox # Changed from playwright-firefox
     browserVersion: latest
   - os: OS X
     osVersion: Sequoia
-    browserName: safari  # Changed from playwright-webkit
+    browserName: safari # Changed from playwright-webkit
     browserVersion: latest
   # Linux platform removed - not supported by BrowserStack with Playwright
   - osVersion: 16.0
@@ -71,7 +71,7 @@ parallelsPerPlatform: 2
 # BrowserStack Local
 # (For localhost, staging/private websites)
 # ==========================================
-browserstackLocal: false  # We're using deployed URL
+browserstackLocal: false # We're using deployed URL
 
 # ===================
 # Framework & Source

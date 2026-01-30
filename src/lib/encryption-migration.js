@@ -172,7 +172,9 @@ export async function migrateDatabaseEncryption(
 		const finalAddress = finalDb.address;
 		console.log(`📍 Final database address: ${finalAddress}`);
 		console.log(`  → Address comparison: original=${currentAddress}, final=${finalAddress}`);
-		console.log(`  → Address match: ${currentAddress === finalAddress ? 'YES ✅ (expected)' : 'NO ❌ (unexpected - address changed!)'}`);
+		console.log(
+			`  → Address match: ${currentAddress === finalAddress ? 'YES ✅ (expected)' : 'NO ❌ (unexpected - address changed!)'}`
+		);
 
 		// Step 10: Copy all entries from temp to final database
 		console.log('📝 Copying entries to final database...');
@@ -218,7 +220,9 @@ export async function migrateDatabaseEncryption(
 
 		// Step 12: Update the registry with the final database info (original name!)
 		console.log('💾 Updating registry...');
-		console.log(`  → Registry update: displayName=${displayName}, dbName=${finalDbName}, address=${finalAddress}, encryptionEnabled=${targetEncryption}`);
+		console.log(
+			`  → Registry update: displayName=${displayName}, dbName=${finalDbName}, address=${finalAddress}, encryptionEnabled=${targetEncryption}`
+		);
 		const { listAvailableTodoLists } = await import('./todo-list-manager.js');
 		addTodoListToRegistry(
 			displayName,
@@ -228,7 +232,9 @@ export async function migrateDatabaseEncryption(
 			targetEncryption,
 			targetEncryption ? targetEncryptionMethod || null : null
 		);
-		console.log(`  → Registry entry added for ${displayName} with encryptionEnabled=${targetEncryption}`);
+		console.log(
+			`  → Registry entry added for ${displayName} with encryptionEnabled=${targetEncryption}`
+		);
 		// Refresh the available lists store so switchToTodoList can find the updated address
 		listAvailableTodoLists();
 		console.log(`  → Available lists refreshed after registry update`);

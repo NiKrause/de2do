@@ -186,7 +186,10 @@ export async function openTodoList(
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		if (errorMessage.includes('decrypt')) {
-			console.warn('⚠️ Could not read entries immediately after opening (decryption error):', errorMessage);
+			console.warn(
+				'⚠️ Could not read entries immediately after opening (decryption error):',
+				errorMessage
+			);
 			console.warn('   This may happen after migration - entries will be loaded after sync');
 			entryCount = 0;
 		} else {
@@ -345,7 +348,10 @@ export async function openDatabaseByName(
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			if (errorMessage.includes('decrypt')) {
-				console.warn('⚠️ Could not read entries immediately after opening (decryption error):', errorMessage);
+				console.warn(
+					'⚠️ Could not read entries immediately after opening (decryption error):',
+					errorMessage
+				);
 				console.warn('   This may happen after migration - entries will be loaded after sync');
 				entryCount = 0;
 			} else {
@@ -410,7 +416,7 @@ export async function openDatabaseByAddress(
 		console.log('🔐 Setting up encryption for database...');
 		console.log(`  → Password provided: ${describeEncryptionSecret(encryptionPassword)}`);
 		const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
-		encryption = { 
+		encryption = {
 			data: dataEncryption
 		};
 
@@ -458,7 +464,10 @@ export async function openDatabaseByAddress(
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		if (errorMessage.includes('decrypt')) {
-			console.warn('⚠️ Could not read entries immediately after opening (decryption error):', errorMessage);
+			console.warn(
+				'⚠️ Could not read entries immediately after opening (decryption error):',
+				errorMessage
+			);
 			console.warn('   This may happen after migration - entries will be loaded after sync');
 			console.log(`✅ Database opened successfully (entries will load after sync)`);
 		} else {
@@ -778,18 +787,14 @@ export async function initializeP2P(preferences = {}) {
 					expectedType: identity.type
 				});
 				if (typeof identity.id === 'string' && !identity.id.startsWith('did:key:')) {
-					throw new Error(
-						`Varsig identity id is not did:key (got "${identity.id}")`
-					);
+					throw new Error(`Varsig identity id is not did:key (got "${identity.id}")`);
 				}
 				if (
 					!orbitdbIdentity ||
 					orbitdbIdentity.type !== 'webauthn-varsig' ||
 					orbitdbIdentity.id !== identity.id
 				) {
-					throw new Error(
-						'Varsig identity was not applied to OrbitDB (identity mismatch).'
-					);
+					throw new Error('Varsig identity was not applied to OrbitDB (identity mismatch).');
 				}
 
 				orbitdbCreated = true;

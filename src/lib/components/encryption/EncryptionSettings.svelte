@@ -13,7 +13,7 @@
 
 	// Create encryption handlers
 	$: encryptionHandlers = createEncryptionHandlers({ preferences });
-	$: webauthnEncryptionAvailable = isWebAuthnEncryptionAvailable();
+	let webauthnEncryptionAvailable = isWebAuthnEncryptionAvailable();
 	let useWebAuthnPreferred = null;
 	$: if (webauthnEncryptionAvailable === false) {
 		useWebAuthnPreferred = false;
@@ -149,11 +149,9 @@
 					id="encryption-password"
 					type="password"
 					bind:value={encryptionPassword}
-					placeholder={
-						webauthnEncryptionAvailable && useWebAuthnPreferred
-							? 'Enter password (optional if WebAuthn is available)'
-							: 'Enter password for encryption'
-					}
+					placeholder={webauthnEncryptionAvailable && useWebAuthnPreferred
+						? 'Enter password (optional if WebAuthn is available)'
+						: 'Enter password for encryption'}
 					on:keydown={handleKeyDown}
 					class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
 				/>
@@ -162,11 +160,8 @@
 				id="apply-encryption-button"
 				type="button"
 				on:click={handleEnableClick}
-				disabled={
-					disabled ||
-					(!encryptionPassword.trim() &&
-						(!webauthnEncryptionAvailable || !useWebAuthnPreferred))
-				}
+				disabled={disabled ||
+					(!encryptionPassword.trim() && (!webauthnEncryptionAvailable || !useWebAuthnPreferred))}
 				class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 			>
 				{#if webauthnEncryptionAvailable && useWebAuthnPreferred && !encryptionPassword.trim()}

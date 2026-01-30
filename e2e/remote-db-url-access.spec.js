@@ -10,7 +10,7 @@ void chromium;
 
 /**
  * Focused test for opening databases via URL in new browser contexts
- * 
+ *
  * This test isolates Step 7 and Step 8 from per-database-encryption.spec.js:
  * - Step 7: Open unencrypted database via URL (should NOT show password modal)
  * - Step 8: Open encrypted database via URL (should show password modal)
@@ -18,9 +18,7 @@ void chromium;
 test.describe('Remote Database URL Access', () => {
 	test.setTimeout(120000); // 2 minutes
 
-	test('should handle opening unencrypted and encrypted databases via URL', async ({
-		browser
-	}) => {
+	test('should handle opening unencrypted and encrypted databases via URL', async ({ browser }) => {
 		const timestamp = Date.now();
 
 		// Project names
@@ -48,26 +46,18 @@ test.describe('Remote Database URL Access', () => {
 		await waitForP2PInitialization(page1);
 
 		// Create unencrypted project with a todo
-		await createProjectWithTodos(
-			page1,
-			unencryptedProjectName,
-			false,
-			'',
-			[`Task 1-1 of ${unencryptedProjectName}`]
-		);
+		await createProjectWithTodos(page1, unencryptedProjectName, false, '', [
+			`Task 1-1 of ${unencryptedProjectName}`
+		]);
 
 		// Get address of unencrypted project
 		const unencryptedAddress = await getCurrentDatabaseAddress(page1);
 		console.log(`✅ Unencrypted project address: ${unencryptedAddress}`);
 
 		// Create encrypted project with a todo
-		await createProjectWithTodos(
-			page1,
-			encryptedProjectName,
-			true,
-			password,
-			[`Task 2-1 of ${encryptedProjectName}`]
-		);
+		await createProjectWithTodos(page1, encryptedProjectName, true, password, [
+			`Task 2-1 of ${encryptedProjectName}`
+		]);
 
 		// Get address of encrypted project
 		const encryptedAddress = await getCurrentDatabaseAddress(page1);
@@ -113,13 +103,13 @@ test.describe('Remote Database URL Access', () => {
 		// Should NOT show password modal
 		const passwordModal1 = page2.locator('text=/password/i').first();
 		const hasPasswordModal1 = await passwordModal1.isVisible({ timeout: 3000 }).catch(() => false);
-		
+
 		if (hasPasswordModal1) {
 			console.error('❌ Password modal appeared for unencrypted database!');
 			console.log('  → Browser logs:');
 			browserLogs.slice(-10).forEach((log) => console.log(`    ${log}`));
 		}
-		
+
 		expect(hasPasswordModal1).toBe(false);
 		console.log('✅ No password modal for unencrypted project (correct)');
 
@@ -169,7 +159,7 @@ test.describe('Remote Database URL Access', () => {
 		// SHOULD show password modal
 		console.log('→ Waiting for password modal...');
 		const passwordModalHeading = page3.locator('text=/enter.*password/i').first();
-		
+
 		try {
 			await expect(passwordModalHeading).toBeVisible({ timeout: 15000 });
 			console.log('✅ Password modal appeared (correct)');
@@ -221,13 +211,13 @@ async function createProjectWithTodos(page, projectName, encrypted, password, to
 
 	// Clear input
 	const currentValue = await todoListInput.inputValue();
-	
+
 	if (currentValue && currentValue.trim() !== '') {
 		await todoListInput.press('Control+A').catch(() => {});
 		await todoListInput.press('Meta+A').catch(() => {});
 		await todoListInput.press('Backspace');
 		await page.waitForTimeout(200);
-		
+
 		const stillHasValue = await todoListInput.inputValue();
 		if (stillHasValue && stillHasValue.trim() !== '') {
 			for (let i = 0; i <= stillHasValue.length; i++) {
@@ -244,7 +234,9 @@ async function createProjectWithTodos(page, projectName, encrypted, password, to
 	// Verify what we're about to submit
 	const valueBeforeSubmit = await todoListInput.inputValue();
 	if (valueBeforeSubmit !== projectName) {
-		console.warn(`⚠️ Input value before submit is "${valueBeforeSubmit}", expected "${projectName}"`);
+		console.warn(
+			`⚠️ Input value before submit is "${valueBeforeSubmit}", expected "${projectName}"`
+		);
 		await todoListInput.press('Control+A').catch(() => {});
 		await todoListInput.press('Meta+A').catch(() => {});
 		await todoListInput.fill(projectName);

@@ -544,45 +544,45 @@ export async function switchToTodoList(
 				const dbName = `${targetIdentityId}_${trimmedName}`;
 				console.log(`  → Database is encrypted, checking password cache for dbName: ${dbName}`);
 				const cachedPassword = getCachedPassword(dbName);
-			console.log(`  → Password cache lookup result: ${cachedPassword ? 'FOUND' : 'NOT FOUND'}`);
+				console.log(`  → Password cache lookup result: ${cachedPassword ? 'FOUND' : 'NOT FOUND'}`);
 
-			if (cachedPassword) {
-				// Use cached password from this session
-				console.log('🔐 Using cached password for encrypted database');
-				encryptionPassword = cachedPassword;
-				enableEncryption = true;
-			} else {
-				if (registryEntry?.encryptionMethod === 'webauthn-prf') {
-					const webauthnKey = await getWebAuthnEncryptionKey({ allowCreate: false });
-					if (webauthnKey) {
-						console.log('🔐 Using WebAuthn-derived encryption key');
-						encryptionPassword = webauthnKey;
-						enableEncryption = true;
+				if (cachedPassword) {
+					// Use cached password from this session
+					console.log('🔐 Using cached password for encrypted database');
+					encryptionPassword = cachedPassword;
+					enableEncryption = true;
+				} else {
+					if (registryEntry?.encryptionMethod === 'webauthn-prf') {
+						const webauthnKey = await getWebAuthnEncryptionKey({ allowCreate: false });
+						if (webauthnKey) {
+							console.log('🔐 Using WebAuthn-derived encryption key');
+							encryptionPassword = webauthnKey;
+							enableEncryption = true;
+						} else {
+							console.log('🔐 WebAuthn key unavailable, password required');
+							const error = new Error('ENCRYPTION_PASSWORD_REQUIRED');
+							error.dbName = dbName;
+							error.displayName = trimmedName;
+							throw error;
+						}
 					} else {
-						console.log('🔐 WebAuthn key unavailable, password required');
+						// Password required but not in cache - need to prompt user
+						console.log('🔐 Encryption password required');
 						const error = new Error('ENCRYPTION_PASSWORD_REQUIRED');
 						error.dbName = dbName;
 						error.displayName = trimmedName;
 						throw error;
 					}
-				} else {
-					// Password required but not in cache - need to prompt user
-					console.log('🔐 Encryption password required');
-					const error = new Error('ENCRYPTION_PASSWORD_REQUIRED');
-					error.dbName = dbName;
-					error.displayName = trimmedName;
-					throw error;
 				}
 			}
-		}
 
-		// If encryption enabled, cache the password for this session
-		if (enableEncryption && encryptionPassword) {
-			const dbName = `${targetIdentityId}_${trimmedName}`;
-			console.log(`  → Caching password for dbName: ${dbName}`);
-			cachePassword(dbName, encryptionPassword);
-			console.log('🔐 Cached encryption password for session');
-		}
+			// If encryption enabled, cache the password for this session
+			if (enableEncryption && encryptionPassword) {
+				const dbName = `${targetIdentityId}_${trimmedName}`;
+				console.log(`  → Caching password for dbName: ${dbName}`);
+				cachePassword(dbName, encryptionPassword);
+				console.log('🔐 Cached encryption password for session');
+			}
 		}
 
 		// Now try to find the exact list with the target identity

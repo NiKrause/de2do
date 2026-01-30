@@ -5,18 +5,21 @@ This document provides a complete setup for running Playwright tests on BrowserS
 ## 🎯 What's Been Set Up
 
 ### 1. Test Suite
+
 - **Comprehensive consent screen testing** covering modal display, checkbox validation, consent persistence, and feature information display
 - **Cross-browser compatibility** tests for Chrome, Firefox, Safari, Edge, and Opera
 - **Mobile testing** on iOS Safari and Android Chrome
 - **Local fallback testing** for development and validation
 
 ### 2. BrowserStack Integration
+
 - **Playwright configuration** with conditional BrowserStack vs local testing
 - **Browser matrix** covering Windows 11, macOS Monterey, Linux Ubuntu, iOS 16, and Android 12
 - **Local tunnel management** for testing localhost applications on BrowserStack
 - **Environment-based configuration** using environment variables
 
 ### 3. CI/CD Pipeline
+
 - **GitHub Actions workflow** with automated testing on push/PR
 - **Batched execution** to optimize BrowserStack usage and avoid rate limits
 - **Artifact collection** for test results, reports, and screenshots
@@ -43,17 +46,20 @@ simple-todo/
 ## 🚀 Quick Start
 
 ### 1. Install Dependencies
+
 ```bash
 pnpm install
 pnpm exec playwright install --with-deps
 ```
 
 ### 2. Run Local Tests
+
 ```bash
 pnpm run test:consent
 ```
 
 ### 3. Set Up BrowserStack (Optional)
+
 ```bash
 # Copy environment template
 cp .env.browserstack.example .env.local
@@ -64,14 +70,16 @@ pnpm run test:consent:browserstack
 ```
 
 ### 4. Set Up GitHub Actions
+
 Add these secrets to your GitHub repository:
+
 - `BROWSERSTACK_USERNAME`
 - `BROWSERSTACK_ACCESS_KEY`
 
 ## 🌐 Browser Coverage
 
 | Browser | Windows 11 | macOS Monterey | Linux Ubuntu | iOS 16 | Android 12 |
-|---------|------------|----------------|--------------|--------|------------|
+| ------- | ---------- | -------------- | ------------ | ------ | ---------- |
 | Chrome  | ✅         | ✅             | ✅           | ❌     | ✅         |
 | Firefox | ✅         | ✅             | ❌           | ❌     | ❌         |
 | Safari  | ❌         | ✅             | ❌           | ✅     | ❌         |
@@ -84,23 +92,27 @@ Add these secrets to your GitHub repository:
 ## 📊 Test Cases
 
 ### 1. Consent Modal Display
+
 - ✅ Modal appears on page load
 - ✅ Contains correct title and version information
 - ✅ Shows all required checkboxes
 - ✅ Proceed button is initially disabled
 
 ### 2. Checkbox Validation
+
 - ✅ All checkboxes start unchecked
 - ✅ Individual checkbox state changes work
 - ✅ Proceed button enables only when all boxes checked
 - ✅ Button text changes appropriately
 
 ### 3. Consent Persistence
+
 - ✅ "Don't show again" checkbox works
 - ✅ Modal doesn't appear on page reload when remembered
 - ✅ localStorage is properly managed
 
 ### 4. Feature Information Display
+
 - ✅ All required privacy features are listed
 - ✅ Information is accurate and complete
 - ✅ Text matches application behavior
@@ -120,6 +132,7 @@ Add these secrets to your GitHub repository:
 ## 🔧 Configuration Options
 
 ### Environment Variables
+
 ```bash
 BROWSERSTACK_USERNAME=your_username
 BROWSERSTACK_ACCESS_KEY=your_access_key
@@ -127,6 +140,7 @@ BROWSERSTACK_BUILD_NAME=optional_build_name
 ```
 
 ### Playwright Config Features
+
 - **Conditional BrowserStack** vs local testing
 - **Multiple browser projects** with specific capabilities
 - **Timeout configuration** optimized for BrowserStack
@@ -134,6 +148,7 @@ BROWSERSTACK_BUILD_NAME=optional_build_name
 - **Trace collection** for debugging
 
 ### BrowserStack Capabilities
+
 ```javascript
 {
   'browserstack.local': 'true',          // Local tunnel support
@@ -146,17 +161,20 @@ BROWSERSTACK_BUILD_NAME=optional_build_name
 ## 📈 CI/CD Pipeline
 
 ### Workflow Triggers
+
 - Push to `main` or `develop` branches
 - Pull requests to `main`
 - Manual workflow dispatch
 
 ### Execution Strategy
+
 - **3 parallel batches** to optimize BrowserStack usage
 - **Batch 1**: Windows & Linux desktop browsers
 - **Batch 2**: macOS desktop browsers & Opera
 - **Batch 3**: Mobile browsers (iOS Safari, Android Chrome)
 
 ### Artifact Collection
+
 - Test results and reports (30-day retention)
 - Screenshots and videos on failure
 - Comprehensive test summaries
@@ -164,6 +182,7 @@ BROWSERSTACK_BUILD_NAME=optional_build_name
 ## 🐛 Troubleshooting
 
 ### Common Issues
+
 1. **BrowserStack tunnel connection failures**
    - Verify access key and firewall settings
    - Check BrowserStack account limits
@@ -177,6 +196,7 @@ BROWSERSTACK_BUILD_NAME=optional_build_name
    - Check BrowserStack parallel session limits
 
 ### Debug Mode
+
 ```bash
 DEBUG=playwright:* pnpm run test:consent
 ```

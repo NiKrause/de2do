@@ -122,22 +122,24 @@ export async function detectDatabaseEncryption(db, options = {}) {
 		// 2. Encrypted and not synced yet
 		// 3. Unencrypted but not synced yet
 		if (entries.length === 0 && isRemoteAccess) {
-			console.log('⏳ Empty database accessed remotely - waiting for sync before encryption detection...');
-			
+			console.log(
+				'⏳ Empty database accessed remotely - waiting for sync before encryption detection...'
+			);
+
 			// Check peer count to determine wait time
 			const peerCount = db.peers?.length || 0;
 			const hasPeers = peerCount > 0;
 			const waitTime = hasPeers ? 15000 : 5000; // Wait longer if peers are connected
-			
+
 			console.log(`   → Peers connected: ${peerCount}, wait time: ${waitTime}ms`);
-			
+
 			// Wait for sync events
 			const { syncOccurred, entries: syncedEntries } = await waitForDatabaseSync(db, waitTime);
-			
+
 			if (syncOccurred && syncedEntries.length > 0) {
 				entries = syncedEntries;
 				console.log(`📊 After sync event: ${entries.length} entries`);
-				
+
 				// Check if entries have undefined values (encryption indicator)
 				const hasUndefinedValues = entries.some((e) => e.value === undefined);
 				if (hasUndefinedValues) {
@@ -152,7 +154,7 @@ export async function detectDatabaseEncryption(db, options = {}) {
 			} else {
 				console.log('   → No sync event occurred within timeout');
 			}
-			
+
 			// If still empty after waiting for sync, check isDatabaseEncrypted()
 			// to determine if it's actually encrypted or just empty
 			if (entries.length === 0) {
@@ -165,7 +167,7 @@ export async function detectDatabaseEncryption(db, options = {}) {
 					peers: peerCount,
 					hasEncryptionOption: !!db.options?.encryption
 				});
-				
+
 				const isEncrypted = await isDatabaseEncrypted(db);
 				console.log(`   → isDatabaseEncrypted() returned: ${isEncrypted}`);
 

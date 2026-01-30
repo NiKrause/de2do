@@ -291,16 +291,16 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 		// Migration process: copy data → delete original → recreate with same name + encryption
 		console.log('→ Waiting for encryption migration...');
 		console.log('  → Waiting for migration toast to appear...');
-		
+
 		// Clear browser logs before migration
 		browserLogs.length = 0;
-		
+
 		// Wait for success toast to confirm migration completed
 		const toastFound = await page
 			.waitForSelector('text=/Successfully migrated/i', { timeout: 20000 })
 			.then(() => true)
 			.catch(() => false);
-		
+
 		if (!toastFound) {
 			console.warn('⚠️ Migration success toast not found!');
 			console.warn('  → Browser logs during migration:');
@@ -309,7 +309,7 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 		} else {
 			console.log('  → Migration toast appeared, migration should be complete');
 		}
-		
+
 		// Wait a bit more for registry update and list refresh
 		await page.waitForTimeout(3000);
 		console.log('  → Additional wait completed for registry sync');
@@ -514,7 +514,7 @@ async function createProjectWithTodos(page, projectName, encrypted, password, to
 	// This works because handleInputFocus() already clears the input when clicked,
 	// but we need to ensure it's truly empty before typing
 	const currentValue = await todoListInput.inputValue();
-	
+
 	// If there's still a value, clear it with Backspace
 	if (currentValue && currentValue.trim() !== '') {
 		// Select all and delete, or use multiple backspaces
@@ -522,7 +522,7 @@ async function createProjectWithTodos(page, projectName, encrypted, password, to
 		await todoListInput.press('Meta+A').catch(() => {}); // For Mac
 		await todoListInput.press('Backspace');
 		await page.waitForTimeout(200);
-		
+
 		// Double-check it's empty
 		const stillHasValue = await todoListInput.inputValue();
 		if (stillHasValue && stillHasValue.trim() !== '') {
@@ -541,7 +541,9 @@ async function createProjectWithTodos(page, projectName, encrypted, password, to
 	// Verify what we're about to submit
 	const valueBeforeSubmit = await todoListInput.inputValue();
 	if (valueBeforeSubmit !== projectName) {
-		console.warn(`⚠️ Input value before submit is "${valueBeforeSubmit}", expected "${projectName}"`);
+		console.warn(
+			`⚠️ Input value before submit is "${valueBeforeSubmit}", expected "${projectName}"`
+		);
 		// Try to fix it
 		await todoListInput.press('Control+A').catch(() => {});
 		await todoListInput.press('Meta+A').catch(() => {});
@@ -561,7 +563,9 @@ async function createProjectWithTodos(page, projectName, encrypted, password, to
 	// Verify project was actually created and switched to by checking the input value
 	const currentInputValue = await todoListInput.inputValue();
 	if (currentInputValue !== projectName) {
-		console.warn(`⚠️ Input value after creation is "${currentInputValue}", expected "${projectName}"`);
+		console.warn(
+			`⚠️ Input value after creation is "${currentInputValue}", expected "${projectName}"`
+		);
 	}
 	console.log(`  ✓ Project database opened: ${projectName}`);
 
@@ -650,7 +654,7 @@ async function switchToProject(page, projectName) {
 			await todoListInput.press('Meta+A').catch(() => {});
 			await todoListInput.fill(''); // Directly clear
 			await page.waitForTimeout(200);
-			
+
 			// Double-check it's empty
 			const stillHasValue = await todoListInput.inputValue();
 			if (stillHasValue && stillHasValue.trim() !== '') {
@@ -661,7 +665,7 @@ async function switchToProject(page, projectName) {
 				await page.waitForTimeout(200);
 			}
 		}
-		
+
 		await todoListInput.type(projectName);
 		await page.waitForTimeout(300);
 		await todoListInput.press('Enter');

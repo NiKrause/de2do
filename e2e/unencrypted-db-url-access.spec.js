@@ -7,15 +7,15 @@ import {
 
 /**
  * Test case for the encryption detection bug when opening unencrypted databases via URL.
- * 
+ *
  * Issue: When a new browser context opens an unencrypted database via URL, the database
  * appears empty initially (before sync completes). The encryption detection logic
  * incorrectly assumes it's encrypted because:
  * - entries.length === 0 (not synced yet)
  * - isRemoteAccess === true (opened via URL)
- * 
+ *
  * This causes a password modal to appear for unencrypted databases.
- * 
+ *
  * Expected behavior: Wait for sync before determining encryption status, or check
  * if we can read entries without encryption first.
  */

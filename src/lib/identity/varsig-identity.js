@@ -45,7 +45,12 @@ function deserializeIdentity(payload) {
 	if (!payload) return null;
 	try {
 		const parsed = JSON.parse(payload);
-		if (!parsed?.id || !parsed?.publicKey || !parsed?.signatures?.id || !parsed?.signatures?.publicKey) {
+		if (
+			!parsed?.id ||
+			!parsed?.publicKey ||
+			!parsed?.signatures?.id ||
+			!parsed?.signatures?.publicKey
+		) {
 			return null;
 		}
 		return {
@@ -241,10 +246,7 @@ export function createWebAuthnVarsigIdentitiesWithStorage(identity, storage, cre
 			DEFAULT_DOMAIN_LABELS.id
 		);
 		if (!idValid) return false;
-		const pubKeyPayload = concat([
-			identityToVerify.publicKey,
-			identityToVerify.signatures.id
-		]);
+		const pubKeyPayload = concat([identityToVerify.publicKey, identityToVerify.signatures.id]);
 		return provider.verify(
 			identityToVerify.signatures.publicKey,
 			identityToVerify.publicKey,

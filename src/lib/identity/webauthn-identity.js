@@ -106,11 +106,7 @@ function extractVarsigCredentialInfo(attestationObject) {
 }
 
 async function createWebAuthnVarsigCredentialWithPrf(options = {}) {
-	const {
-		userId,
-		displayName,
-		domain
-	} = {
+	const { userId, displayName, domain } = {
 		userId: `orbitdb-user-${Date.now()}`,
 		displayName: 'OrbitDB Varsig User',
 		domain: window.location.hostname,

@@ -7,7 +7,7 @@ import {
 
 /**
  * Test for migrating an unencrypted database to encrypted.
- * 
+ *
  * Key behaviors verified:
  * - All existing todos are preserved during migration
  * - Database address remains the same (encryption doesn't change manifest hash)
