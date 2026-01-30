@@ -66,5 +66,5 @@
   <text x="520" y="575" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">IPFS</text>
   
   <rect x="800" y="550" width="200" height="40" rx="20" fill="rgba(255,255,255,0.2)"/>
-  <text x="900" y="575" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">No Servers Required</text>
+  <text x="900" y="575" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">No Login, No Servers, No Tracking</text>
 </svg>

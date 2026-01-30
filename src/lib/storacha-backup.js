@@ -1,132 +1,24 @@
 /**
- * Storacha Backup Utilities for Simple-Todo OrbitDB
+ * Simple Todo OrbitDB Storacha Backup Integration
  *
- * Adapted from orbitdb-storacha-bridge for browser environment
+ * Uses the orbitdb-storacha-bridge library from npm
  */
 
-import * as Client from '@web3-storage/w3up-client';
-import { StoreMemory } from '@web3-storage/w3up-client/stores/memory';
-import * as Proof from '@web3-storage/w3up-client/proof';
-import { Signer } from '@web3-storage/w3up-client/principal/ed25519';
-import { CID } from 'multiformats/cid';
-import * as Block from 'multiformats/block';
-import * as dagCbor from '@ipld/dag-cbor';
-import { sha256 } from 'multiformats/hashes/sha2';
-import { bases } from 'multiformats/basics';
+import { listStorachaSpaceFiles } from 'orbitdb-storacha-bridge';
+
+// Note: These are equivalent:
+// 1. restoreDatabaseFromSpace(orbitdb, options) - Direct function call
+// 2. new OrbitDBStorachaBridge().restoreFromSpace(orbitdb, options) - Class method
+// Both call the exact same underlying implementation
+import * as Client from '@storacha/client';
+import { StoreMemory } from '@storacha/client/stores/memory';
+import { Signer } from '@storacha/client/principal/ed25519';
+import * as Proof from '@storacha/client/proof';
+import * as Delegation from '@ucanto/core/delegation';
 import { get } from 'svelte/store';
 import { todoDBStore } from './db-actions.js';
-
-/**
- * Convert Storacha CID format to OrbitDB CID format
- */
-export function convertStorachaCIDToOrbitDB(storachaCID) {
-	const storachaParsed = CID.parse(storachaCID);
-	const orbitdbCID = CID.createV1(0x71, storachaParsed.multihash); // 0x71 = dag-cbor
-	return orbitdbCID.toString(bases.base58btc);
-}
-
-/**
- * Extract all blocks from the current OrbitDB database
- */
-export async function extractDatabaseBlocks() {
-	console.log('🔍 Extracting all blocks from current todo database...');
-
-	const todoDB = get(todoDBStore);
-	if (!todoDB) {
-		throw new Error('No todo database available');
-	}
-
-	const blocks = new Map();
-	const blockSources = new Map();
-
-	// 1. Get all log entries
-	const entries = await todoDB.log.values();
-	console.log(`   Found ${entries.length} log entries`);
-
-	for (const entry of entries) {
-		try {
-			const entryBytes = await todoDB.log.storage.get(entry.hash);
-			if (entryBytes) {
-				const entryCid = CID.parse(entry.hash);
-				blocks.set(entry.hash, { cid: entryCid, bytes: entryBytes });
-				blockSources.set(entry.hash, 'log_entry');
-				console.log(`   ✓ Entry block: ${entry.hash}`);
-			}
-		} catch (error) {
-			console.warn(`   ⚠️ Failed to get entry ${entry.hash}: ${error.message}`);
-		}
-	}
-
-	// 2. Get database manifest
-	const addressParts = todoDB.address.split('/');
-	const manifestCID = addressParts[addressParts.length - 1];
-
-	try {
-		const manifestBytes = await todoDB.log.storage.get(manifestCID);
-		if (manifestBytes) {
-			const manifestParsedCid = CID.parse(manifestCID);
-			blocks.set(manifestCID, { cid: manifestParsedCid, bytes: manifestBytes });
-			blockSources.set(manifestCID, 'manifest');
-			console.log(`   ✓ Manifest block: ${manifestCID}`);
-
-			// Try to get access controller
-			try {
-				const manifestBlock = await Block.decode({
-					cid: manifestParsedCid,
-					bytes: manifestBytes,
-					codec: dagCbor,
-					hasher: sha256
-				});
-
-				if (manifestBlock.value.accessController) {
-					const accessControllerCID = manifestBlock.value.accessController.replace('/ipfs/', '');
-					try {
-						const accessBytes = await todoDB.log.storage.get(accessControllerCID);
-						if (accessBytes) {
-							const accessParsedCid = CID.parse(accessControllerCID);
-							blocks.set(accessControllerCID, { cid: accessParsedCid, bytes: accessBytes });
-							blockSources.set(accessControllerCID, 'access_controller');
-							console.log(`   ✓ Access controller: ${accessControllerCID}`);
-						}
-					} catch (error) {
-						console.warn(`   ⚠️ Could not get access controller: ${error.message}`);
-					}
-				}
-			} catch (error) {
-				console.warn(`   ⚠️ Could not decode manifest: ${error.message}`);
-			}
-		}
-	} catch (error) {
-		console.warn(`   ⚠️ Could not get manifest: ${error.message}`);
-	}
-
-	// 3. Get identity blocks
-	console.log(`   🔍 Extracting identity blocks...`);
-	const identityBlocks = new Set();
-
-	for (const entry of entries) {
-		if (entry.identity) {
-			identityBlocks.add(entry.identity);
-		}
-	}
-
-	for (const identityHash of identityBlocks) {
-		try {
-			const identityBytes = await todoDB.log.storage.get(identityHash);
-			if (identityBytes) {
-				const identityParsedCid = CID.parse(identityHash);
-				blocks.set(identityHash, { cid: identityParsedCid, bytes: identityBytes });
-				blockSources.set(identityHash, 'identity');
-				console.log(`   ✓ Identity block: ${identityHash}`);
-			}
-		} catch (error) {
-			console.warn(`   ⚠️ Could not get identity ${identityHash}: ${error.message}`);
-		}
-	}
-
-	console.log(`   📊 Extracted ${blocks.size} total blocks`);
-	return { blocks, blockSources, manifestCID };
-}
+// Import orbitDBStore from p2p.js for consistency with the rest of the codebase
+import { orbitDBStore } from './p2p.js';
 
 /**
  * Initialize Storacha client with credentials
@@ -158,33 +50,47 @@ export async function initializeStorachaClient(storachaKey, storachaProof) {
 }
 
 /**
- * Create new Storacha account with email
+ * Initialize Storacha client with UCAN delegation
  */
-export async function createStorachaAccount(email) {
+export async function initializeStorachaClientWithUCAN(ucanToken, recipientKey) {
 	try {
-		console.log('🌟 Creating new Storacha account with email:', email);
+		console.log('🔐 Initializing Storacha client with UCAN...');
 
-		const client = await Client.create();
-
-		// Generate login with email
-		const account = await client.login(email);
-
-		console.log('✅ Account created successfully!');
-		console.log('📧 Please check your email for verification link');
-
-		return {
-			success: true,
-			message:
-				'Please check your email and click the verification link. Then come back and use the "Login with existing credentials" option.',
-			client,
-			account
+		// Parse recipient identity from JSON archive
+		const recipientKeyData = JSON.parse(recipientKey);
+		const fixedArchive = {
+			id: recipientKeyData.id,
+			keys: {
+				[recipientKeyData.id]: new Uint8Array(
+					Object.values(recipientKeyData.keys[recipientKeyData.id])
+				)
+			}
 		};
+
+		const recipientPrincipal = Signer.from(fixedArchive);
+		const store = new StoreMemory();
+		const client = await Client.create({
+			principal: recipientPrincipal,
+			store
+		});
+
+		// Parse delegation token
+		const delegationBytes = Buffer.from(ucanToken, 'base64');
+		const delegation = await Delegation.extract(delegationBytes);
+
+		if (!delegation.ok) {
+			throw new Error('Failed to extract delegation from token');
+		}
+
+		// Add space using delegation
+		const space = await client.addSpace(delegation.ok);
+		await client.setCurrentSpace(space.did());
+
+		console.log(`✅ Storacha client initialized with UCAN space: ${space.did()}`);
+		return client;
 	} catch (error) {
-		console.error('❌ Failed to create account:', error);
-		return {
-			success: false,
-			error: error.message
-		};
+		console.error('❌ Failed to initialize Storacha client with UCAN:', error);
+		throw error;
 	}
 }
 
@@ -274,144 +180,55 @@ export async function createSpace(client, spaceName) {
 }
 
 /**
- * Upload blocks to Storacha
+ * Backup the current todo database using the working bridge
  */
-export async function uploadBlocksToStoracha(blocks, client) {
-	console.log(`📤 Uploading ${blocks.size} blocks to Storacha...`);
-
-	const uploadResults = [];
-	const cidMappings = new Map();
-
-	for (const [hash, blockData] of blocks) {
-		try {
-			const blockFile = new File([blockData.bytes], hash, {
-				type: 'application/octet-stream'
-			});
-
-			console.log(`   📤 Uploading block ${hash} (${blockData.bytes.length} bytes)...`);
-
-			const result = await client.uploadFile(blockFile);
-			const uploadedCID = result.toString();
-
-			console.log(`   ✅ Uploaded: ${hash} → ${uploadedCID}`);
-
-			cidMappings.set(hash, uploadedCID);
-
-			uploadResults.push({
-				originalHash: hash,
-				uploadedCID,
-				size: blockData.bytes.length
-			});
-		} catch (error) {
-			console.error(`   ❌ Failed to upload block ${hash}: ${error.message}`);
-			uploadResults.push({
-				originalHash: hash,
-				error: error.message,
-				size: blockData.bytes.length
-			});
-		}
-	}
-
-	const successful = uploadResults.filter((r) => r.uploadedCID);
-	const failed = uploadResults.filter((r) => r.error);
-
-	console.log(`   📊 Upload summary:`);
-	console.log(`      Successful: ${successful.length}`);
-	console.log(`      Failed: ${failed.length}`);
-
-	return { uploadResults, successful, failed, cidMappings };
-}
-
-/**
- * Create backup metadata file
- */
-export async function createBackupMetadata(
-	manifestCID,
-	databaseAddress,
-	databaseName,
-	blockSummary,
-	cidMappings
-) {
-	const metadata = {
-		backupVersion: '1.0',
-		timestamp: new Date().toISOString(),
-		databaseInfo: {
-			manifestCID,
-			address: databaseAddress,
-			name: databaseName,
-			type: 'keyvalue'
-		},
-		blockSummary,
-		cidMappings: Object.fromEntries(cidMappings),
-		appInfo: {
-			name: 'simple-todo',
-			version: '0.1.11',
-			orbitdbVersion: '3.0.2'
-		}
-	};
-
-	const metadataJson = JSON.stringify(metadata, null, 2);
-	const metadataFile = new File([metadataJson], 'backup-metadata.json', {
-		type: 'application/json'
-	});
-
-	return { metadata, metadataFile };
-}
-
-/**
- * Backup the current todo database to Storacha
- */
-export async function backupTodoDatabase(client) {
-	console.log('🚀 Starting Todo Database Backup to Storacha');
+export async function backupTodoDatabase(storachaKey, storachaProof) {
+	console.log('🚀 Starting Todo Database Backup using orbitdb-storacha-bridge');
 
 	try {
 		const todoDB = get(todoDBStore);
+		const orbitdb = get(orbitDBStore);
+
 		if (!todoDB) {
 			throw new Error('No todo database available');
 		}
 
-		// Extract all blocks
-		const { blocks, blockSources, manifestCID } = await extractDatabaseBlocks();
-
-		// Upload blocks to Storacha
-		const { successful, cidMappings } = await uploadBlocksToStoracha(blocks, client);
-
-		if (successful.length === 0) {
-			throw new Error('No blocks were successfully uploaded');
+		if (!orbitdb) {
+			throw new Error('No OrbitDB instance available');
 		}
 
-		// Create block summary
-		const blockSummary = {};
-		for (const [, source] of blockSources) {
-			blockSummary[source] = (blockSummary[source] || 0) + 1;
+		console.log(`📍 Database: ${todoDB.address}`);
+
+		// Create bridge instance for progress tracking
+		const { OrbitDBStorachaBridge } = await import('orbitdb-storacha-bridge');
+		const bridge = new OrbitDBStorachaBridge({
+			storachaKey,
+			storachaProof
+		});
+
+		// Use the bridge backup method for progress tracking
+		const backupResult = await bridge.backup(orbitdb, todoDB.address, {
+			timeout: 60000
+		});
+
+		if (backupResult.success) {
+			console.log('🎉 Backup completed successfully!');
+
+			return {
+				success: true,
+				manifestCID: backupResult.manifestCID,
+				databaseAddress: backupResult.databaseAddress,
+				databaseName: backupResult.databaseName,
+				blocksTotal: backupResult.blocksTotal,
+				blocksUploaded: backupResult.blocksUploaded,
+				blockSummary: backupResult.blockSummary,
+				cidMappings: backupResult.cidMappings,
+				timestamp: new Date().toISOString(),
+				usingWorkingBridge: true
+			};
+		} else {
+			throw new Error(backupResult.error);
 		}
-
-		// Create and upload metadata file
-		const { metadataFile } = await createBackupMetadata(
-			manifestCID,
-			todoDB.address,
-			todoDB.name,
-			blockSummary,
-			cidMappings
-		);
-
-		console.log('📋 Uploading backup metadata...');
-		const metadataResult = await client.uploadFile(metadataFile);
-		console.log('✅ Metadata uploaded:', metadataResult.toString());
-
-		console.log('✅ Backup completed successfully!');
-
-		return {
-			success: true,
-			manifestCID,
-			metadataCID: metadataResult.toString(),
-			databaseAddress: todoDB.address,
-			databaseName: todoDB.name,
-			blocksTotal: blocks.size,
-			blocksUploaded: successful.length,
-			blockSummary,
-			timestamp: new Date().toISOString()
-		};
 	} catch (error) {
 		console.error('❌ Backup failed:', error.message);
 		return {
@@ -422,29 +239,280 @@ export async function backupTodoDatabase(client) {
 }
 
 /**
- * Download backup metadata from Storacha
+ * Restore database using the working bridge mapping-independent approach
  */
-export async function downloadBackupMetadata(metadataCID) {
-	try {
-		console.log('📥 Downloading backup metadata:', metadataCID);
+export async function restoreFromStorachaSpace(storachaKey, storachaProof) {
+	console.log('🔄 Starting Todo Database Restore using orbitdb-storacha-bridge');
+	console.log('🚀 Using MAPPING-INDEPENDENT restore from space');
 
-		const response = await fetch(`https://w3s.link/ipfs/${metadataCID}`);
-		if (!response.ok) {
-			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+	try {
+		const orbitdb = get(orbitDBStore);
+
+		if (!orbitdb) {
+			throw new Error('No OrbitDB instance available');
 		}
 
-		const metadata = await response.json();
-		console.log('✅ Metadata downloaded successfully');
+		// Create bridge instance for progress tracking
+		const { OrbitDBStorachaBridge } = await import('orbitdb-storacha-bridge');
+		const bridge = new OrbitDBStorachaBridge({
+			storachaKey,
+			storachaProof
+		});
 
-		return metadata;
+		// Use the bridge restore method with working options (like Miles&Smiles)
+		const restoreResult = await bridge.restoreFromSpace(orbitdb, {
+			timeout: 120000, // 2 minutes timeout (like Miles&Smiles)
+			preferredDatabaseName: 'simple-todos', // Specific database name
+			restartAfterRestore: true, // Restart after restore
+			verifyIntegrity: true // Verify integrity
+			// No forceFallback: false - let fallback be enabled!
+		});
+
+		if (restoreResult.success) {
+			console.log('🎉 Restore completed successfully!');
+			console.log(`📊 Entries recovered: ${restoreResult.entriesRecovered}`);
+			console.log(`📍 Database address: ${restoreResult.address}`);
+
+			return {
+				success: true,
+				database: restoreResult.database,
+				manifestCID: restoreResult.manifestCID,
+				databaseAddress: restoreResult.address,
+				databaseName: restoreResult.name,
+				entriesRecovered: restoreResult.entriesRecovered,
+				blocksRestored: restoreResult.blocksRestored,
+				addressMatch: restoreResult.addressMatch,
+				entries: restoreResult.entries,
+				spaceFilesFound: restoreResult.spaceFilesFound,
+				analysis: restoreResult.analysis,
+				usingWorkingBridge: true
+			};
+		} else {
+			throw new Error(restoreResult.error);
+		}
 	} catch (error) {
-		console.error('❌ Failed to download metadata:', error);
+		console.error('❌ Restore failed:', error.message);
+		return {
+			success: false,
+			error: error.message
+		};
+	}
+}
+
+/**
+ * List files in Storacha space using the working bridge
+ */
+export async function listStorachaFiles(storachaKey, storachaProof) {
+	try {
+		console.log('📋 Listing files in Storacha space using bridge...');
+
+		const spaceFiles = await listStorachaSpaceFiles({
+			storachaKey,
+			storachaProof,
+			size: 1000
+		});
+
+		console.log(`✅ Found ${spaceFiles.length} files`);
+
+		return spaceFiles;
+	} catch (error) {
+		console.error('❌ Failed to list space files:', error);
 		throw error;
 	}
 }
 
 /**
- * List all backup metadata files in the current space
+ * Restore from backup - alias for restoreFromStorachaSpace to maintain API compatibility
+ * This function is used by the UI component to restore from a specific backup CID
+ */
+export async function restoreFromBackup(client, backupCID, orbitDBInstance) {
+	console.log('🔄 restoreFromBackup called - using simplified space restore approach');
+	console.log(`📍 Backup CID requested: ${backupCID}`);
+	console.log(`📍 OrbitDB instance: ${orbitDBInstance?.address || 'not provided'}`);
+
+	// Get the stored credentials from the client for the restore
+	const storedCredentials = loadCredentialsForRestore();
+	if (!storedCredentials) {
+		throw new Error('No stored credentials available for restore');
+	}
+
+	return await restoreFromStorachaSpace(storedCredentials.key, storedCredentials.proof);
+}
+
+/**
+ * Helper function to get stored credentials for restore operations
+ */
+function loadCredentialsForRestore() {
+	try {
+		const key = localStorage.getItem('storacha_key');
+		const proof = localStorage.getItem('storacha_proof');
+
+		if (key && proof) {
+			return { key, proof };
+		}
+	} catch (err) {
+		console.warn('Failed to load credentials for restore:', err);
+	}
+	return null;
+}
+
+/**
+ * Download backup metadata from IPFS using CID
+ */
+export async function downloadBackupMetadata(cid) {
+	try {
+		console.log(`�� Downloading backup metadata from IPFS: ${cid}`);
+
+		const response = await fetch(`https://w3s.link/ipfs/${cid}`);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch backup metadata: ${response.statusText}`);
+		}
+
+		const metadata = await response.json();
+		console.log('✅ Backup metadata downloaded successfully');
+		return metadata;
+	} catch (error) {
+		console.error('❌ Failed to download backup metadata:', error);
+		throw error;
+	}
+}
+
+/**
+ * Get space usage information with optional detailed analysis
+ */
+export async function getSpaceUsage(client, detailed = false) {
+	try {
+		console.log('📊 Getting space usage information...');
+
+		const result = await client.capability.upload.list({ size: 1000 });
+		const uploads = result.results || [];
+
+		if (uploads.length === 0) {
+			return {
+				totalFiles: 0,
+				lastUploadDate: null,
+				oldestUploadDate: null,
+				uploads: [],
+				backupFiles: 0,
+				blockFiles: 0,
+				otherFiles: 0,
+				analyzed: false
+			};
+		}
+
+		// Sort by date to find oldest and newest
+		const sortedUploads = uploads.sort((a, b) => new Date(b.insertedAt) - new Date(a.insertedAt));
+
+		const lastUploadDate = sortedUploads[0].insertedAt;
+		const oldestUploadDate = sortedUploads[sortedUploads.length - 1].insertedAt;
+
+		let backupFiles = 0;
+		let blockFiles = 0;
+		let otherFiles = 0;
+		const processedUploads = [];
+
+		if (detailed && uploads.length <= 50) {
+			// Only do detailed analysis for smaller numbers of files to avoid performance issues
+			console.log('🔍 Performing detailed file type analysis...');
+
+			// Analyze up to first 20 files to get a sample
+			const samplesToAnalyze = uploads.slice(0, 20);
+
+			for (const upload of samplesToAnalyze) {
+				const cid = upload.root.toString();
+				let fileType = 'block'; // Default assumption
+
+				try {
+					// Quick check - try to fetch first few bytes
+					const response = await fetch(`https://w3s.link/ipfs/${cid}`, {
+						headers: { Range: 'bytes=0-512' }, // Smaller range
+						signal: AbortSignal.timeout(3000) // 3 second timeout
+					});
+
+					if (response.ok) {
+						const text = await response.text();
+
+						// Check if it looks like JSON backup metadata
+						if (
+							text.trim().startsWith('{') &&
+							(text.includes('backupVersion') || text.includes('simple-todo'))
+						) {
+							fileType = 'backup';
+						}
+					}
+				} catch {
+					// Keep default 'block' type
+				}
+
+				if (fileType === 'backup') backupFiles++;
+				else if (fileType === 'block') blockFiles++;
+				else otherFiles++;
+
+				processedUploads.push({
+					cid,
+					uploadedAt: upload.insertedAt,
+					size: upload.size || null,
+					type: fileType
+				});
+			}
+
+			// For remaining files, just estimate based on patterns
+			const remaining = uploads.length - samplesToAnalyze.length;
+			if (remaining > 0) {
+				// Assume remaining files are mostly blocks since backups are rare
+				blockFiles += remaining;
+
+				// Add remaining files without detailed analysis
+				for (let i = samplesToAnalyze.length; i < uploads.length; i++) {
+					const upload = uploads[i];
+					processedUploads.push({
+						cid: upload.root.toString(),
+						uploadedAt: upload.insertedAt,
+						size: upload.size || null,
+						type: 'block'
+					});
+				}
+			}
+
+			console.log(
+				`✅ Analyzed ${uploads.length} files: ${backupFiles} backups, ${blockFiles} blocks, ${otherFiles} other`
+			);
+		} else {
+			// Fast mode: just return basic info without detailed analysis
+			blockFiles = uploads.length; // Assume most are blocks
+			backupFiles = 0; // We'll estimate this is very small
+			otherFiles = 0;
+
+			for (const upload of uploads) {
+				processedUploads.push({
+					cid: upload.root.toString(),
+					uploadedAt: upload.insertedAt,
+					size: upload.size || null,
+					type: 'unknown'
+				});
+			}
+
+			console.log(`✅ Space contains ${uploads.length} files (fast mode)`);
+		}
+
+		return {
+			totalFiles: uploads.length,
+			lastUploadDate,
+			oldestUploadDate,
+			uploads: processedUploads,
+			backupFiles,
+			blockFiles,
+			otherFiles,
+			analyzed: detailed && uploads.length <= 50
+		};
+	} catch (error) {
+		console.error('❌ Failed to get space usage:', error);
+		throw error;
+	}
+}
+
+/**
+ * List all backup metadata files in the current space (simplified)
  */
 export async function listBackups(client) {
 	try {

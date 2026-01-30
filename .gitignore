@@ -1,7 +1,13 @@
 test-results
 node_modules
 coverage
-orbitdb*
+orbitdb*/
+relay/test-relay-datastore/
+server-helia-*/
+server-*/
+relay/relay-datastore/
+relay-datastore/
+playwright-report/
 p2p-todo-demo
 
 # Output

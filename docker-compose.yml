@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # Simple Todo Web App
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '5173:5173' # Main app port
+    environment:
+      - NODE_ENV=production
+      # Point to relay service for P2P connectivity
+      - VITE_RELAY_WEBSOCKET=ws://relay:4001/ws
+      - VITE_RELAY_WEBRTC=/ip4/127.0.0.1/udp/4003/webrtc
+    depends_on:
+      - relay
+    networks:
+      - todo-network
+    volumes:
+      - ./data/app:/app/data
+    restart: unless-stopped
+
+  # P2P Relay Server
+  relay:
+    build:
+      context: .
+      dockerfile: relay/Dockerfile
+    ports:
+      - '4001:4001' # WebSocket port for browsers
+      - '4002:4002' # TCP port for native libp2p nodes
+      - '4003:4003/udp' # WebRTC port
+      - '4006:4006/udp' # WebRTC Direct port
+      - '3000:3000' # HTTP API port
+    environment:
+      - NODE_ENV=production
+      - RELAY_WS_PORT=4001
+      - RELAY_TCP_PORT=4002
+      - RELAY_WEBRTC_PORT=4003
+      - RELAY_WEBRTC_DIRECT_PORT=4006
+      - HTTP_PORT=3000
+      - DATASTORE_PATH=/app/data/relay-datastore
+      - PUBSUB_TOPICS=todo._peer-discovery._p2p._pubsub
+      # Optional: Set a fixed private key for consistent Peer ID
+      # - RELAY_PRIV_KEY=your_hex_private_key_here
+      # Optional: API password for HTTP endpoints (recommended in production)
+      # - API_PASSWORD=your_secure_password_here
+      # Optional: Enable datastore diagnostics
+      # - ENABLE_DATASTORE_DIAGNOSTICS=true
+      # Optional: Configure pinning allowed identities
+      # - PINNING_ALLOWED_IDENTITIES=identity1,identity2
+      # Optional: Enable structured logging
+      # - STRUCTURED_LOGS=true
+    volumes:
+      - ./data/relay:/app/data
+    networks:
+      - todo-network
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  todo-network:
+    driver: bridge
+
+volumes:
+  relay-data:
+    driver: local
+  app-data:
+    driver: local

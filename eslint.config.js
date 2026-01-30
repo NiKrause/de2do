@@ -23,7 +23,12 @@ export default [
 	{
 		files: ['**/*.svelte', '**/*.svelte.js'],
 		languageOptions: {
-			globals: { ...globals.browser, ...globals.node, __APP_VERSION__: 'readonly' },
+			globals: {
+				...globals.browser,
+				...globals.node,
+				__APP_VERSION__: 'readonly',
+				__BUILD_DATE__: 'readonly'
+			},
 			parserOptions: { svelteConfig }
 		}
 	}

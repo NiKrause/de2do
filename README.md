@@ -1,46 +1,90 @@
-# Simple Todo - A Local-First Peer-to-Peer Demo App
+# Simple Todo - A Local-First Peer-to-Peer Demo App (in Svelte)
 
-[![BrowserStack Tests](https://github.com/NiKrause/simple-todo/actions/workflows/browserstack-tests.yml/badge.svg)](https://github.com/NiKrause/simple-todo/actions/workflows/browserstack-tests.yml)
-[![Svelte](https://img.shields.io/badge/Svelte-5.0.0-FF3E00?style=flat&logo=svelte&logoColor=white)](https://svelte.dev/)
-[![libp2p](https://img.shields.io/badge/libp2p-2.9.0-6B46C1?style=flat&logo=ipfs&logoColor=white)](https://libp2p.io/)
-[![Helia](https://img.shields.io/badge/Helia-5.5.0-65C2CB?style=flat&logo=ipfs&logoColor=white)](https://helia.io/)
-[![OrbitDB](https://img.shields.io/badge/OrbitDB-3.0.2-4A90E2?style=flat&logo=orbit&logoColor=white)](https://orbitdb.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
-[![IPFS](https://img.shields.io/badge/IPFS-Enabled-65C2CB?style=flat&logo=ipfs&logoColor=white)](https://ipfs.tech/)
+[![CI](https://github.com/NiKrause/simple-todo/workflows/CI/badge.svg)](https://github.com/NiKrause/simple-todo/actions)
+[![Version](https://img.shields.io/badge/version-0.1.23-blue.svg)](https://github.com/NiKrause/simple-todo)
+[![IPFS](https://img.shields.io/badge/IPFS-bafybeihhc6clejngea7mutmoth2zy632fkfmhfyk2a5apidniscw7rr6bi-brightgreen.svg)](https://bafybeihhc6clejngea7mutmoth2zy632fkfmhfyk2a5apidniscw7rr6bi.ipfs.dweb.link)
+[![License](https://img.shields.io/badge/license-Open%20Source-blue.svg)](./LICENSE)
 
-A decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
+<div align="center" style="width: 100%;">
+  <a href="https://libp2p.io/" target="_blank"><img src="static/libp2p.png" alt="libp2p" height="50"></a>
+  <a href="https://ipfs.tech/" target="_blank"><img src="static/ipfs.png" alt="IPFS" height="50"></a>
+  <a href="https://helia.io/" target="_blank"><img src="static/helia.svg" alt="Helia" height="50"></a>
+  <a href="https://orbitdb.org/" target="_blank"><img src="static/orbitdb.png" alt="OrbitDB" height="50"></a>
+  <a href="https://filecoin.io/" target="_blank"><img src="static/filecoin.svg" alt="Filecoin" height="50"></a>
+  <a href="https://storacha.network/" target="_blank"><img src="static/storacha-logo.jpeg" alt="Storacha" height="50"></a>
+</div>
+
+A basic decentralized, local-first, peer-to-peer todo application built with `libp2p`, `IPFS`, and `OrbitDB`. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
+
+See `docs/WEBAUTHN_VARSIG_CHANGES.md` for the WebAuthn varsig/PRF flow details and sequence diagrams.
+
+> **Unstoppable** - This application demonstrates technology that continues operating even when cloud providers fail, governments attempt censorship, or software vendors shut down their services. Your data and functionality remain under your control, distributed across a resilient peer-to-peer network or self-hosted signaling or relay nodes. Imagine traditional software which was sold on a compact disc in the past - once installed it could never be stopped. A USP which should convince every client around the globe.
+
+---
+
+- **Progressive Web App**: If clouds are down, this is a PWA which can run from desktops and mobile devices connecting peer-to-peer to other collaborators via a relay or OrbitDB pinning network.
+- **Storacha/Filecoin Integration with UCAN-Auth:** Backup & restore todo lists via Storacha gateway to Filecoin decentralized storage - restore the TodoList's OrbitDB decentralized form the IPFS network
 
 ## 🚀 Live Demo
 
 - **HTTP**: https://simple-todo.le-space.de
-- **IPFS (dweb.link)**: https://dweb.link/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
-- **IPFS (le-space)**: https://ipfs.le-space.de/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
-
-## 🎯 What is this?
-
-This is a **browser-only** local-first peer-to-peer todo application that operates without any traditional server infrastructure. It connects directly to other browsers and mobile devices through peer-to-peer connections, creating a truly decentralized experience. So far, a LibP2P signaling node is necessary to connect the peers, and in this version it also stores the todos since this browser version works with MemoryStorage only instead of local IPFSStorage (e.g. LevelBlockstore).
+- **IPFS (dweb.link)**: https://bafybeihhc6clejngea7mutmoth2zy632fkfmhfyk2a5apidniscw7rr6bi.ipfs.dweb.link
+- **IPFS (dweb.link, orbitdb demo)**: https://bafybeihhc6clejngea7mutmoth2zy632fkfmhfyk2a5apidniscw7rr6bi.ipfs.dweb.link/#/orbitdb/zdpuAskw4Xes4nxR1YNV8TxK2qmrDgceAqEoGHDtTAUhQWvDP
 
 ### Key Features
 
-- ✅ **No Server Required** - Runs entirely in your browser 
-- ✅ **Local Data** - Data is stored in your browser's level storage and replicated via OrbitDB and IPFS
+- ✅ **Local-First Storage** - Data is stored in the browser only and is getting replicated to other peers via OrbitDB and IPFS
+- ✅ **OrbitDB Relay-Pinning Nodes included** - If a peer is not online while data is needed by other peers - personal pinning nodes or full OrbitDB pinning networks can help out.
 - ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC (with help of signaling nodes)
 - ✅ **Real-time Synchronization** - Changes appear instantly across all peers
-- ✅ **Dynamic Identity** - Fresh peer ID generated on each load
+- ✅ **Encryption** - Todo-List is by default unencrypted and publicly stored on IPFS so it can be embedded easily into public websites. It is possible to encrypt your todo-list with a password.
+
+This project includes an enhanced P2P relay server that facilitates peer discovery and connectivity for the simple-todo application. For details about the relay server features, see **[Relay Configuration Documentation](./docs/RELAY_CONFIG.md)**.
+
+### Quick Start
+
+Run the simple-todo via a public relay
+
+```bash
+copy .env.example .env
+npm install
+npm run dev
+```
+
+Run a local relay like so:
+
+```bash
+# open a second terminal and do
+cd relay
+npm install
+
+# Start the relay server
+npm start
+
+# Or with verbose logging
+npm run start:verbose
+
+
+# Then copy the resulting websocket multiaddress from the relay console and put it into .env (make sure it contains a /ws/p2p)
+# For example like so:
+VITE_RELAY_BOOTSTRAP_ADDR_DEV=/ip4/127.0.0.1/tcp/4002/ws/p2p/12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
+
+```
+
+### Configuration
+
+For detailed relay server configuration options and HTTP API endpoints, see **[Relay Configuration Documentation](./docs/RELAY_CONFIG.md)**.
 
 ## 🎯 How to Test
 
 1. **Open Two Browser Windows** - You need at least two browser instances, a mobile device, or ask another distant person to open the app
-2. **Load the Same URL** - All app users should load the same app URL
+2. **Load the Same URL** - all app users should load the same app URL
 3. **Accept Consent** - Check all consent boxes in both browsers
 4. **Wait for Connection** - The app will automatically discover and connect peers
-5. **Add Todos** - Create todos in one browser and watch them appear in the other
+5. **Copy URL from browser A to browser B** - If both browsers open the same todo-list they can see each other's todos (only A has write permission at the moment)
+6. **Add Todos** - Create todos in one browser and watch them appear in the other
 
-## 📚 Documentation
-
-For comprehensive guides on how this app works, implementation details, and reusable components:
-
-**[📖 Tutorial](./docs/TUTORIAL.md)**
+**[Tutorial](./docs/TUTORIAL.md)**
 
 The tutorial covers:
 
@@ -50,40 +94,20 @@ The tutorial covers:
 - Troubleshooting guide
 - Security considerations
 
-**[🔧 Reusable Components](./docs/)**
-
-- **[StorachaIntegration](./docs/StorachaIntegration.md)** - Complete Storacha/Web3.Storage integration component for backing up OrbitDB databases to decentralized storage
-
 ## 🛠️ Quick Start
 
 ```bash
 # Clone repository
 git clone https://github.com/NiKrause/simple-todo.git
-# checkout simple-todo branch
-git checkout simple-todo
+# checkout /simplified-tutorial branch
+git checkout simplified-tutorial
 
 # run (like this you don't need to cut and paste anything)
-./tutorial-01.js 
+./tutorial-01.js
 ```
-
-## 🔧 Technologies Used
-
-- **libp2p** - Peer-to-peer networking stack
-- **IPFS** - Distributed file system (via Helia)
-- **OrbitDB** - Decentralized database
-- **Svelte** - Frontend framework
-- **WebRTC** - Direct browser-to-browser communication
-
-## ⚠️ Important Notes
-
-- This is a **demo application** for educational purposes
-- Data is stored in a **global unencrypted database** visible to all users
-- **No privacy protection** - all data is publicly visible
-- **Not suitable for production use** without additional security measures
 
 ## 📄 License
 
 This project is open source and available under the [LICENSE](./LICENSE) file.
 
 ---
-

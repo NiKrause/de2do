@@ -1,0 +1,33 @@
+services:
+  relay:
+    image: silkroadnomad/orbit-todo-relay:0.1.0
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - VITE_APPEND_ANNOUNCE=${VITE_APPEND_ANNOUNCE}
+      - VITE_APPEND_ANNOUNCE_DEV=${VITE_APPEND_ANNOUNCE_DEV}
+      - RELAY_PRIV_KEY=${RELAY_PRIV_KEY}
+      - RELAY_TCP_PORT=${RELAY_TCP_PORT:-4001}
+      - RELAY_WS_PORT=${RELAY_WS_PORT:-4002}
+      - RELAY_WEBRTC_PORT=${RELAY_WEBRTC_PORT:-4006}
+      - RELAY_HTTP_PORT=${RELAY_HTTP_PORT:-3000}
+      - DATASTORE_PATH=/app/relay-datastore
+      - API_PASSWORD=${API_PASSWORD}
+      - DEBUG=libp2p:*
+    ports:
+      - '${RELAY_TCP_PORT:-4001}:4001'
+      - '${RELAY_WS_PORT:-4002}:4002'
+      - '${RELAY_WEBRTC_PORT:-4006}:4006/udp'
+      - '${RELAY_HTTP_PORT:-3000}:3000'
+    restart: unless-stopped
+    command: ['node', 'relay-enhanced.js', '--verbose']
+    networks:
+      - p2p-network
+    volumes:
+      - ./relay-datastore:/app/relay-datastore
+
+networks:
+  p2p-network:
+    driver: bridge

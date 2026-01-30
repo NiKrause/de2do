@@ -49,12 +49,6 @@ echo "latest IPFS CID $cid"
 # Run the ipfs name publish command with the extracted CID
 ipfs name publish --key=$IPNS_NAME /ipfs/$cid
 echo "IPFS name $IPNS_NAME updated with CID $cid"
-# Update the vercel.json file with the new CID
-# sed -i '' "s|/ipfs/[^\"}]*|/ipfs/$cid|g" vercel.json
-
-# Execute the docker-compose command on the remote server
-# ssh -t root@ipfs.le-space.de "cd docker/ipfs/willschenk && docker-compose exec ipfs ipfs add $cid"
-# echo "IPFS CID $cid added to ipfs.le-space.de"
 
 # Pin the CID to ipfs.le-space.de
 ssh -t root@$IPFS_SERVER "su ipfs -c 'ipfs pin add $cid'"
@@ -81,8 +75,17 @@ fi
 # Get the current version from package.json
 version=$(node -p "require('./package.json').version")
 
+# Replace all /ipns/ and /ipfs/ links in README.md with the current /ipfs/CID
+# Replace /ipns/... with /ipfs/$cid (matches /ipns/ followed by any non-whitespace, quote, or slash)
+sed -i.bak "s|/ipns/[^/\"'[:space:]]*|/ipfs/$cid|g" README.md
+# Replace /ipfs/... with /ipfs/$cid (matches /ipfs/ followed by any non-whitespace, quote, or slash)
+sed -i.bak "s|/ipfs/[^/\"'[:space:]]*|/ipfs/$cid|g" README.md
+# Remove backup file created by sed
+rm -f README.md.bak
+
 # Git commands
 # git add vercel.json
+git add README.md
 git commit -m "Update IPFS CID to $cid for version $version"
 git tag -a "v$version" -m "Version $version"
 git push origin main

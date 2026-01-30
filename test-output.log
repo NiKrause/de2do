@@ -1,0 +1,187 @@
+
+> simple-todo@0.3.11 test:e2e
+> playwright test encryption.spec.js:351 --headed --workers=1
+
+[2m[WebServer] [22m[33m"default" is imported from external module "vite-plugin-node-polyfills/shims/global" but never used in "node_modules/svelte/src/internal/server/renderer.js".[39m
+[2m[WebServer] [22m[33m[plugin vite:reporter] 
+[2m[WebServer] [22m(!) /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/p2p.js is dynamically imported by /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/UsersList/index.svelte, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/encryption-migration.js, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/encryption-migration.js, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/todo-list-manager.js, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/todo-list-manager.js, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/todo-list-manager.js, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/todo-list-manager.js but also statically imported by /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/UsersList/index.svelte, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/components/integration/StorachaIntegration.svelte, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/components/todo/TodoListSelector.svelte, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/database/database-opener.js, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/encryption-migration.js, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/routing/hash-router.js, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/storacha-backup.js, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/routes/+page.svelte, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/routes/db/[address]/+page.svelte, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/routes/embed/[address]/+page.svelte, dynamic import will not move module into another chunk.
+[2m[WebServer] [22m[39m
+[2m[WebServer] [22m[33m[plugin vite:reporter] 
+[2m[WebServer] [22m(!) /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/todo-list-manager.js is dynamically imported by /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/UsersList/index.svelte, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/UsersList/index.svelte, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/database/database-manager.js but also statically imported by /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/UsersList/index.svelte, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/components/todo/BreadcrumbNavigation.svelte, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/components/todo/ShareEmbedButtons.svelte, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/components/todo/TodoListSelector.svelte, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/database/database-manager.js, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/encryption-migration.js, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/handlers/encryption-handlers.js, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/handlers/todo-handlers.js, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/routing/hash-router.js, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/routes/+page.svelte, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/routes/embed/[address]/+page.svelte, dynamic import will not move module into another chunk.
+[2m[WebServer] [22m[39m
+[2m[WebServer] [22m[33m[plugin vite:resolve] Module "vm" has been externalized for browser compatibility, imported by "/Users/nandi/Documents/projekte/DecentraSol/simple-todo/node_modules/asn1.js/lib/asn1/api.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2m[WebServer] [22m[33m[plugin vite:resolve] Module "vm" has been externalized for browser compatibility, imported by "/Users/nandi/Documents/projekte/DecentraSol/simple-todo/node_modules/asn1.js/lib/asn1/api.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.[39m
+[2m[WebServer] [22m[33mnode_modules/@protobufjs/inquire/index.js (12:18): Use of eval in "node_modules/@protobufjs/inquire/index.js" is strongly discouraged as it poses security risks and may cause issues with minification.[39m
+[2m[WebServer] [22m[33m[plugin vite:reporter] 
+[2m[WebServer] [22m(!) /Users/nandi/Documents/projekte/DecentraSol/simple-todo/node_modules/orbitdb-storacha-bridge/lib/orbitdb-storacha-bridge.js is dynamically imported by /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/storacha-backup.js, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/storacha-backup.js but also statically imported by /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/components/integration/StorachaIntegration.svelte, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/storacha-backup.js, dynamic import will not move module into another chunk.
+[2m[WebServer] [22m[39m
+[2m[WebServer] [22m[33m[plugin vite:reporter] 
+[2m[WebServer] [22m(!) /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/database/database-manager.js is dynamically imported by /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/UsersList/index.svelte, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/UsersList/index.svelte but also statically imported by /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/lib/routing/hash-router.js, /Users/nandi/Documents/projekte/DecentraSol/simple-todo/src/routes/+page.svelte, dynamic import will not move module into another chunk.
+[2m[WebServer] [22m[39m
+[2m[WebServer] [22m[33m
+[2m[WebServer] [22m(!) Some chunks are larger than 500 kB after minification. Consider:
+[2m[WebServer] [22m- Using dynamic import() to code-split the application
+[2m[WebServer] [22m- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+[2m[WebServer] [22m- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+🚀 Setting up global test environment...
+✅ DoS protection modules loaded
+[dotenv@17.2.3] injecting env (3) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+🚀 Starting enhanced relay server...
+🗄️ Initializing storage... { hostDirectory: './test-relay-datastore', isDevMode: true }
+✅ Datastore initialized
+🔑 Using fixed private key
+✅ Fixed private key loaded successfully
+🔧 Configuration:
+  - WebSocket port: 4102
+  - TCP port: 4101
+  - WebRTC port: 4103
+  - WebRTC Direct port: 4106
+  - HTTP port: 3000
+  - Datastore: ./test-relay-datastore
+  - Environment: development
+  - AutoTLS: disabled
+  - UPnP: disabled
+[2025-12-01T11:57:18.117Z] [PinningService] ⚠️ ⚠️  No identity filters configured. All OrbitDB databases will be pinned!
+[2025-12-01T11:57:18.118Z] [PinningService] ⚠️    Set PINNING_ALLOWED_IDENTITIES in .env to filter by identity IDs
+[2025-12-01T11:57:18.118Z] [PinningService] ℹ️ 📌 PinningService initialized
+⏳ Starting libp2p node...
+✅ Libp2p node started successfully
+⏳ Initializing PinningService...
+[2025-12-01T11:57:18.199Z] [PinningService] ℹ️ ✅ PinningService initialized with OrbitDB
+✅ PinningService initialized successfully
+🔗 Setting up OrbitDB pinning event listeners...
+✅ OrbitDB pinning event listeners setup completed
+🔍 Datastore diagnostics disabled (set ENABLE_DATASTORE_DIAGNOSTICS=true to enable)
+
+🎯 Relay Server Information:
+  Relay PeerId: 12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
+  Multiaddrs:
+✅ Created .env.development with relay: /ip4/127.0.0.1/tcp/4102/ws/p2p/12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
+    /ip4/127.0.0.1/tcp/4101/p2p/12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
+    /ip4/127.238.160.163/tcp/4101/p2p/12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
+    /ip4/192.168.31.94/tcp/4101/p2p/12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
+    /ip4/10.171.64.248/tcp/4101/p2p/12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
+    /ip6/::1/tcp/4101/p2p/12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
+    /ip4/127.0.0.1/tcp/4102/ws/p2p/12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
+    /ip4/127.238.160.163/tcp/4102/ws/p2p/12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
+    /ip4/192.168.31.94/tcp/4102/ws/p2p/12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
+    /ip4/10.171.64.248/tcp/4102/ws/p2p/12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
+    /ip6/::1/tcp/4102/ws/p2p/12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
+
+📡 Peer Discovery Configuration:
+  Discovery topics: todo._peer-discovery._p2p._pubsub
+  Discovery interval: 5000ms
+  Emit self: true
+  Listen only: false
+✅ Relay ready to discover and connect to peers
+
+🛡️ Applying DoS protection middleware...
+✅ DoS protection middleware applied
+🔐 API password protection enabled (except /metrics)
+📌 Pinning service routes added to HTTP API
+
+🌐 HTTP API Server:
+  - Running on port: 3000
+  - Authentication: 🔐 Protected (except /metrics)
+  - Auth Header: Authorization: Bearer test-password-123
+  - Multiaddrs: http://localhost:3000/multiaddrs
+  - Health check: http://localhost:3000/health
+  - Connected peers: http://localhost:3000/peers
+  - Metrics: http://localhost:3000/metrics (public)
+  - Test pubsub: POST http://localhost:3000/test-pubsub
+  - Pinning stats: http://localhost:3000/pinning/stats
+  - Pinned databases: http://localhost:3000/pinning/databases
+  - Manual sync: POST http://localhost:3000/pinning/sync
+
+✨ Enhanced Relay Server Ready!
+   Peer ID: 12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
+   Use --verbose flag for detailed logging
+   Use STRUCTURED_LOGS=true for JSON logging
+✅ Relay server started successfully
+
+Running 1 test using 1 worker
+
+
+🚀 Starting wrong password handling test...
+
+📱 BROWSER A: Setting up encrypted database...
+🌐 Navigating to app...
+✅ Navigation successful (status: 200)
+🔍 Checking if page loaded successfully...
+✅ Page loaded successfully
+✅ Consent accepted and P2P initialization started
+⏳ Waiting for P2P initialization...
+✅ P2P initialization completed
+🔐 Browser A: Enabling encryption...
+⏳ Browser A: Waiting for encryption to complete...
+⏭️  [DISCOVERY] 12D3KooWLF9t... - Already connected, skipping dial
+🔔 Raw subscription-change event: {}
+📡 Processing subscription change for topic: todo._peer-discovery._p2p._pubsub
+📡 Processing subscription change for topic: /orbitdb/zdpuB1nWZLxkxSsr2na2MPfxsRKpDux7DzKWB91uiaa2drb7H
+[2025-12-01T11:57:26.482Z] [PinningService] ℹ️ 🔄 Starting sync for database: /orbitdb/zdpuB1nWZLxkxSsr2na2MPfxsRKpDux7DzKWB91uiaa2drb7H
+📡 Processing subscription change for topic: /orbitdb/zdpuAvUHDfBBM1rLMxSzUcshtf59E6yeSUXv3Hsar6RfHaYSg
+[2025-12-01T11:57:26.483Z] [PinningService] ℹ️ 🔄 Starting sync for database: /orbitdb/zdpuAvUHDfBBM1rLMxSzUcshtf59E6yeSUXv3Hsar6RfHaYSg
+[2025-12-01T11:57:26.587Z] [PinningService] ❌ ❌ Error syncing database /orbitdb/zdpuAvUHDfBBM1rLMxSzUcshtf59E6yeSUXv3Hsar6RfHaYSg: Database is not open
+[2025-12-01T11:57:26.587Z] [PinningService] ⚠️ ⚠️  Sync task failed for /orbitdb/zdpuAvUHDfBBM1rLMxSzUcshtf59E6yeSUXv3Hsar6RfHaYSg: Database is not open
+🔍 processExistingCIDs called with: 023646119e589f8fe35ff7d5002ce9d40aa6d396439d20d14b63a288c8568f2e12_projects
+[2025-12-01T11:57:26.603Z] [PinningService] ℹ️ ✅ Processed 0 total CIDs for 023646119e589f8fe35ff7d5002ce9d40aa6d396439d20d14b63a288c8568f2e12_projects
+[2025-12-01T11:57:26.603Z] [PinningService] ℹ️ ✅ Pinned database: 023646119e589f8fe35ff7d5002ce9d40aa6d396439d20d14b63a288c8568f2e12_projects
+  ✘  1 [chromium] › e2e/encryption.spec.js:351:2 › Encryption E2E Tests › should handle wrong password gracefully (34.5s)
+🛑 Tearing down global test environment...
+✅ Relay server (PID 70991) stopped
+
+🛁 Received SIGTERM, shutting down gracefully...
+⏳ Closing HTTP server...
+✅ HTTP server closed
+⏳ Cleaning up PinningService...
+[2025-12-01T11:57:57.822Z] [PinningService] ℹ️ 🧹 Cleaning up PinningService...
+✅ Test datastore cleaned up
+[2025-12-01T11:57:57.837Z] [PinningService] ℹ️ ✅ PinningService cleanup completed
+⏳ Stopping libp2p node...
+⏳ Closing storage...
+🔄 Closing storage components...
+✅ Datastore closed
+✅ Blockstore closed
+✅ Storage closed successfully
+✅ Graceful shutdown completed
+✅ Global teardown complete
+
+
+  1) [chromium] › e2e/encryption.spec.js:351:2 › Encryption E2E Tests › should handle wrong password gracefully 
+
+    TimeoutError: locator.waitFor: Timeout 30000ms exceeded.
+    Call log:
+    [2m  - waiting for getByTestId('encryption-active-indicator') to be visible[22m
+
+
+      406 | 		console.log('⏳ Browser A: Waiting for encryption to complete...');
+      407 | 		const encryptionActiveIndicator = browserAPage.getByTestId('encryption-active-indicator');
+    > 408 | 		await encryptionActiveIndicator.waitFor({ state: 'visible', timeout: 30000 });
+          | 		                                ^
+      409 | 		console.log('✅ Browser A: Encryption confirmed active (migration completed)');
+      410 |
+      411 | 		const dbAddressA = await getCurrentDatabaseAddress(browserAPage);
+        at /Users/nandi/Documents/projekte/DecentraSol/simple-todo/e2e/encryption.spec.js:408:35
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/encryption-Encryption-E2E--987c5-e-wrong-password-gracefully-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/encryption-Encryption-E2E--987c5-e-wrong-password-gracefully-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/encryption-Encryption-E2E--987c5-e-wrong-password-gracefully-chromium/error-context.md
+
+    attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/encryption-Encryption-E2E--987c5-e-wrong-password-gracefully-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/encryption-Encryption-E2E--987c5-e-wrong-password-gracefully-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › e2e/encryption.spec.js:351:2 › Encryption E2E Tests › should handle wrong password gracefully 
+
+[36m  Serving HTML report at http://localhost:50532. Press Ctrl+C to quit.[39m

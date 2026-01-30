@@ -1,0 +1,149 @@
+/* Storacha Brand Typography - Keep it Spicy! 🌶️ */
+
+/* DM Mono - For code and small text */
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./dm-mono-400.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./dm-mono-500.ttf') format('truetype');
+}
+
+/* DM Sans - For body text */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./dm-sans-400.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./dm-sans-500.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./dm-sans-600.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./dm-sans-700.ttf') format('truetype');
+}
+
+/* Epilogue - For headers and large text */
+@font-face {
+  font-family: 'Epilogue';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./epilogue-400.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Epilogue';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./epilogue-500.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Epilogue';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./epilogue-600.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Epilogue';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./epilogue-700.ttf') format('truetype');
+}
+
+/* Storacha Brand CSS Variables */
+:root {
+  /* Storacha Brand Colors */
+  --storacha-red-1: #E91315;      /* Primary Red - Logo, buttons */
+  --storacha-blue-1: #0176CE;     /* Primary Blue - Links, accents */
+  --storacha-yellow-1: #FFC83F;   /* Primary Yellow - Highlights */
+  --storacha-red-2: #EFE3F3;      /* Light Red - Backgrounds */
+  --storacha-blue-2: #BDE0FF;     /* Light Blue - Backgrounds */
+  --storacha-yellow-2: #FFE4AE;   /* Light Yellow - Backgrounds */
+  
+  /* Storacha Typography */
+  --storacha-font-heading: 'Epilogue', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --storacha-font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --storacha-font-mono: 'DM Mono', 'SF Mono', Monaco, Inconsolata, 'Roboto Mono', 'Consolas', 'Courier New', monospace;
+}
+
+/* Utility classes for Storacha branding */
+.storacha-heading {
+  font-family: var(--storacha-font-heading);
+  font-weight: 600;
+  color: var(--storacha-red-1);
+}
+
+.storacha-body {
+  font-family: var(--storacha-font-body);
+  font-weight: 400;
+}
+
+.storacha-mono {
+  font-family: var(--storacha-font-mono);
+  font-weight: 400;
+}
+
+.storacha-spicy {
+  background: linear-gradient(135deg, var(--storacha-red-1) 0%, var(--storacha-yellow-1) 100%);
+  color: white;
+  font-family: var(--storacha-font-heading);
+  font-weight: 700;
+}
+
+/* Additional Storacha Brand Utilities */
+.storacha-bg-primary {
+  background: linear-gradient(135deg, var(--storacha-red-1) 0%, var(--storacha-yellow-1) 100%);
+}
+
+.storacha-bg-light {
+  background: linear-gradient(135deg, var(--storacha-yellow-2) 0%, var(--storacha-red-2) 100%);
+}
+
+.storacha-bg-secondary {
+  background: linear-gradient(135deg, var(--storacha-blue-1) 0%, var(--storacha-red-1) 100%);
+}
+
+.storacha-text-primary {
+  color: var(--storacha-red-1);
+}
+
+.storacha-border {
+  border-color: var(--storacha-red-1);
+}
+
+.storacha-shadow {
+  box-shadow: 0 10px 25px rgba(233, 19, 21, 0.15);
+}

@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, master]
+  pull_request:
+    branches: [main, develop, master]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install relay dependencies
+        run: |
+          cd relay
+          npm install
+
+      - name: Rebuild native modules if needed
+        run: |
+          cd relay
+          # Check if native modules need rebuilding
+          if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
+            echo "Native module not found, rebuilding..."
+            # Clean any existing builds
+            rm -rf node_modules/@ipshipyard/node-datachannel/build || true
+            rm -rf node_modules/classic-level/build || true
+            
+            # Use npm to rebuild these specific packages
+            npm rebuild @ipshipyard/node-datachannel || echo "npm rebuild node-datachannel failed"
+            npm rebuild classic-level || echo "npm rebuild classic-level failed"
+            
+            # Alternative: try installing with npm directly if still not working
+            if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
+              echo "Installing node-datachannel with npm as fallback"
+              npm install @ipshipyard/node-datachannel --no-save || echo "npm install failed"
+            fi
+            
+            # Verify the build worked
+            echo "Checking for .node files:"
+            find node_modules -name "*.node" -type f 2>/dev/null || echo "No .node files found"
+          else
+            echo "Native modules already compiled correctly"
+          fi
+
+      - name: Lint code
+        run: npm run lint
+        # continue-on-error: true
+      - name: Build application
+        run: npm run build
+      - name: Build success notification
+        run: echo "✅ Build completed successfully"

@@ -4,9 +4,14 @@
   "description": "A simple local-first peer-to-peer TODO list app using OrbitDB, IPFS and libp2p",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#3B82F6",
   "categories": ["productivity", "utilities"],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/favicon-16x16.png",

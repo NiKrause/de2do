@@ -1,0 +1,204 @@
+<svg width="1000" height="800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradient definitions -->
+    <linearGradient id="deviceGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#4F46E5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3730A3;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="relayGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#059669;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#047857;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="storageGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#DC2626;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#B91C1C;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Arrow marker -->
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+     refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
+    </marker>
+    
+    <!-- Bidirectional arrow marker -->
+    <marker id="biArrowhead" markerWidth="10" markerHeight="7" 
+     refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4F46E5" />
+    </marker>
+    
+    <!-- Bidirectional arrow marker (reverse) -->
+    <marker id="biArrowheadReverse" markerWidth="10" markerHeight="7" 
+     refX="1" refY="3.5" orient="auto">
+      <polygon points="10 0, 0 3.5, 10 7" fill="#4F46E5" />
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="800" fill="#F8FAFC"/>
+
+  <!-- Title -->
+  <text x="500" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#1E293B">
+    Local-First Peer-To-Peer Web Application Network
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="500" y="55" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="normal" fill="#475569">
+    with Libp2p, Helia and OrbitDB
+  </text>
+
+  <!-- Legend -->
+  <g transform="translate(20, 60)">
+    <rect x="0" y="0" width="500" height="120" fill="none" stroke="#CBD5E1" stroke-width="1" rx="5"/>
+    <text x="10" y="20" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1E293B">Legend:</text>
+    
+    <line x1="10" y1="35" x2="40" y2="35" stroke="#4F46E5" stroke-width="2" marker-end="url(#biArrowhead)"/>
+    <text x="50" y="40" font-family="Arial, sans-serif" font-size="11" fill="#475569">P2P Connection (WebRTC)</text>
+    
+    <line x1="10" y1="55" x2="40" y2="55" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <text x="50" y="60" font-family="Arial, sans-serif" font-size="11" fill="#475569">Signaling/Relay Connection (WebSocket, WebTransport, WebRTC)</text>
+    
+    <line x1="10" y1="75" x2="40" y2="75" stroke="#10B981" stroke-width="2"/>
+    <text x="50" y="80" font-family="Arial, sans-serif" font-size="11" fill="#475569">Relay/Signaling Node network</text>
+    <text x="50" y="95" font-family="Arial, sans-serif" font-size="11" fill="#475569">with IPFS/OrbitDB pinning capabilities</text>
+  </g>
+
+  <!-- Device Alice (Browser) -->
+  <g transform="translate(150, 250)">
+    <rect x="0" y="0" width="120" height="80" fill="url(#deviceGradient)" rx="10"/>
+    <text x="60" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">Alice</text>
+    <text x="60" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">Browser</text>
+    <rect x="10" y="55" width="20" height="15" fill="white" rx="2"/>
+    <text x="35" y="65" font-family="Arial, sans-serif" font-size="10" fill="white">💻</text>
+    
+    <!-- Local Storage for Alice -->
+    <rect x="-50" y="90" width="80" height="40" fill="url(#storageGradient)" rx="5"/>
+    <text x="-10" y="105" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="white">Local Storage /</text>
+    <text x="-10" y="118" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="white">Offline Storage</text>
+    <line x1="60" y1="80" x2="-10" y2="90" stroke="#DC2626" stroke-width="2"/>
+  </g>
+
+  <!-- Device Bob (Browser) -->
+  <g transform="translate(730, 250)">
+    <rect x="0" y="0" width="120" height="80" fill="url(#deviceGradient)" rx="10"/>
+    <text x="60" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">Bob</text>
+    <text x="60" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">Browser</text>
+    <rect x="10" y="55" width="20" height="15" fill="white" rx="2"/>
+    <text x="35" y="65" font-family="Arial, sans-serif" font-size="10" fill="white">💻</text>
+    
+    <!-- Local Storage for Bob -->
+    <rect x="90" y="90" width="80" height="40" fill="url(#storageGradient)" rx="5"/>
+    <text x="130" y="105" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="white">Local Storage /</text>
+    <text x="130" y="118" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="white">Offline Storage</text>
+    <line x1="60" y1="80" x2="130" y2="90" stroke="#DC2626" stroke-width="2"/>
+  </g>
+
+  <!-- Device Peter (Mobile) -->
+  <g transform="translate(440, 500)">
+    <rect x="0" y="0" width="120" height="80" fill="url(#deviceGradient)" rx="10"/>
+    <text x="60" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">Peter</text>
+    <text x="60" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="white">Mobile</text>
+    <rect x="45" y="55" width="30" height="20" fill="white" rx="3"/>
+    <text x="60" y="68" text-anchor="middle" font-family="Arial, sans-serif" font-size="10">📱</text>
+    
+    <!-- Local Storage for Peter -->
+    <rect x="20" y="90" width="80" height="40" fill="url(#storageGradient)" rx="5"/>
+    <text x="60" y="105" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="white">Local Storage /</text>
+    <text x="60" y="118" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="white">Offline Storage</text>
+    <line x1="60" y1="80" x2="60" y2="90" stroke="#DC2626" stroke-width="2"/>
+  </g>
+
+  <!-- P2P Connections between devices -->
+  <!-- Alice to Bob (bidirectional) -->
+  <line x1="270" y1="310" x2="730" y2="310" stroke="#4F46E5" stroke-width="3" marker-end="url(#biArrowhead)" marker-start="url(#biArrowheadReverse)"/>
+  <text x="500" y="305" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#4F46E5">WebRTC P2P</text>
+
+  <!-- Alice to Peter (bidirectional) -->
+  <line x1="220" y1="330" x2="450" y2="500" stroke="#4F46E5" stroke-width="3" marker-end="url(#biArrowhead)" marker-start="url(#biArrowheadReverse)"/>
+  <text x="310" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#4F46E5" transform="rotate(-38 310 420)">WebRTC P2P</text>
+
+  <!-- Bob to Peter (bidirectional) -->
+  <line x1="780" y1="330" x2="550" y2="500" stroke="#4F46E5" stroke-width="3" marker-end="url(#biArrowhead)" marker-start="url(#biArrowheadReverse)"/>
+  <text x="690" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#4F46E5" transform="rotate(38 690 420)">WebRTC P2P</text>
+
+  <!-- Relay Network Cloud -->
+  <g transform="translate(350, 140)">
+    <ellipse cx="150" cy="75" rx="200" ry="110" fill="#F0F9FF" stroke="#0369A1" stroke-width="3" stroke-dasharray="8,4"/>
+    <text x="150" y="75" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#0369A1">Relay/Signaling Libp2p network</text>
+  </g>
+
+  <!-- Relay Nodes -->
+  <!-- Relay Node 1 -->
+  <g transform="translate(350, 150)">
+    <circle cx="25" cy="25" r="20" fill="url(#relayGradient)"/>
+    <text x="25" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">R1</text>
+  </g>
+
+  <!-- Relay Node 2 -->
+  <g transform="translate(500, 140)">
+    <circle cx="25" cy="25" r="20" fill="url(#relayGradient)"/>
+    <text x="25" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">R2</text>
+  </g>
+
+  <!-- Relay Node 3 -->
+  <g transform="translate(650, 150)">
+    <circle cx="25" cy="25" r="20" fill="url(#relayGradient)"/>
+    <text x="25" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">R3</text>
+  </g>
+
+  <!-- Relay Node 4 -->
+  <g transform="translate(450, 220)">
+    <circle cx="25" cy="25" r="20" fill="url(#relayGradient)"/>
+    <text x="25" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">R4</text>
+  </g>
+
+  <!-- Relay Node 5 -->
+  <g transform="translate(550, 220)">
+    <circle cx="25" cy="25" r="20" fill="url(#relayGradient)"/>
+    <text x="25" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">R5</text>
+  </g>
+
+  <!-- Connections between relay nodes -->
+  <line x1="375" y1="175" x2="525" y2="165" stroke="#10B981" stroke-width="2"/>
+  <line x1="525" y1="165" x2="675" y2="175" stroke="#10B981" stroke-width="2"/>
+  <line x1="375" y1="175" x2="475" y2="245" stroke="#10B981" stroke-width="2"/>
+  <line x1="525" y1="165" x2="475" y2="245" stroke="#10B981" stroke-width="2"/>
+  <line x1="525" y1="165" x2="575" y2="245" stroke="#10B981" stroke-width="2"/>
+  <line x1="675" y1="175" x2="575" y2="245" stroke="#10B981" stroke-width="2"/>
+  <line x1="475" y1="245" x2="575" y2="245" stroke="#10B981" stroke-width="2"/>
+
+  <!-- Connections from devices to relay nodes -->
+  <!-- Alice connections -->
+  <line x1="270" y1="250" x2="375" y2="175" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="270" y1="270" x2="475" y2="245" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="280" y="280" font-family="Arial, sans-serif" font-size="10" fill="#666">WebRTC/WebSocket</text>
+
+  <!-- Bob connections -->
+  <line x1="730" y1="250" x2="675" y2="175" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="730" y1="270" x2="575" y2="245" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="720" y="210" font-family="Arial, sans-serif" font-size="10" fill="#666">WebRTC/WebSocket</text>
+
+  <!-- Peter connections -->
+  <line x1="500" y1="500" x2="525" y2="165" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="500" y1="500" x2="475" y2="245" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="570" y="360" font-family="Arial, sans-serif" font-size="10" fill="#666">WebRTC</text>
+  <text x="570" y="375" font-family="Arial, sans-serif" font-size="10" fill="#666">WebSocket</text>
+  <text x="570" y="390" font-family="Arial, sans-serif" font-size="10" fill="#666">WebTransport</text>
+
+  <!-- Connection protocols labels -->
+  <g transform="translate(50, 650)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1E293B">Connection Protocols:</text>
+    <text x="0" y="20" font-family="Arial, sans-serif" font-size="12" fill="#475569">• Direct P2P: libp2p/WebRTC (browsers), WebRTC (mobile)</text>
+    <text x="0" y="40" font-family="Arial, sans-serif" font-size="12" fill="#475569">• Relay connections: WebRTC, WebTransport, WebSocket</text>
+    <text x="0" y="60" font-family="Arial, sans-serif" font-size="12" fill="#475569">• Relay network: TCP/IP, QUIC</text>
+  </g>
+
+  <!-- Data flow indicator -->
+  <g transform="translate(520, 650)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1E293B">Data Flow:</text>
+    <text x="0" y="20" font-family="Arial, sans-serif" font-size="12" fill="#475569">Each device maintains local storage with OrbitDB</text>
+    <text x="0" y="40" font-family="Arial, sans-serif" font-size="12" fill="#475569">OrbitDB changes replicate across connected peers in real-time</text>
+    <text x="0" y="60" font-family="Arial, sans-serif" font-size="12" fill="#475569">Relay/Signaling nodes facilitate NAT traversal, peer discovery and IPFS pinning</text>
+  </g>
+</svg>

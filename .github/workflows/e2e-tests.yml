@@ -1,0 +1,131 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  # Main E2E tests (excluding flaky sync tests)
+  e2e-tests:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: ${{ env.ENABLE_CACHE != 'false' && 'npm' || '' }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+
+      - name: Install relay dependencies
+        run: |
+          cd relay
+          npm install
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Run main E2E tests (excluding flaky sync tests)
+        run: npm run test:e2e -- --grep-invert "should share database between browsers|should replicate database when Browser B opens"
+        env:
+          CI: true
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 30
+
+      - name: Upload test screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-screenshots-main
+          path: |
+            test-results/
+            debug-screenshot.png
+          retention-days: 7
+
+  # Flaky sync tests - run separately with retries
+  e2e-sync-tests:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - 'should share database between browsers'
+          - 'should replicate database when Browser B opens'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: ${{ env.ENABLE_CACHE != 'false' && 'npm' || '' }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+
+      - name: Install relay dependencies
+        run: |
+          cd relay
+          npm install
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Run sync test with retries
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 5
+          command: npm run test:e2e -- simple-todo.spec.js -g "${{ matrix.test }}" --workers=1
+        env:
+          CI: true
+
+      - name: Upload test results for ${{ matrix.test }}
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-sync-${{ strategy.job-index }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 30
+
+      - name: Upload test screenshots for ${{ matrix.test }}
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-screenshots-sync-${{ strategy.job-index }}
+          path: |
+            test-results/
+            debug-screenshot.png
+          retention-days: 7

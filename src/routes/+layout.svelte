@@ -1,7 +1,23 @@
 <script>
-	/* eslint-disable no-undef */
 	import '../app.css';
 	// import favicon from '$lib/assets/favicon.svg';
+
+	// Register service worker for PWA offline support
+	import { registerSW } from 'virtual:pwa-register';
+
+	// Auto-update service worker when new version is available
+	if ('serviceWorker' in navigator) {
+		registerSW({
+			immediate: true,
+			onNeedRefresh() {
+				// New version available, will auto-update
+				console.log('New app version available, updating...');
+			},
+			onOfflineReady() {
+				console.log('App ready to work offline');
+			}
+		});
+	}
 
 	let { children } = $props();
 </script>
