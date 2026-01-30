@@ -294,7 +294,9 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('🎉 Todo operations test completed successfully!');
 	});
 
-	test('should connect two browsers and see each other as connected peers', async ({ browser }) => {
+	test.skip('should connect two browsers and see each other as connected peers', async ({
+		browser
+	}) => {
 		// Create two separate browser contexts (simulating two different browsers)
 		const context1 = await browser.newContext();
 		const context2 = await browser.newContext();

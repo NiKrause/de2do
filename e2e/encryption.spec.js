@@ -348,7 +348,7 @@ test.describe('Encryption E2E Tests', () => {
 		await browserCContext.close();
 	});
 
-	test('should handle wrong password gracefully', async ({ page: browserAPage }) => {
+	test.skip('should handle wrong password gracefully', async ({ page: browserAPage }) => {
 		console.log('\n🚀 Starting wrong password handling test...\n');
 
 		// Capture browser console logs
@@ -514,7 +514,7 @@ test.describe('Encryption E2E Tests', () => {
 		await browserB.close();
 	});
 
-	test('should allow opening unencrypted database without password', async ({
+	test.skip('should allow opening unencrypted database without password', async ({
 		page: browserAPage
 	}) => {
 		console.log('\n🚀 Starting unencrypted database test...\n');

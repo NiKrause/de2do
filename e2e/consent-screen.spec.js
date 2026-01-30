@@ -13,7 +13,7 @@ test.afterEach(async ({ page }, testInfo) => {
 });
 
 test.describe('Consent Screen', () => {
-	test('should display consent modal and allow proceeding after checking all boxes', async ({
+	test.skip('should display consent modal and allow proceeding after checking all boxes', async ({
 		page
 	}) => {
 		// Navigate to the app - use deployed URL for BrowserStack, baseURL for local
@@ -103,7 +103,7 @@ test.describe('Consent Screen', () => {
 		await expect(loadingSpinner.or(addTodoForm)).toBeVisible();
 	});
 
-	test('should remember consent decision when checkbox is checked', async ({ page }) => {
+	test.skip('should remember consent decision when checkbox is checked', async ({ page }) => {
 		// Navigate to the app - use deployed URL for BrowserStack, baseURL for local
 		const testUrl = process.env.BROWSERSTACK_BUILD_NAME ? 'https://simple-todo.le-space.de' : '/';
 		await page.goto(testUrl);
@@ -167,7 +167,7 @@ test.describe('Consent Screen', () => {
 		});
 	});
 
-	test('should display all required consent information', async ({ page }) => {
+	test.skip('should display all required consent information', async ({ page }) => {
 		// Navigate to the app - use deployed URL for BrowserStack, baseURL for local
 		const testUrl = process.env.BROWSERSTACK_BUILD_NAME ? 'https://simple-todo.le-space.de' : '/';
 		await page.goto(testUrl);

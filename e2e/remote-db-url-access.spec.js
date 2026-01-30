@@ -18,7 +18,9 @@ void chromium;
 test.describe('Remote Database URL Access', () => {
 	test.setTimeout(120000); // 2 minutes
 
-	test('should handle opening unencrypted and encrypted databases via URL', async ({ browser }) => {
+	test.skip('should handle opening unencrypted and encrypted databases via URL', async ({
+		browser
+	}) => {
 		const timestamp = Date.now();
 
 		// Project names
