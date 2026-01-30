@@ -27,6 +27,36 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('✅ Webserver is running and accessible');
 	});
 
+	test('should open and close the QR code modal from the header', async ({ page }) => {
+		await page.goto('/');
+
+		// Wait for SvelteKit to finish hydrating
+		await page.waitForFunction(
+			() => {
+				const hasMain = document.querySelector('main') !== null;
+				const hasModal = document.querySelector('[data-testid="consent-modal"]') !== null;
+				return hasMain || hasModal;
+			},
+			{ timeout: 30000 }
+		);
+
+		// Accept consent so header is interactable
+		await acceptConsentAndInitialize(page);
+
+		// Open QR code modal
+		const qrButton = page.getByRole('button', { name: 'Show QR code for sharing this page' });
+		await expect(qrButton).toBeVisible({ timeout: 10000 });
+		await qrButton.click();
+
+		const qrDialog = page.getByRole('dialog', { name: 'Simple-Todo Example' });
+		await expect(qrDialog).toBeVisible({ timeout: 10000 });
+
+		// Close via close button
+		const closeButton = qrDialog.getByRole('button', { name: 'Close QR code modal' });
+		await closeButton.click();
+		await expect(qrDialog).not.toBeVisible();
+	});
+
 	test('should show consent modal and proceed with P2P initialization', async ({ page }) => {
 		// Navigate to the application
 		await page.goto('/');
