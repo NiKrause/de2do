@@ -68,3 +68,18 @@ jobs:
         run: npm run build
       - name: Build success notification
         run: echo "✅ Build completed successfully"
+        
+      # Docker compose checks
+      - name: Docker Compose - dev environment
+        run: |
+          docker compose up --build -d
+          sleep 20
+          docker compose ps
+          docker compose down
+      - name: Docker Compose - relay-only environment
+        working-directory: relay
+        run: |
+          docker compose up --build -d
+          sleep 20
+          docker compose ps
+          docker compose down

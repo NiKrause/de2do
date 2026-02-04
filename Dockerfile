@@ -1,53 +1,38 @@
-# Use Node.js 22 Alpine for smaller image size
-FROM node:22-alpine AS base
+# ---------- Build stage ----------
+FROM node:22-alpine AS build
 
-# Install pnpm globally
-RUN npm install -g pnpm
-
-# Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
+COPY package.json package-lock.json ./
+RUN npm ci
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
-
-# Copy source code
 COPY . .
+RUN npm run build
 
-# Build the application
-RUN pnpm run build
 
-# Production stage
+# ---------- Production stage ----------
 FROM node:22-alpine AS production
 
-# Install pnpm globally
-RUN npm install -g pnpm
-
-# Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
+# Copy dependency files
+COPY package.json package-lock.json ./
 
-# Install only production dependencies
-RUN pnpm install --prod --frozen-lockfile
+#DO NOT omit dev deps because vite preview is used
+RUN npm ci
 
-# Copy built application from build stage
-COPY --from=base /app/build ./build
-COPY --from=base /app/static ./static
+# Copy built output from build stage
+COPY --from=build /app/build ./build
+COPY --from=build /app/static ./static
 
-# Create data directory for persistent storage
+# Persistent data directory
 RUN mkdir -p /app/data
 
-# Expose port 5173
 EXPOSE 5173
 
-# Set environment variables
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=5173
 
-# Start the application using preview mode (serves the built static files)
-CMD ["pnpm", "run", "preview", "--host", "0.0.0.0", "--port", "5173"]
+# Serve the built app (unchanged behavior)
+CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "5173"]
