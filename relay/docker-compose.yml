@@ -2,8 +2,8 @@ services:
   relay:
     image: silkroadnomad/orbit-todo-relay:0.1.0
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: relay/Dockerfile
     environment:
       - NODE_ENV=${NODE_ENV}
       - VITE_APPEND_ANNOUNCE=${VITE_APPEND_ANNOUNCE}

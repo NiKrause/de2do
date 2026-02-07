@@ -42,6 +42,17 @@ docker-compose up --build
 # Access relay API: http://localhost:3000
 ```
 
+**Data persistence (Docker)**  
+The relay stores its datastore + blockstore on the host via Docker volumes. This keeps OrbitDB/IPFS data and the relay PeerId stable across restarts.
+
+- Root compose (`docker-compose.yml`): `./data/relay` → `/app/data` (relay datastore at `/app/data/relay-datastore`)
+- Relay-only compose (`relay/docker-compose.yml`): `./relay/relay-datastore` → `/app/relay-datastore`
+
+If you want a fixed PeerId across restarts, set `RELAY_PRIV_KEY` in your `.env`.
+
+`RELAY_PRIV_KEY` can be provided via environment (e.g., `.env` at repo root for root compose, or `relay/.env` for relay-only).  
+If it is missing, the relay will generate one on first start and print a `RELAY_PRIV_KEY=...` line in the logs so you can copy it into your env file.
+
 ### Option 2: Manual Setup
 
 ```bash

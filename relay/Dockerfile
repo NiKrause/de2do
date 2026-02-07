@@ -1,17 +1,38 @@
-FROM node:22-alpine
+FROM node:22-bookworm-slim AS build
 
-WORKDIR /app
+ARG TARGETARCH
+ARG TARGETPLATFORM
 
-# Copy only relay-specific files first
-COPY package.json ./
-# Copy package-lock.json if it exists (optional for pnpm/yarn projects)
-COPY package-lock.json* ./
-RUN npm install --omit=dev --legacy-peer-deps
+# Relay lives here
+WORKDIR /app/relay
 
-# Copy the rest of the relay files
-COPY . .
+# Build deps for native modules (e.g., node-datachannel)
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    python3 make g++ cmake pkg-config libssl-dev git ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
-# Expose ports
+# Copy relay-specific dependency files
+COPY relay/package.json relay/package-lock.json ./
+
+# Install only production deps (force correct platform/arch)
+RUN if [ "$TARGETARCH" = "amd64" ]; then ARCH=x64; else ARCH="$TARGETARCH"; fi \
+  && npm install --omit=dev --platform=linux --arch="$ARCH"
+
+# Copy the actual relay source
+COPY relay .
+
+FROM node:22-bookworm-slim AS runtime
+
+WORKDIR /app/relay
+
+# Copy built app + node_modules from build stage
+COPY --from=build /app/relay /app/relay
+
+# Persistent data directory (matches docker-compose)
+RUN mkdir -p /app/data
+
+# Expose relay ports
 # 4001: WebSocket
 # 4002: TCP
 # 4003: WebRTC 
@@ -19,8 +40,7 @@ COPY . .
 # 3000: HTTP API
 EXPOSE 4001 4002 4003 4006 3000
 
-# Set default environment variables
 ENV NODE_ENV=production
 
-# Run the enhanced relay server
+# Start relay correctly
 CMD ["node", "relay-enhanced.js"]
