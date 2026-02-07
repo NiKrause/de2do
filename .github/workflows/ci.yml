@@ -68,7 +68,7 @@ jobs:
         run: npm run build
       - name: Build success notification
         run: echo "✅ Build completed successfully"
-        
+
       # Docker compose checks
       - name: Docker Compose - dev environment
         run: |

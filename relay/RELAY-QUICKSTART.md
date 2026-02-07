@@ -44,6 +44,7 @@ docker-compose up --build
 
 **Data persistence (Docker)**  
 The relay stores its datastore + blockstore on the host via Docker volumes. This keeps OrbitDB/IPFS data and the relay PeerId stable across restarts.
+
 - Root compose (`docker-compose.yml`): `./data/relay` → `/app/data` (relay datastore at `/app/data/relay-datastore`)
 - Relay-only compose (`relay/docker-compose.yml`): `./relay/relay-datastore` → `/app/relay-datastore`
 
