@@ -67,6 +67,7 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 		await verifyTodosVisible(page, [todoText]);
 	});
 
+	// Skipped: flaky in CI (see issue #17)
 	test.skip('should handle multiple projects with different encryption settings', async ({
 		browser
 	}) => {
