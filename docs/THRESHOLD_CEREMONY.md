@@ -37,6 +37,7 @@ Use this as the implementation runbook and UX/protocol reference.
 - `epoch`: key generation/rotation version number.
 - `wrappedShare`: encrypted share payload for a specific device.
 - `sessionKey`: short-lived in-memory key material used for local encrypt/decrypt calls.
+- `ceremonyState`: replicated + live status model used by all 3 browsers to render progress.
 
 ## High-Level Flow
 
@@ -44,6 +45,50 @@ Use this as the implementation runbook and UX/protocol reference.
 2. Normal unlock ceremony (daily use).
 3. Recovery ceremony (one device lost).
 4. Rotation ceremony (post-recovery hardening).
+5. Ceremony status visibility on all devices.
+
+## Ceremony Status UI (All 3 Browsers)
+
+Each browser should render a ceremony panel with:
+
+1. `Ceremony ID`, `keyRef`, `epoch`, policy (`2-of-3`).
+2. Progress counters:
+   - joined devices (`x/3`)
+   - share acknowledgements (`x/3`)
+   - verification confirmations (`x/3`)
+3. Per-device cards:
+   - `deviceId`
+   - role (`desktop`, `phone-a`, `phone-b`)
+   - state
+   - last seen timestamp
+4. Final status badge:
+   - `ready` when ceremony finalized
+   - `waiting` while in progress
+   - `error` when blocked/timed out
+
+### Device States
+
+Canonical per-device state enum:
+
+- `discovered`
+- `joined`
+- `share_received`
+- `verified`
+- `ready`
+- `offline`
+- `timed_out`
+- `error`
+
+### Phase Labels
+
+Global ceremony phase enum:
+
+- `init`
+- `collecting_joins`
+- `distributing_shares`
+- `verifying_shares`
+- `ready`
+- `error`
 
 ## 1) Enrollment Ceremony
 
@@ -229,6 +274,32 @@ Rotation finalize:
 3. Use authenticated envelopes per recipient.
 4. Include monotonic counters/timestamps to prevent replay.
 5. Bind all messages to `keyRef` and `epoch`.
+6. Split transport concerns:
+   - replicated/authoritative: OrbitDB log events
+   - ephemeral/live: js-libp2p gossip or stream heartbeats (`lastSeen`, liveness)
+
+## Recommended Event Schema for Status
+
+Replicated event types:
+
+- `threshold.ceremony.init`
+- `threshold.ceremony.join`
+- `threshold.share.envelope`
+- `threshold.ceremony.ack`
+- `threshold.ceremony.finalize`
+- `threshold.ceremony.error`
+
+Ephemeral live events:
+
+- `threshold.heartbeat`
+- `threshold.presence`
+- `threshold.peer.offline`
+
+Status reducer rule:
+
+1. Rebuild canonical ceremony state from replicated events.
+2. Overlay live heartbeat freshness for `offline/timed_out` markers.
+3. Never derive final cryptographic validity from heartbeats alone.
 
 ## Security Notes
 
@@ -246,3 +317,4 @@ Rotation finalize:
 6. Add/read todos successfully.
 7. Simulate loss of phone-a; recover with phone-b.
 8. Rotate epoch and verify old device is rejected.
+9. Verify all three browsers display the same ceremony status and completion badge.

@@ -55,6 +55,10 @@ Integrate into app:
    - trigger threshold enrollment/unlock instead of password prompt
 4. `src/lib/components/encryption/EncryptionSettings.svelte`
    - add method selector and onboarding for `threshold-v1`
+5. `src/lib/components/encryption/CeremonyStatus.svelte`
+   - render per-device ceremony progress on each browser
+6. `src/lib/ceremony/ceremony-status-store.js`
+   - normalize ceremony events into shared UI state
 
 Deliverable:
 - database open, read, write with threshold mode from UI flow
@@ -89,6 +93,7 @@ Deliverable:
    - session unlock required on fresh load
    - no password modal for threshold mode
    - recovery path using backup phone
+   - ceremony status consistency across three browsers
 
 Deliverable:
 - CI green for unit/integration/e2e target matrix

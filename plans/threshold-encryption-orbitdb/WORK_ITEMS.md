@@ -27,9 +27,14 @@ Acceptance:
 2. Update `src/lib/encryption-migration.js` to create threshold encryption instances.
 3. Update `src/lib/handlers/encryption-handlers.js` for threshold enrollment/open flow.
 4. Update `src/lib/components/encryption/EncryptionSettings.svelte` with new option.
+5. Add ceremony state store:
+   - `src/lib/ceremony/ceremony-status-store.js`
+6. Add ceremony panel:
+   - `src/lib/components/encryption/CeremonyStatus.svelte`
 
 Acceptance:
 - local app can create/open threshold-encrypted db without password prompt.
+- each browser shows ceremony progress (`joined`, `verified`, `ready`).
 
 ## Milestone 4: Recovery and Rotation
 
@@ -64,6 +69,9 @@ Acceptance:
    - expired session
    - wrong backup package
    - replayed old epoch data
+4. Add multi-browser status tests:
+   - 3-browser ceremony view shows same completion state
+   - offline device transition reflected in UI
 
 Acceptance:
 - CI passes with stable tests and no password-based unlock dependency for threshold mode.

@@ -2,6 +2,8 @@
 	import { createEventDispatcher } from 'svelte';
 	import { createEncryptionHandlers } from '$lib/handlers/encryption-handlers.js';
 	import { isWebAuthnEncryptionAvailable } from '$lib/encryption/webauthn-encryption.js';
+	import CeremonyStatus from '$lib/components/encryption/CeremonyStatus.svelte';
+	import { currentDbNameStore, currentTodoListNameStore } from '$lib/todo-list-manager.js';
 
 	export let isCurrentDbEncrypted = false;
 	export let enableEncryption = false;
@@ -10,15 +12,27 @@
 	export let disabled = false;
 
 	const dispatch = createEventDispatcher();
+	const thresholdEncryptionAvailable =
+		typeof import.meta !== 'undefined' && import.meta.env?.VITE_ENABLE_THRESHOLD_ENCRYPTION === 'true';
 
 	// Create encryption handlers
 	$: encryptionHandlers = createEncryptionHandlers({ preferences });
 	let webauthnEncryptionAvailable = isWebAuthnEncryptionAvailable();
-	let useWebAuthnPreferred = null;
+let useWebAuthnPreferred = null;
+let encryptionMode = 'password';
+	$: ceremonyKeyRef =
+		`db:${$currentDbNameStore || $currentTodoListNameStore || 'default'}`;
 	$: if (webauthnEncryptionAvailable === false) {
 		useWebAuthnPreferred = false;
 	} else if (webauthnEncryptionAvailable === true && useWebAuthnPreferred === null) {
 		useWebAuthnPreferred = true;
+	}
+	$: {
+		if (thresholdEncryptionAvailable && encryptionMode === 'password') {
+			encryptionMode = 'threshold';
+		} else if (!thresholdEncryptionAvailable && encryptionMode === 'threshold') {
+			encryptionMode = webauthnEncryptionAvailable ? 'webauthn' : 'password';
+		}
 	}
 
 	async function handleDisableClick() {
@@ -36,8 +50,15 @@
 
 	async function handleEnableClick() {
 		console.log('🔐 EncryptionSettings: handleEnableClick called');
+		const selectedMethod = thresholdEncryptionAvailable && encryptionMode === 'threshold'
+			? 'threshold-v1'
+			: useWebAuthnPreferred
+				? 'webauthn-prf'
+				: 'password';
 		const result = await encryptionHandlers.handleEnableEncryption(encryptionPassword, {
-			preferWebAuthn: useWebAuthnPreferred
+			preferWebAuthn: useWebAuthnPreferred || selectedMethod === 'threshold-v1',
+			encryptionMethod: selectedMethod,
+			thresholdScopes: ['data', 'replication']
 		});
 		console.log('🔐 EncryptionSettings: handler result =', result);
 
@@ -69,7 +90,7 @@
 	function handleKeyDown(e) {
 		if (
 			e.key === 'Enter' &&
-			(encryptionPassword.trim() || webauthnEncryptionAvailable) &&
+			(encryptionPassword.trim() || webauthnEncryptionAvailable || (thresholdEncryptionAvailable && encryptionMode === 'threshold')) &&
 			!disabled
 		) {
 			e.preventDefault();
@@ -116,6 +137,46 @@
 			</div>
 		</div>
 		{#if enableEncryption}
+			<CeremonyStatus
+				enabled={thresholdEncryptionAvailable && encryptionMode === 'threshold'}
+				keyRef={ceremonyKeyRef}
+				autoMock={true}
+			/>
+			{#if thresholdEncryptionAvailable}
+				<div class="flex items-center gap-3 text-sm text-gray-700">
+					<span class="font-medium">Mode</span>
+					<label class="flex items-center gap-2">
+						<input
+							type="radio"
+							name="encryption-mode"
+							class="h-4 w-4 text-blue-600 focus:ring-blue-500"
+							bind:group={encryptionMode}
+							value="threshold"
+						/>
+						<span>Threshold (session)</span>
+					</label>
+					<label class="flex items-center gap-2">
+						<input
+							type="radio"
+							name="encryption-mode"
+							class="h-4 w-4 text-blue-600 focus:ring-blue-500"
+							bind:group={encryptionMode}
+							value="webauthn"
+						/>
+						<span>WebAuthn key</span>
+					</label>
+					<label class="flex items-center gap-2">
+						<input
+							type="radio"
+							name="encryption-mode"
+							class="h-4 w-4 text-blue-600 focus:ring-blue-500"
+							bind:group={encryptionMode}
+							value="password"
+						/>
+						<span>Password</span>
+					</label>
+				</div>
+			{/if}
 			{#if webauthnEncryptionAvailable}
 				<div class="flex items-center gap-3 text-sm text-gray-700">
 					<span class="font-medium">Use</span>
@@ -149,7 +210,9 @@
 					id="encryption-password"
 					type="password"
 					bind:value={encryptionPassword}
-					placeholder={webauthnEncryptionAvailable && useWebAuthnPreferred
+					placeholder={(thresholdEncryptionAvailable && encryptionMode === 'threshold')
+						? 'Optional fallback secret (threshold mode)'
+						: webauthnEncryptionAvailable && useWebAuthnPreferred
 						? 'Enter password (optional if WebAuthn is available)'
 						: 'Enter password for encryption'}
 					on:keydown={handleKeyDown}
@@ -161,10 +224,14 @@
 				type="button"
 				on:click={handleEnableClick}
 				disabled={disabled ||
-					(!encryptionPassword.trim() && (!webauthnEncryptionAvailable || !useWebAuthnPreferred))}
+					(!encryptionPassword.trim() &&
+						(!webauthnEncryptionAvailable || !useWebAuthnPreferred) &&
+						!(thresholdEncryptionAvailable && encryptionMode === 'threshold'))}
 				class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 			>
-				{#if webauthnEncryptionAvailable && useWebAuthnPreferred && !encryptionPassword.trim()}
+				{#if thresholdEncryptionAvailable && encryptionMode === 'threshold'}
+					Apply Threshold Encryption
+				{:else if webauthnEncryptionAvailable && useWebAuthnPreferred && !encryptionPassword.trim()}
 					Use WebAuthn Encryption
 				{:else}
 					Apply Encryption
