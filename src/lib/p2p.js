@@ -17,7 +17,10 @@ import { LevelBlockstore } from 'blockstore-level';
 import { LevelDatastore } from 'datastore-level';
 import { systemToasts, showToast } from './toast-store.js';
 import { currentIdentityStore, peerIdStore } from './stores.js';
-import { isWebAuthnAvailable, hasExistingCredentials } from './identity/webauthn-identity.js';
+import {
+	isWebAuthnAvailable,
+	recoverDiscoverableVarsigCredential
+} from './identity/webauthn-identity.js';
 import {
 	getOrCreateVarsigIdentity,
 	createWebAuthnVarsigIdentitiesWithStorage,
@@ -30,6 +33,11 @@ import {
 	WebAuthnVarsigProvider
 } from '@le-space/orbitdb-identity-provider-webauthn-did';
 
+const isThresholdEncryptionEnabled =
+	typeof import.meta !== 'undefined' &&
+	import.meta.env &&
+	import.meta.env.VITE_ENABLE_THRESHOLD_ENCRYPTION === 'true';
+
 function describeEncryptionSecret(secret) {
 	if (!secret) return 'NO';
 	if (typeof secret === 'string') {
@@ -39,6 +47,76 @@ function describeEncryptionSecret(secret) {
 		return `YES (bytes: ${secret.length})`;
 	}
 	return 'YES';
+}
+
+function parseEncryptionInput(input) {
+	if (input?.method === 'threshold-v1') {
+		return {
+			method: 'threshold-v1',
+			keyRef: input.keyRef || 'default',
+			sessionKey: input.sessionKey || input.key || null,
+			scopes: input.scopes || ['data']
+		};
+	}
+
+	return {
+		method: 'password',
+		password: input
+	};
+}
+
+async function resolveOrbitDbEncryption(encryptionInput) {
+	const parsed = parseEncryptionInput(encryptionInput);
+
+	if (parsed.method === 'threshold-v1') {
+		if (!isThresholdEncryptionEnabled) {
+			throw new Error(
+				'Threshold encryption is disabled. Set VITE_ENABLE_THRESHOLD_ENCRYPTION=true to enable.'
+			);
+		}
+
+		if (!parsed.sessionKey) {
+			throw new Error('Threshold encryption requires sessionKey');
+		}
+
+		const thresholdModule = await import('../../packages/threshold-encryption/src/index.js');
+		const { default: ThresholdEncryption, createStaticKeyProvider } = thresholdModule;
+		const keyProvider = createStaticKeyProvider({ key: parsed.sessionKey });
+		const scopes = Array.isArray(parsed.scopes) ? parsed.scopes : ['data'];
+		const encryption = {};
+
+		if (scopes.includes('data')) {
+			encryption.data = await ThresholdEncryption({
+				keyProvider,
+				keyRef: parsed.keyRef,
+				scope: 'data'
+			});
+		}
+		if (scopes.includes('replication')) {
+			encryption.replication = await ThresholdEncryption({
+				keyProvider,
+				keyRef: parsed.keyRef,
+				scope: 'replication'
+			});
+		}
+
+		if (!encryption.data && !encryption.replication) {
+			throw new Error('Threshold encryption requires at least one scope: data or replication');
+		}
+
+		console.log('🔐 Threshold encryption configured', {
+			keyRef: parsed.keyRef,
+			scopes
+		});
+		return encryption;
+	}
+
+	if (!parsed.password) {
+		return null;
+	}
+
+	const dataEncryption = await SimpleEncryption({ password: parsed.password });
+	return { data: dataEncryption };
 }
 
 // Export libp2p instance for plugins
@@ -108,7 +186,7 @@ function buildDatabaseOptions(
  * @param {string} todoListName - Name of the todo list (default: 'projects')
  * @param {Object} preferences - Network preferences
  * @param {boolean} enableEncryption - Whether to enable encryption
- * @param {string} encryptionPassword - Password for encryption (required if enableEncryption is true)
+ * @param {string|Object} encryptionPassword - Password string or threshold config object
  * @returns {Promise<Object>} The opened database
  */
 export async function openTodoList(
@@ -150,8 +228,7 @@ export async function openTodoList(
 	let encryption = null;
 	if (enableEncryption && encryptionPassword) {
 		console.log('🔐 Setting up encryption for database...');
-		const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
-		encryption = { data: dataEncryption };
+		encryption = await resolveOrbitDbEncryption(encryptionPassword);
 	}
 
 	// Build standard database options using shared function
@@ -210,7 +287,7 @@ export async function openTodoList(
  * @param {string} dbName - The full database name (e.g., "c852aa330a611daf24dd8f039d5990f96a4a498f5_orbitdb-storacha-bridge")
  * @param {Object} preferences - Network preferences
  * @param {boolean} enableEncryption - Whether to enable encryption
- * @param {string} encryptionPassword - Password for encryption (required if enableEncryption is true)
+ * @param {string|Object} encryptionPassword - Password string or threshold config object
  * @returns {Promise<Object>} The opened database
  */
 export async function openDatabaseByName(
@@ -265,8 +342,7 @@ export async function openDatabaseByName(
 			let encryption = null;
 			if (enableEncryption && encryptionPassword) {
 				console.log('🔐 Setting up encryption for database...');
-				const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
-				encryption = { data: dataEncryption };
+				encryption = await resolveOrbitDbEncryption(encryptionPassword);
 			}
 
 			// Build standard database options using the OTHER identity's ID
@@ -310,8 +386,7 @@ export async function openDatabaseByName(
 	let encryption = null;
 	if (enableEncryption && encryptionPassword) {
 		console.log('🔐 Setting up encryption for database...');
-		const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
-		encryption = { data: dataEncryption };
+		encryption = await resolveOrbitDbEncryption(encryptionPassword);
 	}
 
 	// Build standard database options using shared function
@@ -376,7 +451,7 @@ export async function openDatabaseByName(
  * @param {string} dbAddress - The database address/hash (e.g., "031d947594b8d02f69041280fd5bdd6ff6a07ec3130e075b86893179c543e3e305_simpletodo")
  * @param {Object} preferences - Network preferences
  * @param {boolean} enableEncryption - Whether to enable encryption
- * @param {string} encryptionPassword - Password for encryption (required if enableEncryption is true)
+ * @param {string|Object} encryptionPassword - Password string or threshold config object
  * @returns {Promise<Object>} The opened database
  */
 export async function openDatabaseByAddress(
@@ -415,10 +490,7 @@ export async function openDatabaseByAddress(
 	if (enableEncryption && encryptionPassword) {
 		console.log('🔐 Setting up encryption for database...');
 		console.log(`  → Password provided: ${describeEncryptionSecret(encryptionPassword)}`);
-		const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
-		encryption = {
-			data: dataEncryption
-		};
+		encryption = await resolveOrbitDbEncryption(encryptionPassword);
 
 		console.log(`  → Encryption instances created successfully`);
 	} else if (enableEncryption && !encryptionPassword) {
@@ -726,7 +798,7 @@ export async function initializeP2P(preferences = {}) {
 		let useVarsig = false;
 		const useWebAuthn = preferences.useWebAuthn !== false; // Default to true
 
-		if (useWebAuthn && isWebAuthnAvailable() && hasExistingCredentials()) {
+		if (useWebAuthn && isWebAuthnAvailable()) {
 			try {
 				if (WebAuthnVarsigProvider.isSupported()) {
 					console.log('🔐 Loading WebAuthn varsig credential...');
@@ -735,6 +807,13 @@ export async function initializeP2P(preferences = {}) {
 						useVarsig = true;
 						console.log('✅ WebAuthn varsig credential loaded successfully');
 						showToast('🔐 Using hardware-secured identity (varsig)', 'success', 3000);
+					} else {
+						console.log('🔄 Attempting discoverable WebAuthn recovery...');
+						varsigCredential = await recoverDiscoverableVarsigCredential();
+						if (varsigCredential) {
+							useVarsig = true;
+							showToast('🔐 Recovered hardware-secured identity (varsig)', 'success', 3000);
+						}
 					}
 				}
 
