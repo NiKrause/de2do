@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import {
 	startCeremonyChannel,
 	stopCeremonyChannel,
@@ -29,6 +29,7 @@ let startedMock = false;
 let realtimeActive = false;
 let realtimeFallbackTimer = null;
 let channelHandle = null;
+let currentRealtimeKeyRef = null;
 
 const nowIso = () => new Date().toISOString();
 
@@ -167,6 +168,86 @@ const makeId = () => {
 	return `ceremony-${Date.now()}`;
 };
 
+const encodeBase64Url = (value) => {
+	const binary = typeof window !== 'undefined'
+		? window.btoa(value)
+		: Buffer.from(value, 'utf8').toString('base64');
+	return binary.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+};
+
+const decodeBase64Url = (value) => {
+	const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+	const padding = '='.repeat((4 - (normalized.length % 4)) % 4);
+	const base64 = normalized + padding;
+	if (typeof window !== 'undefined') return window.atob(base64);
+	return Buffer.from(base64, 'base64').toString('utf8');
+};
+
+const makeInviteToken = ({
+	keyRef = 'db:default',
+	epoch = 1,
+	policy = { t: 2, n: 3 },
+	ttlMs = 10 * 60 * 1000
+} = {}) => {
+	const payload = {
+		v: 1,
+		ceremonyId: makeId(),
+		keyRef,
+		epoch,
+		policy,
+		exp: Date.now() + ttlMs
+	};
+	return encodeBase64Url(JSON.stringify(payload));
+};
+
+const parseInviteToken = (token) => {
+	if (!token || typeof token !== 'string') {
+		throw new Error('Invite token is required');
+	}
+	let payload;
+	try {
+		payload = JSON.parse(decodeBase64Url(token.trim()));
+	} catch {
+		throw new Error('Invalid invite token format');
+	}
+
+	if (!payload?.ceremonyId || !payload?.keyRef || !payload?.exp) {
+		throw new Error('Invite token missing required fields');
+	}
+	if (Date.now() > payload.exp) {
+		throw new Error('Invite token expired');
+	}
+	return payload;
+};
+
+const emitInitAndJoin = async ({ ceremonyId, keyRef, epoch = 1, policy = { t: 2, n: 3 } }) => {
+	const localDeviceId = getLocalDeviceId();
+	const localRole = getLocalRole();
+	const initEvent = {
+		type: 'threshold.ceremony.init',
+		ceremonyId,
+		keyRef,
+		epoch,
+		policy,
+		ts: Date.now()
+	};
+	const joinEvent = {
+		type: 'threshold.ceremony.join',
+		ceremonyId,
+		deviceId: localDeviceId,
+		role: localRole,
+		keyRef,
+		ts: Date.now()
+	};
+
+	// Apply locally first so local UI state is deterministic.
+	applyCeremonyEvent(initEvent);
+	applyCeremonyEvent(joinEvent);
+
+	await publishCeremonyEvent(initEvent);
+	await publishCeremonyEvent(joinEvent);
+};
+
 const getLocalDeviceRole = () => {
 	if (typeof window === 'undefined') return 'desktop';
 	const stored = window.localStorage.getItem('threshold.localDeviceRole');
@@ -281,11 +362,16 @@ const stopMockCeremony = () => {
 const startRealtimeCeremony = ({ keyRef = 'db:default', fallbackToMock = true } = {}) => {
 	if (realtimeActive) return;
 	realtimeActive = true;
+	currentRealtimeKeyRef = keyRef;
 	stopMockCeremony();
 
 	channelHandle = startCeremonyChannel({
 		keyRef,
 		onEvent: (event) => {
+			if (!event || typeof event !== 'object') return;
+			const current = get(state);
+			const eventKeyRef = event.keyRef || current.keyRef;
+			if (eventKeyRef && eventKeyRef !== keyRef) return;
 			applyCeremonyEvent(event);
 		},
 		statusHandler: (status) => {
@@ -296,15 +382,13 @@ const startRealtimeCeremony = ({ keyRef = 'db:default', fallbackToMock = true } 
 		}
 	});
 
-	const localDeviceId = getLocalDeviceId();
-	const localRole = getLocalRole();
-	void publishCeremonyEvent({
-		type: 'threshold.ceremony.join',
-		ceremonyId: `live-${keyRef}`,
-		deviceId: localDeviceId,
-		role: localRole,
+	const current = get(state);
+	const currentCeremonyId = current.keyRef === keyRef && current.ceremonyId ? current.ceremonyId : null;
+	void emitInitAndJoin({
+		ceremonyId: currentCeremonyId || `live-${keyRef}`,
 		keyRef,
-		ts: Date.now()
+		epoch: current.epoch || 1,
+		policy: current.policy || { t: 2, n: 3 }
 	});
 
 	if (fallbackToMock) {
@@ -318,11 +402,42 @@ const startRealtimeCeremony = ({ keyRef = 'db:default', fallbackToMock = true } 
 
 const stopRealtimeCeremony = () => {
 	realtimeActive = false;
+	currentRealtimeKeyRef = null;
 	if (realtimeFallbackTimer) clearTimeout(realtimeFallbackTimer);
 	realtimeFallbackTimer = null;
 	if (channelHandle) channelHandle.stop();
 	channelHandle = null;
 	stopCeremonyChannel();
+};
+
+const createCeremonyInviteToken = ({ keyRef = null, ttlMs = 10 * 60 * 1000 } = {}) => {
+	const current = get(state);
+	const resolvedKeyRef = keyRef || currentRealtimeKeyRef || current.keyRef || 'db:default';
+	const token = makeInviteToken({
+		keyRef: resolvedKeyRef,
+		epoch: current.epoch || 1,
+		policy: current.policy || { t: 2, n: 3 },
+		ttlMs
+	});
+	return {
+		token,
+		keyRef: resolvedKeyRef,
+		expiresAt: new Date(Date.now() + ttlMs).toISOString()
+	};
+};
+
+const joinCeremonyWithInviteToken = async (token, { startRealtime = true } = {}) => {
+	const parsed = parseInviteToken(token);
+	if (startRealtime && (!realtimeActive || currentRealtimeKeyRef !== parsed.keyRef)) {
+		startRealtimeCeremony({ keyRef: parsed.keyRef, fallbackToMock: false });
+	}
+	await emitInitAndJoin({
+		ceremonyId: parsed.ceremonyId,
+		keyRef: parsed.keyRef,
+		epoch: parsed.epoch || 1,
+		policy: parsed.policy || { t: 2, n: 3 }
+	});
+	return parsed;
 };
 
 export const ceremonyStatusStore = {
@@ -335,5 +450,7 @@ export {
 	startMockCeremony,
 	stopMockCeremony,
 	startRealtimeCeremony,
-	stopRealtimeCeremony
+	stopRealtimeCeremony,
+	createCeremonyInviteToken,
+	joinCeremonyWithInviteToken
 };

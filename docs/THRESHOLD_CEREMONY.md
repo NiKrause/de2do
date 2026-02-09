@@ -30,6 +30,30 @@ Use this as the implementation runbook and UX/protocol reference.
 3. Feature flag enabled for threshold mode:
    - `VITE_ENABLE_THRESHOLD_ENCRYPTION=true`
 4. Each device has a stable device identity (`deviceId`) for the ceremony.
+5. For invite-based bootstrapping, a short-lived invite token is copied from initiator and pasted on joining devices.
+
+## Invite Token Bootstrap (Experimental)
+
+Current UI supports a temporary invite token in the ceremony panel:
+
+- `Create & Copy Invite` on initiator browser.
+- Paste token into `Join with token` on other browsers.
+- `Join with token` is hidden once the local device has joined and participant target (`n`) is reached.
+- Each browser can set explicit local role (`desktop`, `phone-a`, `phone-b`) in the panel.
+
+Token payload currently includes:
+
+- `ceremonyId`
+- `keyRef`
+- `epoch`
+- policy (`t`, `n`)
+- expiry (`exp`)
+
+Important:
+
+- This is experimental and not cryptographically signed yet.
+- Use only in local/dev trust context.
+- Do not share invite tokens publicly.
 
 ## Terms
 
