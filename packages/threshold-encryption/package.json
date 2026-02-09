@@ -1,0 +1,19 @@
+{
+  "name": "@local/orbitdb-threshold-encryption",
+  "version": "0.0.1",
+  "description": "SimpleEncryption-compatible threshold/session-key encryption adapter for OrbitDB.",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./errors": "./src/errors.js",
+    "./key-provider": "./src/key-provider.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "license": "MIT"
+}
