@@ -15,43 +15,6 @@ import { showToast } from '../toast-store.js';
 import { DIDKey } from 'iso-did';
 import { parseAttestationObject } from 'iso-passkeys';
 
-// Legacy storage keys for WebAuthn credentials (kept for compatibility)
-const STORAGE_KEY_CREDENTIAL_ID = 'webauthn_credential_id';
-const STORAGE_KEY_CREDENTIAL_TYPE = 'webauthn_credential_type';
-const STORAGE_KEY_USER_HANDLE = 'webauthn_user_handle';
-
-function toBase64(bytes) {
-	if (!bytes || bytes.length === 0) return '';
-	let binary = '';
-	for (let i = 0; i < bytes.length; i += 1) {
-		binary += String.fromCharCode(bytes[i]);
-	}
-	return btoa(binary);
-}
-
-function persistCredentialMetadata({ type, credentialId, userId }) {
-	try {
-		const encodedId =
-			credentialId instanceof Uint8Array
-				? toBase64(credentialId)
-				: typeof credentialId === 'string'
-					? credentialId
-					: '';
-		if (encodedId) {
-			localStorage.setItem(STORAGE_KEY_CREDENTIAL_ID, encodedId);
-		}
-		if (type) {
-			localStorage.setItem(STORAGE_KEY_CREDENTIAL_TYPE, type);
-		}
-		if (userId) {
-			const userHandleBase64 = toBase64(new TextEncoder().encode(userId));
-			localStorage.setItem(STORAGE_KEY_USER_HANDLE, userHandleBase64);
-		}
-	} catch (error) {
-		console.warn('Failed to persist WebAuthn credential metadata:', error);
-	}
-}
-
 function shouldFallbackToKeystore(error) {
 	if (!error) return false;
 	const name = error.name || '';
@@ -67,6 +30,29 @@ function toArrayBuffer(value) {
 	if (value instanceof ArrayBuffer) return value;
 	if (ArrayBuffer.isView(value)) return value.buffer;
 	return value;
+}
+
+function getOrCreateStableWebAuthnUserId() {
+	const storageKey = 'webauthn_user_id_v1';
+	if (typeof window === 'undefined') {
+		return `webauthn-user-${Date.now()}`;
+	}
+
+	try {
+		const existing = localStorage.getItem(storageKey);
+		if (existing) return existing;
+
+		const bytes = crypto.getRandomValues(new Uint8Array(16));
+		let binary = '';
+		for (let i = 0; i < bytes.length; i += 1) {
+			binary += String.fromCharCode(bytes[i]);
+		}
+		const created = btoa(binary);
+		localStorage.setItem(storageKey, created);
+		return created;
+	} catch {
+		return `webauthn-user-${Date.now()}`;
+	}
 }
 
 function extractVarsigCredentialInfo(attestationObject) {
@@ -105,9 +91,15 @@ function extractVarsigCredentialInfo(attestationObject) {
 	return { algorithm: null, publicKey: null, kty, alg, crv };
 }
 
+function mapPublicKeyAlgorithm(alg) {
+	if (alg === -50 || alg === -8) return 'Ed25519';
+	if (alg === -7) return 'P-256';
+	return null;
+}
+
 async function createWebAuthnVarsigCredentialWithPrf(options = {}) {
 	const { userId, displayName, domain } = {
-		userId: `orbitdb-user-${Date.now()}`,
+		userId: getOrCreateStableWebAuthnUserId(),
 		displayName: 'OrbitDB Varsig User',
 		domain: window.location.hostname,
 		...options
@@ -128,8 +120,9 @@ async function createWebAuthnVarsigCredentialWithPrf(options = {}) {
 		],
 		attestation: 'none',
 		authenticatorSelection: {
-			residentKey: 'preferred',
-			userVerification: 'preferred'
+			residentKey: 'required',
+			requireResidentKey: true,
+			userVerification: 'required'
 		}
 	};
 
@@ -162,6 +155,73 @@ async function createWebAuthnVarsigCredentialWithPrf(options = {}) {
 		algorithm,
 		cose: { kty, alg, crv }
 	};
+}
+
+export async function recoverDiscoverableVarsigCredential() {
+	if (!isWebAuthnAvailable()) {
+		return null;
+	}
+
+	const rpId = window.location.hostname;
+	const publicKey = {
+		challenge: crypto.getRandomValues(new Uint8Array(32)),
+		rpId,
+		userVerification: 'required'
+	};
+
+	try {
+		const credential = await navigator.credentials.get({ publicKey });
+		if (!credential) return null;
+
+		const rawId = credential.rawId ? new Uint8Array(credential.rawId) : null;
+		if (!rawId) return null;
+
+		let publicKeyBytes = null;
+		let algorithm = null;
+		let cose = {};
+
+		const response = credential.response;
+
+		if (response?.getPublicKey && response?.getPublicKeyAlgorithm) {
+			const pubKeyBuffer = response.getPublicKey();
+			const pubKeyAlg = response.getPublicKeyAlgorithm();
+			if (pubKeyBuffer) {
+				publicKeyBytes = new Uint8Array(pubKeyBuffer);
+			}
+			algorithm = mapPublicKeyAlgorithm(pubKeyAlg);
+			cose = { alg: pubKeyAlg };
+		} else if (response?.attestationObject) {
+			const extracted = extractVarsigCredentialInfo(new Uint8Array(response.attestationObject));
+			publicKeyBytes = extracted.publicKey;
+			algorithm = extracted.algorithm;
+			cose = { kty: extracted.kty, alg: extracted.alg, crv: extracted.crv };
+		}
+
+		if (!publicKeyBytes || !algorithm) {
+			console.warn('Discoverable credential missing public key; cannot recover varsig credential.');
+			return null;
+		}
+
+		const did = DIDKey.fromPublicKey(algorithm, publicKeyBytes).did;
+		const recovered = {
+			credentialId: rawId,
+			publicKey: publicKeyBytes,
+			did,
+			algorithm,
+			cose
+		};
+
+		storeWebAuthnVarsigCredential(recovered);
+		console.log('🔄 Recovered discoverable WebAuthn varsig credential.');
+		return recovered;
+	} catch (error) {
+		if (error?.name === 'NotAllowedError') {
+			console.log('ℹ️ Discoverable WebAuthn recovery cancelled by user.');
+			return null;
+		}
+		console.warn('Failed to recover discoverable WebAuthn credential:', error);
+		return null;
+	}
 }
 
 /**
@@ -226,45 +286,6 @@ export function hasExistingCredentials() {
  * Get stored credential information
  * @returns {Object|null} Credential info or null
  */
-export function getStoredCredentialInfo() {
-	try {
-		const varsigCredential = loadWebAuthnVarsigCredential();
-		if (varsigCredential) {
-			return {
-				credentialId: toBase64(varsigCredential.credentialId),
-				credentialType: 'webauthn-varsig',
-				userHandle: null
-			};
-		}
-
-		const webauthnCredential = loadWebAuthnCredential();
-		if (webauthnCredential) {
-			return {
-				credentialId: webauthnCredential.credentialId || '',
-				credentialType: 'webauthn-keystore',
-				userHandle: null
-			};
-		}
-
-		const credentialId = localStorage.getItem(STORAGE_KEY_CREDENTIAL_ID);
-		const credentialType = localStorage.getItem(STORAGE_KEY_CREDENTIAL_TYPE);
-		const userHandle = localStorage.getItem(STORAGE_KEY_USER_HANDLE);
-
-		if (!credentialId || !userHandle) {
-			return null;
-		}
-
-		return {
-			credentialId,
-			credentialType: credentialType || 'unknown',
-			userHandle
-		};
-	} catch (error) {
-		console.warn('Failed to get stored credential info:', error);
-		return null;
-	}
-}
-
 /**
  * Create a new WebAuthn credential and identity
  * @param {string} userName - Display name for the credential (e.g., "Simple Todo User")
@@ -292,11 +313,6 @@ export async function createWebAuthnIdentity(userName = 'Simple Todo User') {
 
 				console.log('✅ WebAuthn varsig credential created');
 				storeWebAuthnVarsigCredential(varsigCredential);
-				persistCredentialMetadata({
-					type: 'webauthn-varsig',
-					credentialId: varsigCredential.credentialId,
-					userId
-				});
 
 				const identity = await getOrCreateVarsigIdentity(varsigCredential);
 
@@ -333,11 +349,6 @@ export async function createWebAuthnIdentity(userName = 'Simple Todo User') {
 		});
 
 		storeWebAuthnCredential(credentialInfo);
-		persistCredentialMetadata({
-			type: 'webauthn-keystore',
-			credentialId: credentialInfo.credentialId,
-			userId
-		});
 
 		const identity = await OrbitDBWebAuthnIdentityProvider.createIdentity({
 			webauthnCredential: credentialInfo
@@ -437,10 +448,6 @@ export function clearWebAuthnCredentials() {
 		clearCredential();
 		clearWebAuthnVarsigCredential();
 
-		// Also clear our own storage keys
-		localStorage.removeItem(STORAGE_KEY_CREDENTIAL_ID);
-		localStorage.removeItem(STORAGE_KEY_CREDENTIAL_TYPE);
-		localStorage.removeItem(STORAGE_KEY_USER_HANDLE);
 		console.log('✅ WebAuthn credentials cleared from storage');
 	} catch (error) {
 		console.warn('Failed to clear WebAuthn credentials:', error);

@@ -6,6 +6,9 @@ import { addTodoListToRegistry } from './todo-list-manager.js';
 
 function describeEncryptionSecret(secret) {
 	if (!secret) return 'NO';
+	if (secret?.method === 'threshold-v1') {
+		return `YES (threshold-v1, keyRef=${secret.keyRef || 'default'})`;
+	}
 	if (typeof secret === 'string') {
 		return `YES (length: ${secret.length}, first 3 chars: ${secret.substring(0, 3)}***)`;
 	}
@@ -13,6 +16,57 @@ function describeEncryptionSecret(secret) {
 		return `YES (bytes: ${secret.length})`;
 	}
 	return 'YES';
+}
+
+function hasEncryptionSecret(secret) {
+	if (!secret) return false;
+	if (secret?.method === 'threshold-v1') {
+		const sessionKey = secret.sessionKey;
+		if (!sessionKey) return false;
+		if (typeof sessionKey === 'string') return sessionKey.trim().length > 0;
+		return Boolean(sessionKey?.subarray && sessionKey.length > 0);
+	}
+	if (typeof secret === 'string') return secret.trim().length > 0;
+	return Boolean(secret?.subarray && secret.length > 0);
+}
+
+async function createEncryptionFromSecret(secret, method = null) {
+	if (!hasEncryptionSecret(secret)) return null;
+
+	if (method === 'threshold-v1' || secret?.method === 'threshold-v1') {
+		const thresholdSecret = secret?.method === 'threshold-v1'
+			? secret
+			: {
+					method: 'threshold-v1',
+					keyRef: 'db:migration',
+					sessionKey: secret,
+					scopes: ['data', 'replication']
+				};
+
+		const { default: ThresholdEncryption, createStaticKeyProvider } = await import('../../packages/threshold-encryption/src/index.js');
+		const keyProvider = createStaticKeyProvider({ key: thresholdSecret.sessionKey });
+		const scopes = Array.isArray(thresholdSecret.scopes) ? thresholdSecret.scopes : ['data'];
+		const encryption = {};
+		if (scopes.includes('data')) {
+			encryption.data = await ThresholdEncryption({
+				keyProvider,
+				keyRef: thresholdSecret.keyRef || 'db:migration',
+				scope: 'data'
+			});
+		}
+		if (scopes.includes('replication')) {
+			encryption.replication = await ThresholdEncryption({
+				keyProvider,
+				keyRef: thresholdSecret.keyRef || 'db:migration',
+				scope: 'replication'
+			});
+		}
+		return encryption;
+	}
+
+	const SimpleEncryption = (await import('@le-space/orbitdb-simple-encryption')).default;
+	const dataEncryption = await SimpleEncryption({ password: secret });
+	return { data: dataEncryption };
 }
 
 /**
@@ -79,78 +133,26 @@ export async function migrateDatabaseEncryption(
 		console.log('🔒 Closing source database...');
 		await sourceDb.close();
 
-		// Step 4: Create a TEMPORARY database with a timestamp
+		// Step 4: Create the final migrated database with a NEW name/address
+		// We intentionally keep the new address to avoid mixing old plaintext history
+		// with newly encrypted entries at the same OrbitDB address.
 		const timestamp = Date.now();
-		const tempDisplayName = `${displayName}_temp_${timestamp}`;
-		const tempDbName = `${identityId}_${tempDisplayName}`;
-		console.log(`✨ Creating temporary database: ${tempDbName}`);
-
-		// Step 5: Open a temporary database with target encryption settings
-		const { openTodoList } = await import('./p2p.js');
-		const tempDb = await openTodoList(
-			tempDisplayName,
-			preferences,
-			targetEncryption,
-			targetPassword
-		);
-
-		const tempAddress = tempDb.address;
-		console.log(`📍 Temporary database address: ${tempAddress}`);
-
-		// Step 6: Copy all entries to the temporary database
-		console.log('📝 Copying entries to temporary database...');
-		let copiedCount = 0;
-		for (const entry of allEntries) {
-			try {
-				if (entry.key && entry.value) {
-					await tempDb.put(entry.key, entry.value);
-					copiedCount++;
-				}
-			} catch (error) {
-				console.error(`❌ Error copying entry ${entry.key}:`, error);
-				// Continue with other entries
-			}
-		}
-
-		console.log(`✅ Copied ${copiedCount} of ${allEntries.length} entries to temp database`);
-
-		// Step 7: Close the temporary database
-		console.log('🔒 Closing temporary database...');
-		await tempDb.close();
-
-		// Step 8: Delete/drop the original database
-		console.log('🗑️ Dropping original database...');
-		try {
-			// Re-open the source to drop it
-			const sourceDbToDelete = await openDatabaseByAddress(
-				currentAddress,
-				preferences,
-				currentEncryption,
-				currentPassword
-			);
-			await sourceDbToDelete.drop();
-			console.log('✅ Original database dropped');
-		} catch (dropError) {
-			console.warn('⚠️ Could not drop original database:', dropError);
-			// Continue anyway - we have the data in temp DB
-		}
-
-		// Step 9: Create the final database with the ORIGINAL name and target encryption
-		// Use orbitdb.open() directly to avoid switching global todoDB state during migration
-		console.log(`✨ Creating final database with original name: ${identityId}_${displayName}`);
+		const currentName = currentDbName || `${identityId}_${displayName}`;
+		const migrationSuffix = targetEncryption
+			? `__enc_migrated_${timestamp}`
+			: `__plain_migrated_${timestamp}`;
+		const finalDbName = `${currentName}${migrationSuffix}`;
+		console.log(`✨ Creating migrated database with new name: ${finalDbName}`);
 		console.log(`  → Original address: ${currentAddress}`);
 		console.log(`  → Target encryption: ${targetEncryption}`);
 		console.log(`  → Password provided: ${describeEncryptionSecret(targetPassword)}`);
-		const finalDbName = `${identityId}_${displayName}`;
 
 		// Set up encryption for final database
 		const { OrbitDBAccessController } = await import('@orbitdb/core');
-		const SimpleEncryption = (await import('@le-space/orbitdb-simple-encryption')).default;
 		let finalEncryption = null;
 		if (targetEncryption && targetPassword) {
-			console.log(`  → Creating encryption instances with password...`);
-			const dataEncryption = await SimpleEncryption({ password: targetPassword });
-			finalEncryption = { data: dataEncryption };
+			console.log(`  → Creating encryption instances...`);
+			finalEncryption = await createEncryptionFromSecret(targetPassword, targetEncryptionMethod);
 			console.log(`  → Encryption instances created successfully`);
 		}
 
@@ -171,54 +173,24 @@ export async function migrateDatabaseEncryption(
 
 		const finalAddress = finalDb.address;
 		console.log(`📍 Final database address: ${finalAddress}`);
-		console.log(`  → Address comparison: original=${currentAddress}, final=${finalAddress}`);
-		console.log(
-			`  → Address match: ${currentAddress === finalAddress ? 'YES ✅ (expected)' : 'NO ❌ (unexpected - address changed!)'}`
-		);
+		console.log(`  → Address changed: ${currentAddress !== finalAddress ? 'YES ✅' : 'NO ⚠️'}`);
 
-		// Step 10: Copy all entries from temp to final database
-		console.log('📝 Copying entries to final database...');
-		// Re-open temp to read from it (also using createDatabase to avoid state changes)
-		const tempDbForReading = await openDatabaseByAddress(
-			tempAddress,
-			preferences,
-			targetEncryption,
-			targetPassword
-		);
-		const tempEntries = await tempDbForReading.all();
-
-		// Check if finalDb was closed by the openDatabaseByAddress call above
-		// If so, reopen it directly without going through global state
-		let finalDbToUse = finalDb;
-		if (!finalDb.opened) {
-			console.log('⚠️ Final database was closed, reopening...');
-			finalDbToUse = await orbitdb.open(finalDbName, finalDbOptions);
-		}
-
+		// Step 5: Copy all entries from source snapshot into the migrated database
+		console.log('📝 Copying entries to migrated database...');
 		let finalCopiedCount = 0;
-		for (const entry of tempEntries) {
+		for (const entry of allEntries) {
 			try {
 				if (entry.key && entry.value) {
-					await finalDbToUse.put(entry.key, entry.value);
+					await finalDb.put(entry.key, entry.value);
 					finalCopiedCount++;
 				}
 			} catch (error) {
-				console.error(`❌ Error copying entry ${entry.key} to final:`, error);
+				console.error(`❌ Error copying entry ${entry.key} to migrated DB:`, error);
 			}
 		}
-		console.log(`✅ Copied ${finalCopiedCount} entries to final database`);
+		console.log(`✅ Copied ${finalCopiedCount} entries to migrated database`);
 
-		// Step 11: Close temp database and drop it
-		console.log('🗑️ Dropping temporary database...');
-		try {
-			await tempDbForReading.drop();
-			console.log('✅ Temporary database dropped');
-		} catch (tempDropError) {
-			console.warn('⚠️ Could not drop temp database:', tempDropError);
-			// Not critical - temp DB will just remain unused
-		}
-
-		// Step 12: Update the registry with the final database info (original name!)
+		// Step 6: Update registry to point displayName to the new migrated address
 		console.log('💾 Updating registry...');
 		console.log(
 			`  → Registry update: displayName=${displayName}, dbName=${finalDbName}, address=${finalAddress}, encryptionEnabled=${targetEncryption}`
@@ -239,8 +211,8 @@ export async function migrateDatabaseEncryption(
 		listAvailableTodoLists();
 		console.log(`  → Available lists refreshed after registry update`);
 
-		// Step 13: Close the final database (it will be reopened by the caller)
-		await finalDbToUse.close();
+		// Step 7: Close migrated database (caller will reopen from registry/address)
+		await finalDb.close();
 
 		const encryptionStatus = targetEncryption ? 'encrypted' : 'unencrypted';
 		showToast(
@@ -285,7 +257,7 @@ export async function enableDatabaseEncryption(
 	preferences = {},
 	parent = null
 ) {
-	if (!password || (typeof password === 'string' && !password.trim())) {
+	if (!hasEncryptionSecret(password)) {
 		throw new Error('Encryption password is required');
 	}
 
@@ -322,7 +294,7 @@ export async function disableDatabaseEncryption(
 	preferences = {},
 	parent = null
 ) {
-	if (!currentPassword || (typeof currentPassword === 'string' && !currentPassword.trim())) {
+	if (!hasEncryptionSecret(currentPassword)) {
 		throw new Error('Current encryption password is required');
 	}
 

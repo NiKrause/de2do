@@ -283,13 +283,13 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 		await page.waitForTimeout(300);
 
 		// Click "Apply Encryption" button
-		// This triggers migration: creates temp DB, copies data, deletes original, recreates with encryption
+		// This triggers migration to a new encrypted database address and copies data
 		console.log('→ Clicking Apply Encryption...');
 		const applyButton = page.locator('button:has-text("Apply Encryption")').first();
 		await applyButton.click();
 
 		// Wait for migration to complete
-		// Migration process: copy data → delete original → recreate with same name + encryption
+		// Migration process: copy data into new encrypted database and switch registry pointer
 		console.log('→ Waiting for encryption migration...');
 		console.log('  → Waiting for migration toast to appear...');
 
@@ -335,16 +335,10 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 		const project2AddressEncrypted = await getCurrentDatabaseAddress(page);
 		console.log(`✅ Project 2 address after migration: ${project2AddressEncrypted}`);
 
-		// IMPORTANT: The database address should REMAIN THE SAME after encryption migration.
-		// OrbitDB addresses are derived from the manifest hash, which includes:
-		// - Database name (same: identityId_displayName)
-		// - Database type (same: keyvalue)
-		// - Access controller (same: same identity, same permissions)
-		// Encryption is handled at the data/replication layer and does NOT affect the manifest.
-		// Therefore, the address (which represents database identity) stays the same,
-		// even though the data storage method (encrypted vs unencrypted) has changed.
-		expect(project2AddressEncrypted).toBe(project2Address);
-		console.log('✅ Database address unchanged (encryption is transparent to address)');
+		// Migration now retains a NEW encrypted address to avoid reusing previously
+		// unencrypted/pinned history under the same database identity.
+		expect(project2AddressEncrypted).not.toBe(project2Address);
+		console.log('✅ Database address changed (new encrypted address retained)');
 
 		// ============================================================================
 		// STEP 5: Verify encryption icon now appears for Project 2

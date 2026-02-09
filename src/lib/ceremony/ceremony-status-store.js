@@ -1,4 +1,11 @@
 import { writable } from 'svelte/store';
+import {
+	startCeremonyChannel,
+	stopCeremonyChannel,
+	publishCeremonyEvent,
+	getLocalDeviceId,
+	getLocalRole
+} from './ceremony-channel.js';
 
 const initialState = {
 	ceremonyId: null,
@@ -19,6 +26,9 @@ const state = writable({ ...initialState });
 
 let mockTimers = [];
 let startedMock = false;
+let realtimeActive = false;
+let realtimeFallbackTimer = null;
+let channelHandle = null;
 
 const nowIso = () => new Date().toISOString();
 
@@ -147,6 +157,8 @@ const applyCeremonyEvent = (event) => {
 const resetCeremonyStatus = () => {
 	clearMockTimers();
 	startedMock = false;
+	if (realtimeFallbackTimer) clearTimeout(realtimeFallbackTimer);
+	realtimeFallbackTimer = null;
 	state.set({ ...initialState });
 };
 
@@ -266,6 +278,53 @@ const stopMockCeremony = () => {
 	startedMock = false;
 };
 
+const startRealtimeCeremony = ({ keyRef = 'db:default', fallbackToMock = true } = {}) => {
+	if (realtimeActive) return;
+	realtimeActive = true;
+	stopMockCeremony();
+
+	channelHandle = startCeremonyChannel({
+		keyRef,
+		onEvent: (event) => {
+			applyCeremonyEvent(event);
+		},
+		statusHandler: (status) => {
+			if (status?.connected && realtimeFallbackTimer) {
+				clearTimeout(realtimeFallbackTimer);
+				realtimeFallbackTimer = null;
+			}
+		}
+	});
+
+	const localDeviceId = getLocalDeviceId();
+	const localRole = getLocalRole();
+	void publishCeremonyEvent({
+		type: 'threshold.ceremony.join',
+		ceremonyId: `live-${keyRef}`,
+		deviceId: localDeviceId,
+		role: localRole,
+		keyRef,
+		ts: Date.now()
+	});
+
+	if (fallbackToMock) {
+		realtimeFallbackTimer = setTimeout(() => {
+			if (!startedMock && realtimeActive) {
+				startMockCeremony({ keyRef });
+			}
+		}, 2500);
+	}
+};
+
+const stopRealtimeCeremony = () => {
+	realtimeActive = false;
+	if (realtimeFallbackTimer) clearTimeout(realtimeFallbackTimer);
+	realtimeFallbackTimer = null;
+	if (channelHandle) channelHandle.stop();
+	channelHandle = null;
+	stopCeremonyChannel();
+};
+
 export const ceremonyStatusStore = {
 	subscribe: state.subscribe
 };
@@ -274,5 +333,7 @@ export {
 	applyCeremonyEvent,
 	resetCeremonyStatus,
 	startMockCeremony,
-	stopMockCeremony
+	stopMockCeremony,
+	startRealtimeCeremony,
+	stopRealtimeCeremony
 };

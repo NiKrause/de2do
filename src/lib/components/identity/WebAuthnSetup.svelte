@@ -4,6 +4,7 @@
 	import {
 		createWebAuthnIdentity,
 		getWebAuthnCapabilities,
+		recoverDiscoverableVarsigCredential,
 		clearWebAuthnCredentials
 	} from '$lib/identity/webauthn-identity.js';
 
@@ -28,6 +29,14 @@
 
 	onMount(async () => {
 		capabilities = await getWebAuthnCapabilities();
+
+		if (capabilities.available && !capabilities.hasExistingCredentials) {
+			const recovered = await recoverDiscoverableVarsigCredential();
+			if (recovered) {
+				capabilities = await getWebAuthnCapabilities();
+				show = false;
+			}
+		}
 	});
 
 	async function handleSetupWebAuthn() {

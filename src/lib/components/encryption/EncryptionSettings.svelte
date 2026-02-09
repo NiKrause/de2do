@@ -141,6 +141,7 @@ let encryptionMode = 'password';
 				enabled={thresholdEncryptionAvailable && encryptionMode === 'threshold'}
 				keyRef={ceremonyKeyRef}
 				autoMock={true}
+				preferRealtime={true}
 			/>
 			{#if thresholdEncryptionAvailable}
 				<div class="flex items-center gap-3 text-sm text-gray-700">

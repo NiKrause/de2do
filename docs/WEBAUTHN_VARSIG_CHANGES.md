@@ -47,6 +47,7 @@ This document summarizes the changes made to align Simple Todo with the WebAuthn
 
 - Varsig signs per write, so multiple passkey prompts on startup are expected (identity creation, registry updates, default list creation).
 - If OrbitDB identity is not varsig, initialization now fails with a clear error.
+- WebAuthn varsig now uses discoverable credentials only. If localStorage is cleared, the app silently attempts recovery via `navigator.credentials.get()` without `allowCredentials` and restores the varsig credential + identity.
 
 ## Files Touched (main)
 
@@ -178,4 +179,5 @@ flowchart TD
   VarsigCred -->|localStorage key| A[webauthn-varsig-credential]
   VarsigId -->|localStorage key| B[webauthn-varsig-orbitdb-identity]
   PrfKey -->|localStorage key| C[simple-encryption-sk-v1:credentialId]
+  Note["If localStorage is cleared, varsig credential + identity are recovered from a discoverable passkey and re-stored."]
 ```

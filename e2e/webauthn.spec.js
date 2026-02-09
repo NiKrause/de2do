@@ -73,28 +73,6 @@ test.describe('WebAuthn Authentication', () => {
 		expect(capabilities).toHaveProperty('platformAuthenticator');
 	});
 
-	test('should store and retrieve WebAuthn credential metadata', async ({ page }) => {
-		await page.goto('/');
-
-		// Test localStorage operations for credential metadata
-		const canStoreCredentials = await page.evaluate(() => {
-			try {
-				const testKey = 'test_webauthn_credential_id';
-				const testValue = 'test_credential_id_12345';
-
-				localStorage.setItem(testKey, testValue);
-				const retrieved = localStorage.getItem(testKey);
-				localStorage.removeItem(testKey);
-
-				return retrieved === testValue;
-			} catch {
-				return false;
-			}
-		});
-
-		expect(canStoreCredentials).toBe(true);
-	});
-
 	test('should initialize with software identity as fallback', async ({ page }) => {
 		await page.goto('/');
 
@@ -135,46 +113,5 @@ test.describe('WebAuthn Authentication', () => {
 		// Verify app still works
 		const heading = page.locator('h1');
 		await expect(heading).toContainText(/Simple Todo/i);
-	});
-});
-
-test.describe('WebAuthn Credential Management', () => {
-	test('should clear WebAuthn credentials from localStorage', async ({ page }) => {
-		await page.goto('/');
-
-		// Simulate storing credentials
-		await page.evaluate(() => {
-			localStorage.setItem('webauthn_credential_id', 'test_id');
-			localStorage.setItem('webauthn_user_handle', 'test_handle');
-		});
-
-		// Verify they're stored
-		const storedBefore = await page.evaluate(() => {
-			return {
-				credId: localStorage.getItem('webauthn_credential_id'),
-				handle: localStorage.getItem('webauthn_user_handle')
-			};
-		});
-
-		expect(storedBefore.credId).toBe('test_id');
-		expect(storedBefore.handle).toBe('test_handle');
-
-		// Clear credentials
-		await page.evaluate(() => {
-			localStorage.removeItem('webauthn_credential_id');
-			localStorage.removeItem('webauthn_user_handle');
-			localStorage.removeItem('webauthn_credential_type');
-		});
-
-		// Verify they're cleared
-		const storedAfter = await page.evaluate(() => {
-			return {
-				credId: localStorage.getItem('webauthn_credential_id'),
-				handle: localStorage.getItem('webauthn_user_handle')
-			};
-		});
-
-		expect(storedAfter.credId).toBeNull();
-		expect(storedAfter.handle).toBeNull();
 	});
 });

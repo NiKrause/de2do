@@ -10,7 +10,7 @@ import {
  *
  * Key behaviors verified:
  * - All existing todos are preserved during migration
- * - Database address remains the same (encryption doesn't change manifest hash)
+ * - Database address changes to a new encrypted address
  * - Encryption icon appears in UI after migration
  * - New todos can be added to encrypted database
  */
@@ -53,8 +53,6 @@ test('should migrate unencrypted database to encrypted', async ({ page }) => {
 	console.log(`  ✓ Created project: ${projectName}`);
 
 	// Get original database address before migration
-	// This address is derived from: database name, type, and access controller
-	// (NOT from encryption settings, which are transparent to the manifest)
 	const originalAddress = await getCurrentDatabaseAddress(page);
 	console.log(`  ✓ Original address: ${originalAddress}`);
 
@@ -101,13 +99,13 @@ test('should migrate unencrypted database to encrypted', async ({ page }) => {
 	await page.waitForTimeout(500);
 
 	// Click "Apply Encryption" button
-	// This triggers migration: creates temp DB, copies data, deletes original, recreates with encryption
+	// This triggers migration to a new encrypted database address and copies data
 	console.log('  → Clicking Apply Encryption...');
 	const applyButton = page.locator('button:has-text("Apply Encryption")').first();
 	await applyButton.click();
 
 	// Wait for migration to complete
-	// Migration process: copy data → delete original → recreate with same name + encryption
+	// Migration process: copy data into new encrypted database and switch registry pointer
 	console.log('  → Waiting for encryption migration...');
 	await page.waitForTimeout(8000); // Migration takes time
 
@@ -140,16 +138,10 @@ test('should migrate unencrypted database to encrypted', async ({ page }) => {
 	const newAddress = await getCurrentDatabaseAddress(page);
 	console.log(`  ✓ Address after migration: ${newAddress}`);
 
-	// IMPORTANT: The database address should REMAIN THE SAME after encryption migration.
-	// OrbitDB addresses are derived from the manifest hash, which includes:
-	// - Database name (same: identityId_displayName)
-	// - Database type (same: keyvalue)
-	// - Access controller (same: same identity, same permissions)
-	// Encryption is handled at the data/replication layer and does NOT affect the manifest.
-	// Therefore, the address (which represents database identity) stays the same,
-	// even though the data storage method (encrypted vs unencrypted) has changed.
-	expect(newAddress).toBe(originalAddress);
-	console.log('  ✓ Database address unchanged (encryption is transparent to address)');
+	// Migration now keeps a NEW encrypted database address on purpose.
+	// This avoids reusing a previously unencrypted address that may already be pinned elsewhere.
+	expect(newAddress).not.toBe(originalAddress);
+	console.log('  ✓ Database address changed (new encrypted database address retained)');
 
 	// Verify encryption icon appears in label (UI indicator that encryption is active)
 	const todoListLabel = page.locator('label:has-text("Todo List")');

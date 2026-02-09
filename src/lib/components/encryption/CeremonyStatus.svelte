@@ -4,27 +4,36 @@
 		ceremonyStatusStore,
 		startMockCeremony,
 		stopMockCeremony,
-		resetCeremonyStatus
+		resetCeremonyStatus,
+		startRealtimeCeremony,
+		stopRealtimeCeremony
 	} from '$lib/ceremony/ceremony-status-store.js';
 
 	export let enabled = false;
 	export let keyRef = 'db:default';
 	export let autoMock = true;
+	export let preferRealtime = true;
 
 	let mockStartedForKey = null;
 	$: state = $ceremonyStatusStore;
 
-	$: if (enabled && autoMock && mockStartedForKey !== keyRef) {
-		startMockCeremony({ keyRef });
+	$: if (enabled && mockStartedForKey !== keyRef) {
+		if (preferRealtime) {
+			startRealtimeCeremony({ keyRef, fallbackToMock: autoMock });
+		} else if (autoMock) {
+			startMockCeremony({ keyRef });
+		}
 		mockStartedForKey = keyRef;
 	}
 
 	$: if (!enabled && mockStartedForKey) {
+		stopRealtimeCeremony();
 		stopMockCeremony();
 		mockStartedForKey = null;
 	}
 
 	onDestroy(() => {
+		stopRealtimeCeremony();
 		stopMockCeremony();
 	});
 </script>
@@ -96,8 +105,12 @@
 				on:click={() => {
 					resetCeremonyStatus();
 					mockStartedForKey = null;
-					if (enabled && autoMock) {
-						startMockCeremony({ keyRef });
+					if (enabled) {
+						if (preferRealtime) {
+							startRealtimeCeremony({ keyRef, fallbackToMock: autoMock });
+						} else if (autoMock) {
+							startMockCeremony({ keyRef });
+						}
 						mockStartedForKey = keyRef;
 					}
 				}}

@@ -42,6 +42,7 @@ function describeEncryptionSecret(secret) {
 
 function getEncryptionMethodFromSecret(secret) {
 	if (!secret) return null;
+	if (secret?.method === 'threshold-v1') return 'threshold-v1';
 	if (secret?.subarray) return 'webauthn-prf';
 	if (typeof secret === 'string' && secret.trim()) return 'password';
 	return null;
@@ -201,7 +202,8 @@ export function listAvailableTodoLists() {
 					displayName: displayName,
 					address: metadata.address || null,
 					parent: metadata.parent || null,
-					encryptionEnabled: metadata.encryptionEnabled || false
+					encryptionEnabled: metadata.encryptionEnabled || false,
+					encryptionMethod: metadata.encryptionMethod || null
 				});
 			}
 		}
@@ -213,7 +215,8 @@ export function listAvailableTodoLists() {
 				displayName: 'projects',
 				address: null,
 				parent: null,
-				encryptionEnabled: false
+				encryptionEnabled: false,
+				encryptionMethod: null
 			});
 			// Also add it to registry
 			setRegistryEntry(identityId, 'projects', {
@@ -222,6 +225,7 @@ export function listAvailableTodoLists() {
 				address: null,
 				parent: null,
 				encryptionEnabled: false,
+				encryptionMethod: null,
 				createdAt: new Date().toISOString()
 			});
 		}
@@ -361,17 +365,11 @@ export function addTodoListToRegistry(
 			}
 		}
 
-		// Only validate/overwrite dbName if it belongs to the current identity
-		// If it belongs to a different identity, preserve it as-is
+		// Keep explicit dbName values to support migration/versioned database names.
+		// Only normalize when dbName has no recognizable identity prefix.
 		if (dbNameIdentity === identityId) {
-			// Database belongs to current identity - validate pattern
-			const expectedDbName = `${identityId}_${displayName}`;
-			if (dbName !== expectedDbName) {
-				console.warn(
-					`⚠️ dbName mismatch: expected ${expectedDbName}, got ${dbName}. Using expected value.`
-				);
-				dbName = expectedDbName;
-			}
+			// Database belongs to current identity - preserve as-is.
+			console.log(`ℹ️  Preserving dbName for current identity: ${dbName}`);
 		} else if (dbNameIdentity) {
 			// Database belongs to a different identity - preserve dbName as-is
 			console.log(
@@ -541,7 +539,7 @@ export async function switchToTodoList(
 
 			// If list is encrypted but no password provided
 			if (registryEntry?.encryptionEnabled && !encryptionPassword) {
-				const dbName = `${targetIdentityId}_${trimmedName}`;
+				const dbName = registryEntry?.dbName || `${targetIdentityId}_${trimmedName}`;
 				console.log(`  → Database is encrypted, checking password cache for dbName: ${dbName}`);
 				const cachedPassword = getCachedPassword(dbName);
 				console.log(`  → Password cache lookup result: ${cachedPassword ? 'FOUND' : 'NOT FOUND'}`);
@@ -565,6 +563,24 @@ export async function switchToTodoList(
 							error.displayName = trimmedName;
 							throw error;
 						}
+					} else if (registryEntry?.encryptionMethod === 'threshold-v1') {
+						const webauthnKey = await getWebAuthnEncryptionKey({ allowCreate: false });
+						if (webauthnKey) {
+							console.log('🔐 Using threshold-v1 with WebAuthn session key');
+							encryptionPassword = {
+								method: 'threshold-v1',
+								keyRef: `db:${dbName}`,
+								sessionKey: webauthnKey,
+								scopes: ['data', 'replication']
+							};
+							enableEncryption = true;
+						} else {
+							console.log('🔐 Threshold session key unavailable');
+							const error = new Error('ENCRYPTION_PASSWORD_REQUIRED');
+							error.dbName = dbName;
+							error.displayName = trimmedName;
+							throw error;
+						}
 					} else {
 						// Password required but not in cache - need to prompt user
 						console.log('🔐 Encryption password required');
@@ -578,7 +594,7 @@ export async function switchToTodoList(
 
 			// If encryption enabled, cache the password for this session
 			if (enableEncryption && encryptionPassword) {
-				const dbName = `${targetIdentityId}_${trimmedName}`;
+				const dbName = registryEntry?.dbName || `${targetIdentityId}_${trimmedName}`;
 				console.log(`  → Caching password for dbName: ${dbName}`);
 				cachePassword(dbName, encryptionPassword);
 				console.log('🔐 Cached encryption password for session');

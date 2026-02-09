@@ -4,7 +4,9 @@ import {
 	currentTodoListNameStore,
 	currentDbNameStore,
 	currentDbAddressStore,
-	switchToTodoList
+	availableTodoListsStore,
+	switchToTodoList,
+	listAvailableTodoLists
 } from '$lib/todo-list-manager.js';
 import { enableDatabaseEncryption, disableDatabaseEncryption } from '$lib/encryption-migration.js';
 import { loadTodos } from '$lib/db-actions.js';
@@ -12,15 +14,29 @@ import { getWebAuthnEncryptionKey } from '$lib/encryption/webauthn-encryption.js
 
 function hasEncryptionSecret(secret) {
 	if (!secret) return false;
+	if (secret?.method === 'threshold-v1') {
+		return Boolean(secret.sessionKey && (typeof secret.sessionKey === 'string' || secret.sessionKey?.subarray));
+	}
 	if (typeof secret === 'string') return secret.trim().length > 0;
 	return Boolean(secret?.subarray && secret.length > 0);
 }
 
-function getEncryptionMethodFromSecret(secret) {
+function getEncryptionMethodFromSecret(secret, explicitMethod = null) {
+	if (explicitMethod === 'threshold-v1') return 'threshold-v1';
 	if (!secret) return null;
+	if (secret?.method === 'threshold-v1') return 'threshold-v1';
 	if (secret?.subarray) return 'webauthn-prf';
 	if (typeof secret === 'string' && secret.trim()) return 'password';
 	return null;
+}
+
+function buildThresholdSecret(secret, keyRef, scopes = ['data', 'replication']) {
+	return {
+		method: 'threshold-v1',
+		keyRef,
+		sessionKey: secret,
+		scopes
+	};
 }
 
 /**
@@ -35,8 +51,9 @@ export function createEncryptionHandlers({ preferences }) {
 	 * @returns {Promise<{success: boolean, isCurrentDbEncrypted: boolean}>}
 	 */
 	async function handleEnableEncryption(password, options = {}) {
-		const { preferWebAuthn = true } = options;
+		const { preferWebAuthn = true, encryptionMethod = null, thresholdScopes = ['data', 'replication'] } = options;
 		let encryptionSecret = password;
+		const useThreshold = encryptionMethod === 'threshold-v1';
 		if (!hasEncryptionSecret(encryptionSecret)) {
 			if (preferWebAuthn) {
 				encryptionSecret = await getWebAuthnEncryptionKey({ allowCreate: true });
@@ -52,6 +69,10 @@ export function createEncryptionHandlers({ preferences }) {
 			const currentList = get(currentTodoListNameStore);
 			const currentDbName = get(currentDbNameStore);
 			const currentAddress = get(currentDbAddressStore);
+			const thresholdKeyRef = `db:${currentDbName || currentList || currentAddress || 'default'}`;
+			if (useThreshold) {
+				encryptionSecret = buildThresholdSecret(encryptionSecret, thresholdKeyRef, thresholdScopes);
+			}
 
 			console.log('🔐 Starting encryption migration...');
 			console.log(`  → Current address: ${currentAddress}`);
@@ -69,30 +90,31 @@ export function createEncryptionHandlers({ preferences }) {
 				currentDbName,
 				currentAddress,
 				encryptionSecret,
-				getEncryptionMethodFromSecret(encryptionSecret),
+				getEncryptionMethodFromSecret(encryptionSecret, encryptionMethod),
 				preferences,
 				null
 			);
 
-			if (result.success) {
-				console.log('✅ Migration completed successfully, reopening database...');
-				console.log(`🔑 Original address: ${currentAddress}`);
-				console.log(`🔑 New address from migration: ${result.newAddress}`);
-				console.log(
-					`  → Address match: ${currentAddress === result.newAddress ? 'YES ✅' : 'NO ❌'}`
-				);
-				if (typeof encryptionSecret === 'string') {
+				if (result.success) {
+					console.log('✅ Migration completed successfully, reopening database...');
+					console.log(`🔑 Original address: ${currentAddress}`);
+					console.log(`🔑 New address from migration: ${result.newAddress}`);
 					console.log(
-						`  → About to call switchToTodoList with: list=${currentList}, encryption=true, password length=${encryptionSecret.length}`
+						`  → Address changed: ${currentAddress !== result.newAddress ? 'YES ✅ (expected)' : 'NO ⚠️'}`
 					);
-					console.log(`  → Password first 3 chars: ${encryptionSecret.substring(0, 3)}***`);
-				} else {
+					if (typeof encryptionSecret === 'string') {
+						console.log(
+							`  → About to call switchToTodoList with: list=${currentList}, encryption=true, password length=${encryptionSecret.length}`
+						);
+						console.log(`  → Password first 3 chars: ${encryptionSecret.substring(0, 3)}***`);
+					} else {
 					console.log(
 						`  → About to call switchToTodoList with: list=${currentList}, encryption=true, password bytes=${encryptionSecret.length}`
 					);
-				}
-				// Reopen the new encrypted database
-				const switched = await switchToTodoList(currentList, preferences, true, encryptionSecret);
+					}
+					await listAvailableTodoLists();
+					// Reopen the new encrypted database
+					const switched = await switchToTodoList(currentList, preferences, true, encryptionSecret);
 				console.log(`🔄 switchToTodoList result: ${switched}`);
 				console.log(`  → Password should now be cached for ${currentList}`);
 
@@ -127,7 +149,21 @@ export function createEncryptionHandlers({ preferences }) {
 
 		// Prompt for current password
 		if (!hasEncryptionSecret(currentPassword)) {
-			currentPassword = await getWebAuthnEncryptionKey({ allowCreate: false });
+			const currentList = get(currentTodoListNameStore);
+			const currentDbName = get(currentDbNameStore);
+			const availableLists = get(availableTodoListsStore);
+			const currentListEntry = availableLists.find((list) => list.displayName === currentList);
+			const currentMethod = currentListEntry?.encryptionMethod || null;
+			const webauthnKey = await getWebAuthnEncryptionKey({ allowCreate: false });
+			if (currentMethod === 'threshold-v1' && webauthnKey) {
+				currentPassword = buildThresholdSecret(
+					webauthnKey,
+					`db:${currentDbName || currentList || 'default'}`,
+					['data', 'replication']
+				);
+			} else {
+				currentPassword = webauthnKey;
+			}
 			if (!currentPassword) {
 				currentPassword = prompt('Enter current encryption password:');
 				if (!currentPassword) {
