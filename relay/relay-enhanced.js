@@ -288,61 +288,72 @@ async function listDatastoreKeys() {
 	}
 }
 
-// Initialize the PinningService
-const pinningService = new PinningService();
+// EXPERIMENTAL/UNSTABLE: this bypass path exists for local test scenarios only.
+const pinningDisabled = process.env.DISABLE_PINNING === 'true';
+let pinningService = null;
+if (pinningDisabled) {
+	console.log('📌 Pinning service is disabled (DISABLE_PINNING=true)');
+} else {
+	// Initialize the PinningService
+	pinningService = new PinningService();
+}
 
 // Start the server
 console.log('⏳ Starting libp2p node...');
 await server.start();
 console.log('✅ Libp2p node started successfully');
 
-// Initialize PinningService with libp2p and storage
-console.log('⏳ Initializing PinningService...');
-await pinningService.initialize(server, datastore, blockstore);
-console.log('✅ PinningService initialized successfully');
+if (pinningService) {
+	// Initialize PinningService with libp2p and storage
+	console.log('⏳ Initializing PinningService...');
+	await pinningService.initialize(server, datastore, blockstore);
+	console.log('✅ PinningService initialized successfully');
 
-// Setup OrbitDB pinning event listeners
-console.log('🔗 Setting up OrbitDB pinning event listeners...');
+	// Setup OrbitDB pinning event listeners
+	console.log('🔗 Setting up OrbitDB pinning event listeners...');
 
-server.services.pubsub.addEventListener('subscription-change', (event) => {
-	console.log('🔔 Raw subscription-change event:', JSON.stringify(event, null, 2));
+	server.services.pubsub.addEventListener('subscription-change', (event) => {
+		console.log('🔔 Raw subscription-change event:', JSON.stringify(event, null, 2));
 
-	// Try different event structures
-	const topic = event.detail?.topic || event.topic || event.detail?.subscription?.topic;
-	const subscriptions = event.detail?.subscriptions || event.subscriptions;
+		// Try different event structures
+		const topic = event.detail?.topic || event.topic || event.detail?.subscription?.topic;
+		const subscriptions = event.detail?.subscriptions || event.subscriptions;
 
-	if (topic) {
-		console.log('📡 Processing subscription change for topic:', topic);
-		pinningService.handleSubscriptionChange(topic);
-	}
+		if (topic) {
+			console.log('📡 Processing subscription change for topic:', topic);
+			pinningService.handleSubscriptionChange(topic);
+		}
 
-	if (subscriptions && Array.isArray(subscriptions)) {
-		subscriptions.forEach((sub) => {
-			const subTopic = sub.topic || sub;
-			if (subTopic) {
-				console.log('📡 Processing subscription change for topic:', subTopic);
-				pinningService.handleSubscriptionChange(subTopic);
-			}
-		});
-	}
-});
-
-// Listen to pubsub messages with debugging
-server.services.pubsub.addEventListener('message', (event) => {
-	const message = event.detail;
-	if (message && message.topic) {
-		if (message.topic.startsWith('/orbitdb/')) {
-			console.log('💬 OrbitDB pubsub message received:', {
-				topic: message.topic,
-				from: message.from?.toString()?.slice(0, 12) + '...',
-				dataLength: message.data?.length
+		if (subscriptions && Array.isArray(subscriptions)) {
+			subscriptions.forEach((sub) => {
+				const subTopic = sub.topic || sub;
+				if (subTopic) {
+					console.log('📡 Processing subscription change for topic:', subTopic);
+					pinningService.handleSubscriptionChange(subTopic);
+				}
 			});
 		}
-		pinningService.handlePubsubMessage(message);
-	}
-});
+	});
 
-console.log('✅ OrbitDB pinning event listeners setup completed');
+	// Listen to pubsub messages with debugging
+	server.services.pubsub.addEventListener('message', (event) => {
+		const message = event.detail;
+		if (message && message.topic) {
+			if (message.topic.startsWith('/orbitdb/')) {
+				console.log('💬 OrbitDB pubsub message received:', {
+					topic: message.topic,
+					from: message.from?.toString()?.slice(0, 12) + '...',
+					dataLength: message.data?.length
+				});
+			}
+			pinningService.handlePubsubMessage(message);
+		}
+	});
+
+	console.log('✅ OrbitDB pinning event listeners setup completed');
+} else {
+	console.log('📌 Skipping PinningService initialization and listeners');
+}
 
 // Run datastore diagnostics (configurable via environment variable)
 if (process.env.ENABLE_DATASTORE_DIAGNOSTICS === 'true') {
@@ -565,8 +576,10 @@ const gracefulShutdown = async (signal) => {
 			});
 		}
 
-		console.log('⏳ Cleaning up PinningService...');
-		await pinningService.cleanup();
+		if (pinningService) {
+			console.log('⏳ Cleaning up PinningService...');
+			await pinningService.cleanup();
+		}
 
 		console.log('⏳ Stopping libp2p node...');
 		await server.stop();
@@ -634,18 +647,20 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 // Periodic status logging (every 5 minutes)
 setInterval(
 	() => {
-		const pinningStats = pinningService.getDetailedStats();
 		console.log(
 			`📊 Status: ${connectedPeers.size} peers connected, ` +
 				`${peerStats.totalConnections} total connections, ` +
 				`${Math.round(process.uptime())}s uptime`
 		);
-		console.log(
-			`📌 Pinning: ${pinningStats.totalPinned} databases pinned, ` +
-				`${pinningStats.syncOperations} syncs, ` +
-				`${pinningStats.failedSyncs} failures, ` +
-				`queue: ${pinningStats.queueSize}/${pinningStats.queuePending}`
-		);
+		if (pinningService) {
+			const pinningStats = pinningService.getDetailedStats();
+			console.log(
+				`📌 Pinning: ${pinningStats.totalPinned} databases pinned, ` +
+					`${pinningStats.syncOperations} syncs, ` +
+					`${pinningStats.failedSyncs} failures, ` +
+					`queue: ${pinningStats.queueSize}/${pinningStats.queuePending}`
+			);
+		}
 		// Note: Storacha bridge stats removed since we don't have it
 	},
 	5 * 60 * 1000

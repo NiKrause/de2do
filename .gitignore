@@ -6,7 +6,9 @@ relay/test-relay-datastore/
 server-helia-*/
 server-*/
 relay/relay-datastore/
+relay/test-relay-datastore-no-pinning/
 relay-datastore/
+dev-dist/
 playwright-report/
 p2p-todo-demo
 

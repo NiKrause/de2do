@@ -147,7 +147,10 @@ export default defineConfig({
 			manifest: false, // We'll use our custom manifest.json
 			// Development options
 			devOptions: {
-				enabled: process.env.NODE_ENV === 'development',
+				// EXPERIMENTAL/UNSTABLE dev-PWA toggle:
+				// Enable only when explicitly requested to avoid Workbox "glob doesn't match"
+				// warnings in normal dev/e2e runs where no dev precache build is present.
+				enabled: process.env.PWA_DEV === 'true',
 				type: 'module'
 			}
 		})
