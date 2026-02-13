@@ -207,14 +207,14 @@
 						Create & Copy Invite
 					</button>
 				{/if}
-				{#if inviteToken}
-					<textarea
-						readonly
-						rows="2"
-						class="w-full rounded border border-blue-200 bg-blue-50 px-2 py-1 font-mono text-[11px] text-blue-900"
-						value={inviteToken}
-					/>
-				{/if}
+					{#if inviteToken}
+						<textarea
+							readonly
+							rows="2"
+							class="w-full rounded border border-blue-200 bg-blue-50 px-2 py-1 font-mono text-[11px] text-blue-900"
+							value={inviteToken}
+						></textarea>
+					{/if}
 				{#if hideJoinInput}
 					<div class="text-[11px] text-blue-700">
 						This device is already joined and participant target is reached.
@@ -223,17 +223,17 @@
 					<label class="text-[11px] font-semibold text-blue-800" for="join-ceremony-token">
 						Join with token
 					</label>
-					<textarea
-						id="join-ceremony-token"
-						rows="2"
-						bind:value={joinToken}
-						placeholder="Paste invite token from another device"
-						class="w-full rounded border border-blue-200 bg-white px-2 py-1 font-mono text-[11px] text-blue-900"
-					/>
-					<button
-						type="button"
-						on:click={handleJoinWithToken}
-						disabled={!joinToken.trim()}
+						<textarea
+							id="join-ceremony-token"
+							rows="2"
+							bind:value={joinToken}
+							placeholder="Paste invite token from another device"
+							class="w-full rounded border border-blue-200 bg-white px-2 py-1 font-mono text-[11px] text-blue-900"
+						></textarea>
+						<button
+							type="button"
+							on:click={handleJoinWithToken}
+							disabled={!joinToken.trim()}
 						class="self-start rounded border border-blue-300 bg-white px-2 py-1 text-xs text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						Join Ceremony

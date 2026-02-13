@@ -1,8 +1,8 @@
 import { get } from 'svelte/store';
-import { orbitDBStore } from './p2p.js';
+import { orbitDBStore, openDatabaseByAddress } from './p2p.js';
 import { getCurrentIdentityId } from './stores.js';
 import { showToast } from './toast-store.js';
-import { addTodoListToRegistry } from './todo-list-manager.js';
+import { addTodoListToRegistry, listAvailableTodoLists } from './todo-list-manager.js';
 
 function describeEncryptionSecret(secret) {
 	if (!secret) return 'NO';
@@ -108,10 +108,9 @@ export async function migrateDatabaseEncryption(
 
 	showToast('🔄 Migrating database encryption settings...', 'info', 5000);
 
-	try {
-		// Step 1: Open the current database with current encryption settings
-		const { openDatabaseByAddress } = await import('./p2p.js');
-		console.log(`📂 Opening source database: ${currentAddress}`);
+		try {
+			// Step 1: Open the current database with current encryption settings
+			console.log(`📂 Opening source database: ${currentAddress}`);
 
 		const sourceDb = await openDatabaseByAddress(
 			currentAddress,
@@ -190,16 +189,15 @@ export async function migrateDatabaseEncryption(
 		}
 		console.log(`✅ Copied ${finalCopiedCount} entries to migrated database`);
 
-		// Step 6: Update registry to point displayName to the new migrated address
-		console.log('💾 Updating registry...');
+			// Step 6: Update registry to point displayName to the new migrated address
+			console.log('💾 Updating registry...');
 		console.log(
 			`  → Registry update: displayName=${displayName}, dbName=${finalDbName}, address=${finalAddress}, encryptionEnabled=${targetEncryption}`
 		);
-		const { listAvailableTodoLists } = await import('./todo-list-manager.js');
-		addTodoListToRegistry(
-			displayName,
-			finalDbName,
-			finalAddress,
+			addTodoListToRegistry(
+				displayName,
+				finalDbName,
+				finalAddress,
 			parent,
 			targetEncryption,
 			targetEncryption ? targetEncryptionMethod || null : null

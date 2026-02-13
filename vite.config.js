@@ -18,8 +18,33 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 // Create build date
 const buildDate = new Date().toISOString().split('T')[0] + ' ' + new Date().toLocaleTimeString(); // YYYY-MM-DD HH:MM:SS format
 
-export default defineConfig({
+export default defineConfig(() => ({
 	plugins: [
+		// Keep build output clean by suppressing warnings coming from dependency internals/polyfills.
+		{
+			name: 'suppress-noisy-warnings',
+			configResolved(config) {
+				const originalWarn = config.logger.warn;
+				config.logger.warn = (msg, options) => {
+					const text = typeof msg === 'string' ? msg : msg?.message || String(msg);
+
+					// Polyfill plugin injects an unused import into Svelte internals during SSR build.
+					if (
+						text.includes('vite-plugin-node-polyfills/shims/global') &&
+						text.includes('but never used') &&
+						text.includes('svelte/src/internal/server/renderer.js')
+					) {
+						return;
+					}
+
+					// Dependency warnings we can't meaningfully action here.
+					if (text.includes('Use of eval in "node_modules/@protobufjs/inquire/index.js"')) return;
+					if (text.includes('Use of eval in "node_modules/vm-browserify/index.js"')) return;
+
+					originalWarn.call(config.logger, msg, options);
+				};
+			}
+		},
 		// Plugin to exclude .d.ts files from processing
 		{
 			name: 'exclude-dts',
@@ -45,25 +70,31 @@ export default defineConfig({
 		},
 		tailwindcss(),
 		sveltekit(),
-		nodePolyfills({
-			include: [
-				'path',
-				'util',
-				'buffer',
-				'process',
-				'events',
-				'crypto',
-				'os',
-				'stream',
-				'string_decoder'
-			],
-			globals: {
-				Buffer: true,
-				global: true,
-				process: true
-			},
-			protocolImports: true
-		}),
+		// Only needed for the browser build; Node already provides these for the SSR build.
+		(() => {
+			const plugin = nodePolyfills({
+				include: [
+					'path',
+					'util',
+					'buffer',
+					'process',
+					'events',
+					'crypto',
+					'os',
+					'stream',
+					'string_decoder',
+					'vm'
+				],
+				globals: {
+					Buffer: true,
+					global: true,
+					process: true
+				},
+				protocolImports: true
+			});
+			plugin.apply = (config) => !config.build?.ssr;
+			return plugin;
+		})(),
 		VitePWA({
 			// PWA configuration optimized for offline-first operation
 			registerType: 'autoUpdate',
@@ -154,7 +185,7 @@ export default defineConfig({
 				type: 'module'
 			}
 		})
-	],
+	].filter(Boolean),
 	define: {
 		__APP_VERSION__: JSON.stringify(pkg.version),
 		__BUILD_DATE__: JSON.stringify(buildDate)
@@ -182,9 +213,45 @@ export default defineConfig({
 	},
 	// Handle CommonJS modules that don't have default exports
 	build: {
+		// Our bundles include OrbitDB/libp2p which are large; bump the warning limit to avoid noisy output.
+		// Limit is in kB.
+		chunkSizeWarningLimit: 2500,
 		commonjsOptions: {
 			include: [/varint/, /node_modules/],
 			transformMixedEsModules: true
+		},
+		rollupOptions: {
+			onwarn(warning, warn) {
+				const text =
+					typeof warning === 'string'
+						? warning
+						: typeof warning?.toString === 'function'
+							? warning.toString()
+							: '';
+				const message = typeof warning?.message === 'string' ? warning.message : text;
+				const combined = `${message}\n${text}`;
+				const id =
+					(typeof warning?.id === 'string' && warning.id) ||
+					(typeof warning?.importer === 'string' && warning.importer) ||
+					(typeof warning?.loc?.file === 'string' && warning.loc.file) ||
+					'';
+
+				// Suppress a noisy polyfill-injected unused import warning inside Svelte's internal renderer.
+				if (
+					combined.includes('vite-plugin-node-polyfills/shims/global') &&
+					combined.includes('but never used') &&
+					combined.includes('svelte/src/internal/server/renderer.js')
+				) {
+					return;
+				}
+
+				// Suppress eval warnings from dependencies we don't control.
+				if (combined.includes('Use of eval in')) {
+					return;
+				}
+
+				warn(warning);
+			}
 		}
 	}
-});
+}));

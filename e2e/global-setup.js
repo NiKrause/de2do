@@ -2,8 +2,41 @@ import { spawn } from 'child_process';
 import { writeFileSync, existsSync } from 'fs';
 import { rm } from 'fs/promises';
 import path from 'path';
+import http from 'http';
 
 let relayProcess = null;
+let webProcess = null;
+
+function httpGet(url) {
+	return new Promise((resolve, reject) => {
+		const req = http.get(url, (res) => {
+			let data = '';
+			res.setEncoding('utf8');
+			res.on('data', (chunk) => (data += chunk));
+			res.on('end', () => resolve({ status: res.statusCode || 0, body: data }));
+		});
+		req.on('error', reject);
+		req.end();
+	});
+}
+
+async function waitForHttpReady(url, { timeoutMs = 60000, intervalMs = 500 } = {}) {
+	const deadline = Date.now() + timeoutMs;
+	let lastErr = null;
+	while (Date.now() < deadline) {
+		try {
+			const res = await httpGet(url);
+			if (res.status === 200 && res.body && res.body.toLowerCase().includes('simple todo')) {
+				return;
+			}
+			lastErr = new Error(`Unexpected response: status=${res.status}, bodyLen=${res.body?.length ?? 0}`);
+		} catch (e) {
+			lastErr = e;
+		}
+		await new Promise((r) => setTimeout(r, intervalMs));
+	}
+	throw lastErr || new Error(`Timed out waiting for ${url}`);
+}
 
 export default async function globalSetup() {
 	console.log('🚀 Setting up global test environment...');
@@ -24,7 +57,7 @@ export default async function globalSetup() {
 		const { promisify } = await import('util');
 		const execAsync = promisify(exec);
 		await execAsync(
-			'lsof -ti:4001,4002,4003,4006,3000 2>/dev/null | xargs kill -9 2>/dev/null || true'
+			'lsof -ti:4101,4102,4103,4106,3000,4174 2>/dev/null | xargs kill -9 2>/dev/null || true'
 		);
 		await new Promise((resolve) => setTimeout(resolve, 1000));
 	} catch {
@@ -121,8 +154,43 @@ VITE_PUBSUB_TOPICS=todo._peer-discovery._p2p._pubsub
 				// Wait a bit for relay to be fully ready, then resolve
 				resolved = true;
 				setTimeout(() => {
-					console.log('✅ Relay server started successfully');
-					resolve();
+					(async () => {
+						try {
+							console.log('✅ Relay server started successfully');
+
+							// Start the web app dev server AFTER the relay is ready and .env.development is written.
+							console.log('🚀 Starting web app dev server for e2e on http://127.0.0.1:4174 ...');
+							webProcess = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1', '--port', '4174', '--strictPort'], {
+								cwd: process.cwd(),
+								env: {
+									...process.env,
+									NODE_ENV: 'development',
+									VITE_NODE_ENV: 'development'
+								},
+								stdio: ['ignore', 'pipe', 'pipe']
+							});
+
+							webProcess.stdout.on('data', (data) => process.stdout.write(data.toString()));
+							webProcess.stderr.on('data', (data) => process.stderr.write(data.toString()));
+
+							await waitForHttpReady('http://127.0.0.1:4174/', { timeoutMs: 120000, intervalMs: 750 });
+							writeFileSync(
+								path.join(process.cwd(), 'e2e', 'web-info.json'),
+								JSON.stringify({ pid: webProcess.pid, url: 'http://127.0.0.1:4174' }, null, 2)
+							);
+							console.log(`✅ Web app dev server ready (PID ${webProcess.pid})`);
+
+							resolve();
+						} catch (e) {
+							console.error('❌ Failed to start web app dev server:', e);
+							try {
+								webProcess?.kill('SIGTERM');
+							} catch {
+								// ignore
+							}
+							reject(e);
+						}
+					})();
 				}, 2000);
 			}
 		});
@@ -155,6 +223,11 @@ VITE_PUBSUB_TOPICS=todo._peer-discovery._p2p._pubsub
 			if (!relayMultiaddr && !resolved) {
 				console.error('Relay output so far:', output);
 				relayProcess?.kill();
+				try {
+					webProcess?.kill('SIGTERM');
+				} catch {
+					// ignore
+				}
 				reject(new Error('Relay server failed to start within timeout'));
 			}
 		}, 30000);

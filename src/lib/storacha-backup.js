@@ -4,7 +4,7 @@
  * Uses the orbitdb-storacha-bridge library from npm
  */
 
-import { listStorachaSpaceFiles } from 'orbitdb-storacha-bridge';
+import { listStorachaSpaceFiles, OrbitDBStorachaBridge } from 'orbitdb-storacha-bridge';
 
 // Note: These are equivalent:
 // 1. restoreDatabaseFromSpace(orbitdb, options) - Direct function call
@@ -197,14 +197,13 @@ export async function backupTodoDatabase(storachaKey, storachaProof) {
 			throw new Error('No OrbitDB instance available');
 		}
 
-		console.log(`📍 Database: ${todoDB.address}`);
+			console.log(`📍 Database: ${todoDB.address}`);
 
-		// Create bridge instance for progress tracking
-		const { OrbitDBStorachaBridge } = await import('orbitdb-storacha-bridge');
-		const bridge = new OrbitDBStorachaBridge({
-			storachaKey,
-			storachaProof
-		});
+			// Create bridge instance for progress tracking
+			const bridge = new OrbitDBStorachaBridge({
+				storachaKey,
+				storachaProof
+			});
 
 		// Use the bridge backup method for progress tracking
 		const backupResult = await bridge.backup(orbitdb, todoDB.address, {
@@ -250,14 +249,13 @@ export async function restoreFromStorachaSpace(storachaKey, storachaProof) {
 
 		if (!orbitdb) {
 			throw new Error('No OrbitDB instance available');
-		}
+			}
 
-		// Create bridge instance for progress tracking
-		const { OrbitDBStorachaBridge } = await import('orbitdb-storacha-bridge');
-		const bridge = new OrbitDBStorachaBridge({
-			storachaKey,
-			storachaProof
-		});
+			// Create bridge instance for progress tracking
+			const bridge = new OrbitDBStorachaBridge({
+				storachaKey,
+				storachaProof
+			});
 
 		// Use the bridge restore method with working options (like Miles&Smiles)
 		const restoreResult = await bridge.restoreFromSpace(orbitdb, {

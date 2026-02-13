@@ -2,8 +2,7 @@ import { writable, get } from 'svelte/store';
 import { showToast } from './toast-store.js';
 import { currentDbAddressStore, getCurrentIdentityId } from './stores.js';
 import { getWebAuthnEncryptionKey } from './encryption/webauthn-encryption.js';
-// Dynamic import for openTodoList to avoid circular dependency
-// import { openTodoList } from './p2p.js';
+import { openDatabaseByAddress, openDatabaseByName, openTodoList } from './p2p.js';
 
 // Store for current todo list name (display name, without ID prefix)
 export const currentTodoListNameStore = writable('projects');
@@ -621,12 +620,10 @@ export async function switchToTodoList(
 			console.log(`  → Registry entry encryptionEnabled: ${existingList.encryptionEnabled}`);
 			console.log(`  → enableEncryption parameter: ${enableEncryption}`);
 			console.log(`  → Password provided: ${describeEncryptionSecret(encryptionPassword)}`);
-			const { openDatabaseByAddress } = await import('./p2p.js');
-
-			await openDatabaseByAddress(
-				existingList.address,
-				preferences,
-				enableEncryption,
+				await openDatabaseByAddress(
+					existingList.address,
+					preferences,
+					enableEncryption,
 				encryptionPassword
 			);
 
@@ -676,12 +673,10 @@ export async function switchToTodoList(
 		// If it's not our identity, use openDatabaseByName instead of openTodoList
 		if (targetIdentityId !== currentUserIdentity) {
 			console.log(`🔍 Opening list by name (different identity): ${dbName}`);
-			const { openDatabaseByName } = await import('./p2p.js');
-
-			const openedDB = await openDatabaseByName(
-				dbName,
-				preferences,
-				enableEncryption,
+				const openedDB = await openDatabaseByName(
+					dbName,
+					preferences,
+					enableEncryption,
 				encryptionPassword
 			);
 
@@ -730,8 +725,6 @@ export async function switchToTodoList(
 		}
 
 		// Original logic for our own databases
-		// Dynamic import to avoid circular dependency
-		const { openTodoList } = await import('./p2p.js');
 		const openedDB = await openTodoList(
 			trimmedName,
 			preferences,
@@ -977,8 +970,7 @@ export async function addTrackedUser(identityId) {
 
 	// Try to discover and add their "projects" database
 	try {
-		const { openDatabaseByName } = await import('./p2p.js');
-		const dbName = `${trimmedId}_projects`;
+			const dbName = `${trimmedId}_projects`;
 
 		console.log(`🔍 Attempting to discover projects database for identity: ${trimmedId}`);
 

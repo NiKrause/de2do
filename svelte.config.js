@@ -12,8 +12,10 @@ const config = {
 			strict: false
 		}),
 		prerender: {
-			// Only prerender the root page, dynamic routes will be handled client-side
-			entries: ['/'],
+			// SPA build: we rely on adapter-static's `fallback` for all routes (including `/`).
+			// This avoids generating `build/index.html` via prerender and then overwriting it
+			// with the fallback (which triggers a build warning).
+			entries: [],
 			handleUnseenRoutes: 'ignore' // or 'fail' to fail on unseen routes
 		}
 	}

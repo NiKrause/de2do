@@ -22,6 +22,9 @@ import {
 test('should not show password modal for unencrypted database opened via URL', async ({
 	browser
 }) => {
+	// P2P replication/sync can be slow depending on worker scheduling; allow extra time.
+	test.setTimeout(120000);
+
 	const timestamp = Date.now();
 	const projectName = `unencrypted-url-test-${timestamp}`;
 
@@ -90,10 +93,13 @@ test('should not show password modal for unencrypted database opened via URL', a
 	console.log(`  → Navigating to: /#${dbAddress}`);
 	await page2.goto(`/#${dbAddress}`);
 
-	// Wait for initialization and potential sync
-	// The issue: database appears empty initially, encryption detection assumes encrypted
-	console.log('  → Waiting for database to load and sync...');
-	await page2.waitForTimeout(6000); // Give time for sync
+	// Accept consent and initialize P2P so replication can actually happen.
+	// When opening via a shared URL/hash, the app may auto-initialize without showing the consent modal.
+	await acceptConsentAndInitialize(page2, { skipIfNotFound: true });
+	await waitForP2PInitialization(page2, 60000);
+
+	// Wait for database UI to be ready.
+	await page2.waitForSelector('[data-testid="todo-input"]', { timeout: 30000 });
 
 	// ============================================================================
 	// STEP 3: Verify NO password modal appears
@@ -123,11 +129,8 @@ test('should not show password modal for unencrypted database opened via URL', a
 	// ============================================================================
 	console.log('\n🔍 STEP 4: Verifying todos are visible after sync...\n');
 
-	// Wait a bit more for sync to complete
-	await page2.waitForTimeout(3000);
-
 	// Verify the todo is visible
-	await expect(page2.locator(`text=${todoText}`).first()).toBeVisible({ timeout: 10000 });
+	await expect(page2.locator(`text=${todoText}`).first()).toBeVisible({ timeout: 60000 });
 	console.log(`  ✓ Todo visible: ${todoText}`);
 	console.log('  ✅ Database content accessible without password (correct)');
 

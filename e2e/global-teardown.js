@@ -5,6 +5,21 @@ import path from 'path';
 export default async function globalTeardown() {
 	console.log('🛑 Tearing down global test environment...');
 
+	// Stop web app dev server
+	try {
+		const webInfoPath = path.join(process.cwd(), 'e2e', 'web-info.json');
+		if (existsSync(webInfoPath)) {
+			const webInfo = JSON.parse(readFileSync(webInfoPath, 'utf8'));
+			if (webInfo.pid) {
+				process.kill(webInfo.pid, 'SIGTERM');
+				console.log(`✅ Web server (PID ${webInfo.pid}) stopped`);
+			}
+			unlinkSync(webInfoPath);
+		}
+	} catch (error) {
+		console.warn('⚠️ Error stopping web server:', error.message);
+	}
+
 	// Stop relay server
 	try {
 		const relayInfoPath = path.join(process.cwd(), 'e2e', 'relay-info.json');
@@ -37,7 +52,7 @@ export default async function globalTeardown() {
 		const { promisify } = await import('util');
 		const execAsync = promisify(exec);
 		await execAsync(
-			'lsof -ti:4001,4002,4003,4006,3000 2>/dev/null | xargs kill -9 2>/dev/null || true'
+			'lsof -ti:4101,4102,4103,4106,3000,4174 2>/dev/null | xargs kill -9 2>/dev/null || true'
 		);
 	} catch {
 		// Ignore errors - ports might not be in use

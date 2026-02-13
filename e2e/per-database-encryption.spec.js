@@ -68,9 +68,12 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 	});
 
 	// Skipped: flaky in CI (see issue #17)
-	test.skip('should handle multiple projects with different encryption settings', async ({
+	test('should handle multiple projects with different encryption settings', async ({
 		browser
 	}) => {
+		// This flow creates 3 projects, runs an encryption migration, then opens 3 fresh contexts via URL.
+		// It can easily exceed 2 minutes on slower machines/CI.
+		test.setTimeout(420000);
 		const timestamp = Date.now();
 
 		// Project names
@@ -392,17 +395,18 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 		// ============================================================================
 		console.log('\n🌐 STEP 7: Opening Project 1 (unencrypted) in new browser via URL...\n');
 
-		const context2 = await browser.newContext();
-		const page2 = await context2.newPage();
+			const context2 = await browser.newContext();
+			const page2 = await context2.newPage();
 
-		await page2.goto(`/#${project1Address}`);
-		await page2.waitForTimeout(6000); // Wait for DB to load
+			await page2.goto(`/#${project1Address}`);
+			await acceptConsentAndInitialize(page2, { skipIfNotFound: true });
+			await waitForP2PInitialization(page2, 60000);
 
-		// Should NOT show password modal
-		const passwordModal2 = page2.locator('text=/password/i').first();
-		const hasPasswordModal2 = await passwordModal2.isVisible({ timeout: 3000 }).catch(() => false);
-		expect(hasPasswordModal2).toBe(false);
-		console.log('✅ No password modal for unencrypted project (correct)');
+			// Should NOT show password modal
+			const passwordModal2 = page2.locator('text=/enter.*password/i').first();
+			const hasPasswordModal2 = await passwordModal2.isVisible({ timeout: 3000 }).catch(() => false);
+			expect(hasPasswordModal2).toBe(false);
+			console.log('✅ No password modal for unencrypted project (correct)');
 
 		// Verify todos visible
 		await verifyTodosVisible(page2, [`Task 1-1 of ${project1Name}`]);
@@ -415,16 +419,16 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 		// ============================================================================
 		console.log('\n🌐 STEP 8: Opening Project 2 (encrypted) in new browser via URL...\n');
 
-		const context3 = await browser.newContext();
-		const page3 = await context3.newPage();
+			const context3 = await browser.newContext();
+			const page3 = await context3.newPage();
 
-		await page3.goto(`/#${project2AddressEncrypted}`);
-		await page3.waitForTimeout(6000); // Wait for initialization
+			await page3.goto(`/#${project2AddressEncrypted}`);
+			await acceptConsentAndInitialize(page3, { skipIfNotFound: true });
 
-		// SHOULD show password modal
-		console.log('→ Waiting for password modal...');
-		const passwordModalHeading = page3.locator('text=/enter.*password/i').first();
-		await expect(passwordModalHeading).toBeVisible({ timeout: 10000 });
+			// SHOULD show password modal
+			console.log('→ Waiting for password modal...');
+			const passwordModalHeading = page3.locator('text=/enter.*password/i').first();
+			await expect(passwordModalHeading).toBeVisible({ timeout: 10000 });
 		console.log('✅ Password modal appeared (correct)');
 
 		// Enter password
@@ -437,14 +441,14 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 			.locator('button:has-text("Unlock")')
 			.or(page3.locator('button:has-text("Submit")'))
 			.first();
-		await submitButton.click();
+			await submitButton.click();
 
-		// Wait for database to unlock
-		await page3.waitForTimeout(3000);
+			// Wait for database to unlock and UI to be ready
+			await waitForP2PInitialization(page3, 60000);
 
-		// Verify todos visible
-		await verifyTodosVisible(page3, [`Task 2-1 of ${project2Name}`]);
-		console.log('✅ Project 2 unlocked and todos visible in new browser');
+			// Verify todos visible
+			await verifyTodosVisible(page3, [`Task 2-1 of ${project2Name}`]);
+			console.log('✅ Project 2 unlocked and todos visible in new browser');
 
 		await context3.close();
 
@@ -453,16 +457,16 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 		// ============================================================================
 		console.log('\n🌐 STEP 9: Opening Project 3 (encrypted) in new browser via URL...\n');
 
-		const context4 = await browser.newContext();
-		const page4 = await context4.newPage();
+			const context4 = await browser.newContext();
+			const page4 = await context4.newPage();
 
-		await page4.goto(`/#${project3Address}`);
-		await page4.waitForTimeout(6000);
+			await page4.goto(`/#${project3Address}`);
+			await acceptConsentAndInitialize(page4, { skipIfNotFound: true });
 
-		// SHOULD show password modal
-		console.log('→ Waiting for password modal...');
-		const passwordModalHeading4 = page4.locator('text=/enter.*password/i').first();
-		await expect(passwordModalHeading4).toBeVisible({ timeout: 10000 });
+			// SHOULD show password modal
+			console.log('→ Waiting for password modal...');
+			const passwordModalHeading4 = page4.locator('text=/enter.*password/i').first();
+			await expect(passwordModalHeading4).toBeVisible({ timeout: 10000 });
 		console.log('✅ Password modal appeared (correct)');
 
 		// Enter password
@@ -475,14 +479,14 @@ test.describe('Per-Database Encryption E2E Tests', () => {
 			.locator('button:has-text("Unlock")')
 			.or(page4.locator('button:has-text("Submit")'))
 			.first();
-		await submitButton4.click();
+			await submitButton4.click();
 
-		// Wait for database to unlock
-		await page4.waitForTimeout(3000);
+			// Wait for database to unlock and UI to be ready
+			await waitForP2PInitialization(page4, 60000);
 
-		// Verify todos visible
-		await verifyTodosVisible(page4, [`Task 3-1 of ${project3Name}`]);
-		console.log('✅ Project 3 unlocked and todos visible in new browser');
+			// Verify todos visible
+			await verifyTodosVisible(page4, [`Task 3-1 of ${project3Name}`]);
+			console.log('✅ Project 3 unlocked and todos visible in new browser');
 
 		await context4.close();
 

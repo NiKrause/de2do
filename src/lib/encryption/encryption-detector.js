@@ -155,13 +155,24 @@ export async function detectDatabaseEncryption(db, options = {}) {
 				console.log('   → No sync event occurred within timeout');
 			}
 
-			// If still empty after waiting for sync, check isDatabaseEncrypted()
-			// to determine if it's actually encrypted or just empty
-			if (entries.length === 0) {
-				console.log('   → Still empty after sync wait - checking isDatabaseEncrypted()...');
-				console.log('   → Database state:', {
-					address: db.address,
-					name: db.name,
+				// If still empty after waiting for sync, check isDatabaseEncrypted()
+				// to determine if it's actually encrypted or just empty
+				if (entries.length === 0) {
+					// Heuristic: migrated encrypted databases include a suffix in the OrbitDB name.
+					// When opened remotely without the password, replication may not yield readable entries,
+					// causing `isDatabaseEncrypted()` to return false. In that case, we still must prompt.
+					if (
+						typeof db.name === 'string' &&
+						(db.name.includes('__enc_migrated') || db.name.includes('__enc_'))
+					) {
+						console.log('🔐 Database name indicates encryption migration:', db.name);
+						return true;
+					}
+
+					console.log('   → Still empty after sync wait - checking isDatabaseEncrypted()...');
+					console.log('   → Database state:', {
+						address: db.address,
+						name: db.name,
 					opened: db.opened,
 					sync: db.sync,
 					peers: peerCount,

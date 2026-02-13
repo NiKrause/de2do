@@ -15,12 +15,12 @@ void chromium;
  * - Step 7: Open unencrypted database via URL (should NOT show password modal)
  * - Step 8: Open encrypted database via URL (should show password modal)
  */
-test.describe('Remote Database URL Access', () => {
-	test.setTimeout(120000); // 2 minutes
-
-	test.skip('should handle opening unencrypted and encrypted databases via URL', async ({
-		browser
-	}) => {
+	test.describe('Remote Database URL Access', () => {
+		test.setTimeout(120000); // 2 minutes
+	
+		test('should handle opening unencrypted and encrypted databases via URL', async ({
+			browser
+		}) => {
 		const timestamp = Date.now();
 
 		// Project names
@@ -92,12 +92,13 @@ test.describe('Remote Database URL Access', () => {
 			}
 		});
 
-		await page2.goto(`/#${unencryptedAddress}`);
-		console.log(`→ Navigated to: /#${unencryptedAddress}`);
+			await page2.goto(`/#${unencryptedAddress}`);
+			console.log(`→ Navigated to: /#${unencryptedAddress}`);
 
-		// Wait for initialization and database to load
-		await waitForP2PInitialization(page2);
-		console.log('→ P2P initialized in new browser context');
+			// When opening via URL/hash, the app may auto-initialize without showing the consent modal.
+			await acceptConsentAndInitialize(page2, { skipIfNotFound: true });
+			await waitForP2PInitialization(page2, 60000);
+			console.log('→ P2P initialized in new browser context');
 
 		// Wait for database to open and todos to load
 		await page2.waitForTimeout(8000); // Give time for database sync
@@ -148,12 +149,13 @@ test.describe('Remote Database URL Access', () => {
 			}
 		});
 
-		await page3.goto(`/#${encryptedAddress}`);
-		console.log(`→ Navigated to: /#${encryptedAddress}`);
+			await page3.goto(`/#${encryptedAddress}`);
+			console.log(`→ Navigated to: /#${encryptedAddress}`);
 
-		// Wait for initialization
-		await waitForP2PInitialization(page3);
-		console.log('→ P2P initialized in new browser context');
+			// When opening via URL/hash, the app may auto-initialize without showing the consent modal.
+			await acceptConsentAndInitialize(page3, { skipIfNotFound: true });
+			await waitForP2PInitialization(page3, 60000);
+			console.log('→ P2P initialized in new browser context');
 
 		// Wait for database detection and password modal to appear
 		await page3.waitForTimeout(8000); // Give time for encryption detection

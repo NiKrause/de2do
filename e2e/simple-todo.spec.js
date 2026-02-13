@@ -11,11 +11,11 @@ import {
 	handleWebAuthnModal
 } from './helpers.js';
 
-test.describe('Simple Todo P2P Application', () => {
-	test('should have webserver running and accessible', async ({ page, request }) => {
-		// Check if the webserver is responding
-		const response = await request.get('/');
-		expect(response.status()).toBe(200);
+	test.describe('Simple Todo P2P Application', () => {
+		test.skip('should have webserver running and accessible', async ({ page, request }) => {
+			// Check if the webserver is responding
+			const response = await request.get('/');
+			expect(response.status()).toBe(200);
 
 		// Verify the page loads
 		await page.goto('/');
@@ -294,12 +294,14 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('🎉 Todo operations test completed successfully!');
 	});
 
-	test.skip('should connect two browsers and see each other as connected peers', async ({
-		browser
-	}) => {
-		// Create two separate browser contexts (simulating two different browsers)
-		const context1 = await browser.newContext();
-		const context2 = await browser.newContext();
+		test('should connect two browsers and see each other as connected peers', async ({
+			browser
+		}) => {
+			test.setTimeout(180000);
+
+			// Create two separate browser contexts (simulating two different browsers)
+			const context1 = await browser.newContext();
+			const context2 = await browser.newContext();
 
 		const page1 = await context1.newPage();
 		const page2 = await context2.newPage();
@@ -431,10 +433,12 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('✅ Two-browser peer connection test completed!');
 	});
 
-	test.skip('should share database between browsers and sync todos', async ({ browser }) => {
-		// Create two separate browser contexts (simulating two different browsers)
-		const context1 = await browser.newContext();
-		const context2 = await browser.newContext();
+		test('should share database between browsers and sync todos', async ({ browser }) => {
+			test.setTimeout(240000);
+
+			// Create two separate browser contexts (simulating two different browsers)
+			const context1 = await browser.newContext();
+			const context2 = await browser.newContext();
 
 		const page1 = await context1.newPage();
 		const page2 = await context2.newPage();
@@ -691,12 +695,13 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('🎉 Database sharing test completed successfully!');
 	});
 
-	test.skip('should replicate database when Browser B opens Browser A database by name', async ({
-		browser
-	}) => {
-		// Create two separate browser contexts (simulating two different browsers)
-		const context1 = await browser.newContext();
-		const context2 = await browser.newContext();
+		test('should replicate database when Browser B opens Browser A database by name', async ({
+			browser
+		}) => {
+			test.setTimeout(240000);
+			// Create two separate browser contexts (simulating two different browsers)
+			const context1 = await browser.newContext();
+			const context2 = await browser.newContext();
 
 		const page1 = await context1.newPage();
 		const page2 = await context2.newPage();

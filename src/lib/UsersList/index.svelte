@@ -1,17 +1,24 @@
-<script>
-	import { onMount } from 'svelte';
-	import {
-		uniqueUsersStore,
-		listUniqueUsers,
-		availableTodoListsStore,
-		selectedUserIdStore,
-		trackedUsersStore,
-		addTrackedUser,
-		removeTrackedUser
-	} from '../todo-list-manager.js';
-	import { initializationStore } from '../p2p.js';
-	import { showToast } from '../toast-store.js';
-	import { get } from 'svelte/store';
+	<script>
+		import { onMount } from 'svelte';
+		import {
+			uniqueUsersStore,
+			listUniqueUsers,
+			listAvailableTodoLists,
+			availableTodoListsStore,
+			selectedUserIdStore,
+			trackedUsersStore,
+			addTrackedUser,
+			removeTrackedUser,
+			currentTodoListNameStore,
+			currentDbNameStore,
+			currentDbAddressStore
+		} from '../todo-list-manager.js';
+		import { initializationStore } from '../p2p.js';
+		import { getCurrentIdentityId } from '../stores.js';
+		import { showToast } from '../toast-store.js';
+		import { replaceState } from '$app/navigation';
+		import { openDatabaseWithPasswordPrompt } from '../database/database-manager.js';
+		import { get } from 'svelte/store';
 
 	let showDropdown = false;
 	let inputValue = '';
@@ -72,7 +79,7 @@
 		}
 	}
 
-	async function handleSelect(userId) {
+		async function handleSelect(userId) {
 		showDropdown = false;
 		inputValue = userId;
 
@@ -85,10 +92,8 @@
 			// Don't show error toast - selection should still work even if copy fails
 		}
 
-		// Get current user identity
-		const { getCurrentIdentityId } = await import('../stores.js');
-		const currentUserIdentity = getCurrentIdentityId();
-		const currentSelected = get(selectedUserIdStore);
+			const currentUserIdentity = getCurrentIdentityId();
+			const currentSelected = get(selectedUserIdStore);
 
 		// Determine target user ID (null means show all/own, otherwise the selected user)
 		let targetUserId = null;
@@ -102,9 +107,7 @@
 			targetUserId = userId; // Switch to their projects
 		}
 
-		// Refresh available lists first to ensure we have latest data
-		const { listAvailableTodoLists } = await import('../todo-list-manager.js');
-		await listAvailableTodoLists();
+			await listAvailableTodoLists();
 
 		// Find the "projects" database for the target user
 		const availableLists = get(availableTodoListsStore);
@@ -121,20 +124,13 @@
 		};
 
 		// Import necessary functions
-		const { currentTodoListNameStore, currentDbNameStore, currentDbAddressStore } = await import(
-			'../todo-list-manager.js'
-		);
-		const { replaceState } = await import('$app/navigation');
-
-		if (targetProjects && targetProjects.address) {
-			// Use centralized password prompt flow for consistent encryption detection
-			try {
-				const { openDatabaseWithPasswordPrompt } = await import('../database/database-manager.js');
-
-				console.log('🔍 Opening target projects database:', targetProjects.address);
-				const result = await openDatabaseWithPasswordPrompt({
-					address: targetProjects.address,
-					preferences
+			if (targetProjects && targetProjects.address) {
+				// Use centralized password prompt flow for consistent encryption detection
+				try {
+					console.log('🔍 Opening target projects database:', targetProjects.address);
+					const result = await openDatabaseWithPasswordPrompt({
+						address: targetProjects.address,
+						preferences
 				});
 
 				if (result.success) {
@@ -160,16 +156,14 @@
 				console.error('Failed to open projects database:', e);
 				showToast('Failed to open projects database', 'error', 3000);
 			}
-		} else {
-			// Try opening by name if not found in available lists
-			const dbName = `${targetUserId}_projects`;
-			try {
-				const { openDatabaseWithPasswordPrompt } = await import('../database/database-manager.js');
-
-				console.log('🔍 Opening target projects database by name:', dbName);
-				const result = await openDatabaseWithPasswordPrompt({
-					name: dbName,
-					preferences
+			} else {
+				// Try opening by name if not found in available lists
+				const dbName = `${targetUserId}_projects`;
+				try {
+					console.log('🔍 Opening target projects database by name:', dbName);
+					const result = await openDatabaseWithPasswordPrompt({
+						name: dbName,
+						preferences
 				});
 
 				if (result.success) {
