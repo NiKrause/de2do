@@ -1,6 +1,6 @@
 services:
   relay:
-    image: silkroadnomad/orbit-todo-relay:0.1.0
+    image: silkroadnomad/orbit-todo-relay:0.1.1
     build:
       context: ..
       dockerfile: relay/Dockerfile
