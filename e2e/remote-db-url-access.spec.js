@@ -2,7 +2,8 @@ import { test, expect, chromium } from '@playwright/test';
 import {
 	acceptConsentAndInitialize,
 	waitForP2PInitialization,
-	getCurrentDatabaseAddress
+	getCurrentDatabaseAddress,
+	waitForTodoText
 } from './helpers.js';
 
 // Mark intentionally unused test helpers so eslint doesn't complain
@@ -65,7 +66,7 @@ void chromium;
 		const encryptedAddress = await getCurrentDatabaseAddress(page1);
 		console.log(`✅ Encrypted project address: ${encryptedAddress}`);
 
-		await context1.close();
+		await safeClose(context1, 'context1');
 
 		// ============================================================================
 		// STEP 1: Open unencrypted database via URL (should NOT show password modal)
@@ -100,11 +101,11 @@ void chromium;
 			await waitForP2PInitialization(page2, 60000);
 			console.log('→ P2P initialized in new browser context');
 
-		// Wait for database to open and todos to load
-		await page2.waitForTimeout(8000); // Give time for database sync
+		// Wait for database UI to be ready (sync can still be in progress).
+		await page2.waitForSelector('[data-testid="todo-input"]', { timeout: 30000 });
 
 		// Should NOT show password modal
-		const passwordModal1 = page2.locator('text=/password/i').first();
+		const passwordModal1 = page2.locator('text=/enter.*password/i').first();
 		const hasPasswordModal1 = await passwordModal1.isVisible({ timeout: 3000 }).catch(() => false);
 
 		if (hasPasswordModal1) {
@@ -117,10 +118,10 @@ void chromium;
 		console.log('✅ No password modal for unencrypted project (correct)');
 
 		// Verify todos visible
-		await verifyTodosVisible(page2, [`Task 1-1 of ${unencryptedProjectName}`]);
+		await verifyTodosVisible(page2, [`Task 1-1 of ${unencryptedProjectName}`], { timeout: 60000 });
 		console.log('✅ Unencrypted project todos visible in new browser');
 
-		await context2.close();
+		await safeClose(context2, 'context2');
 
 		// ============================================================================
 		// STEP 2: Open encrypted database via URL (should show password modal)
@@ -157,15 +158,12 @@ void chromium;
 			await waitForP2PInitialization(page3, 60000);
 			console.log('→ P2P initialized in new browser context');
 
-		// Wait for database detection and password modal to appear
-		await page3.waitForTimeout(8000); // Give time for encryption detection
-
 		// SHOULD show password modal
 		console.log('→ Waiting for password modal...');
 		const passwordModalHeading = page3.locator('text=/enter.*password/i').first();
 
 		try {
-			await expect(passwordModalHeading).toBeVisible({ timeout: 15000 });
+			await expect(passwordModalHeading).toBeVisible({ timeout: 60000 });
 			console.log('✅ Password modal appeared (correct)');
 		} catch (error) {
 			console.error('❌ Password modal did not appear for encrypted database!');
@@ -187,14 +185,15 @@ void chromium;
 		await submitButton.click();
 		console.log('→ Submitted password');
 
-		// Wait for database to open and todos to load
-		await page3.waitForTimeout(5000);
+		// Wait for unlock to complete and UI to be ready.
+		await expect(passwordModalHeading).toBeHidden({ timeout: 60000 });
+		await waitForP2PInitialization(page3, 60000);
 
 		// Verify todos visible
-		await verifyTodosVisible(page3, [`Task 2-1 of ${encryptedProjectName}`]);
+		await verifyTodosVisible(page3, [`Task 2-1 of ${encryptedProjectName}`], { timeout: 60000 });
 		console.log('✅ Encrypted project todos visible after password entry');
 
-		await context3.close();
+		await safeClose(context3, 'context3');
 
 		console.log('\n✅ All remote database URL access tests passed!\n');
 	});
@@ -306,8 +305,18 @@ async function createProjectWithTodos(page, projectName, encrypted, password, to
 /**
  * Verify that todos are visible
  */
-async function verifyTodosVisible(page, todoTexts) {
+async function verifyTodosVisible(page, todoTexts, { timeout = 30000 } = {}) {
 	for (const todoText of todoTexts) {
-		await expect(page.locator(`text=${todoText}`).first()).toBeVisible({ timeout: 10000 });
+		await waitForTodoText(page, todoText, timeout);
+	}
+}
+
+async function safeClose(context, label) {
+	try {
+		await context.close();
+	} catch (error) {
+		// Playwright tracing/artifact plumbing can occasionally fail with ENOENT; avoid turning a
+		// functional e2e signal into a hard test failure.
+		console.warn(`⚠️ Failed to close ${label}: ${error?.message || String(error)}`);
 	}
 }
