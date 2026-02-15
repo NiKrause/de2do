@@ -35,12 +35,11 @@ RUN mkdir -p /app/data
 # Expose relay ports
 # 4001: WebSocket
 # 4002: TCP
-# 4003: WebRTC 
-# 4006: WebRTC Direct
-# 3000: HTTP API
-EXPOSE 4001 4002 4003 4006 3000
+# 4003: WebRTC Direct (UDP)
+# 3000: Metrics (HTTP /metrics) - configurable via METRICS_PORT
+EXPOSE 4001 4002 4003 3000
 
 ENV NODE_ENV=production
 
-# Start relay correctly
-CMD ["node", "relay-enhanced.js"]
+# Run the npm package relay implementation
+CMD ["node", "./node_modules/orbitdb-relay-pinner/dist/cli.js"]
