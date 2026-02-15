@@ -1,4 +1,6 @@
-import { createOrbitDB } from '@orbitdb/core';
+import { createOrbitDB, useIdentityProvider } from "@orbitdb/core";
+import OrbitDBIdentityProviderDID from "@orbitdb/identity-provider-did";
+import * as KeyDIDResolver from "key-did-resolver";
 import { createHelia } from 'helia';
 import { CID } from 'multiformats/cid';
 import PQueue from 'p-queue';
@@ -85,8 +87,11 @@ export class PinningService {
 		// } else {
 		// 	this.log('⚠️  WARNING: Helia has no blockstore property!', 'warn');
 		// }
-
 		// Create OrbitDB instance with access controllers registered
+		// Register DID provider so we can verify entries from did:key identities (writers).
+		OrbitDBIdentityProviderDID.setDIDResolver(KeyDIDResolver.getResolver());
+		useIdentityProvider(OrbitDBIdentityProviderDID);
+
 		this.orbitdb = await createOrbitDB({
 			ipfs: this.helia
 		});
