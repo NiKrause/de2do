@@ -24,15 +24,21 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential python3
+          # node-datachannel (used by @libp2p/webrtc in Node.js) requires native build tooling.
+          sudo apt-get install -y build-essential python3 cmake pkg-config libssl-dev
 
       - name: Install dependencies
-        run: npm install --ignore-scripts
+        run: npm ci
 
-      - name: Install relay dependencies
+      - name: Ensure native node-datachannel is built
         run: |
-          cd relay
-          npm install
+          if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
+            echo "node-datachannel native module missing; rebuilding..."
+            rm -rf node_modules/@ipshipyard/node-datachannel/build || true
+            npm rebuild @ipshipyard/node-datachannel
+          else
+            echo "node-datachannel native module present"
+          fi
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
@@ -85,15 +91,21 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential python3
+          # node-datachannel (used by @libp2p/webrtc in Node.js) requires native build tooling.
+          sudo apt-get install -y build-essential python3 cmake pkg-config libssl-dev
 
       - name: Install dependencies
-        run: npm install --ignore-scripts
+        run: npm ci
 
-      - name: Install relay dependencies
+      - name: Ensure native node-datachannel is built
         run: |
-          cd relay
-          npm install
+          if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
+            echo "node-datachannel native module missing; rebuilding..."
+            rm -rf node_modules/@ipshipyard/node-datachannel/build || true
+            npm rebuild @ipshipyard/node-datachannel
+          else
+            echo "node-datachannel native module present"
+          fi
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
