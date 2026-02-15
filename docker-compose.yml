@@ -45,14 +45,20 @@ services:
       # Deterministic relay identity (required because bootstrap multiaddrs include peer id).
       - RELAY_PRIV_KEY=${RELAY_PRIV_KEY:-08011240821cb6bc3d4547fcccb513e82e4d718089f8a166b23ffcd4a436754b6b0774cf07447d1693cd10ce11ef950d7517bad6e9472b41a927cd17fc3fb23f8c70cd99}
       - TEST_PRIVATE_KEY=${TEST_PRIVATE_KEY:-08011240821cb6bc3d4547fcccb513e82e4d718089f8a166b23ffcd4a436754b6b0774cf07447d1693cd10ce11ef950d7517bad6e9472b41a927cd17fc3fb23f8c70cd99}
-    command: ["node", "./node_modules/orbitdb-relay-pinner/dist/cli.js", "--test"]
+    command: ['node', './node_modules/orbitdb-relay-pinner/dist/cli.js', '--test']
     volumes:
       - ./data/relay:/app/data
     networks:
       - todo-network
     restart: unless-stopped
     healthcheck:
-      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/metrics').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/metrics').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

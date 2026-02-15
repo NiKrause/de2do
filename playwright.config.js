@@ -119,7 +119,7 @@ export default defineConfig({
 	retries: process.env.CI ? 2 : 0,
 
 	// Worker configuration
-	workers: process.env.PW_WORKERS ? Number(process.env.PW_WORKERS) : (process.env.CI ? 1 : 2),
+	workers: process.env.PW_WORKERS ? Number(process.env.PW_WORKERS) : process.env.CI ? 1 : 2,
 
 	// Use baseURL for all tests
 	use: {

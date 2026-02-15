@@ -1,6 +1,6 @@
-import { createOrbitDB, useIdentityProvider } from "@orbitdb/core";
-import OrbitDBIdentityProviderDID from "@orbitdb/identity-provider-did";
-import * as KeyDIDResolver from "key-did-resolver";
+import { createOrbitDB, useIdentityProvider } from '@orbitdb/core';
+import OrbitDBIdentityProviderDID from '@orbitdb/identity-provider-did';
+import * as KeyDIDResolver from 'key-did-resolver';
 import { createHelia } from 'helia';
 import { CID } from 'multiformats/cid';
 import PQueue from 'p-queue';
