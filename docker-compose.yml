@@ -6,13 +6,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Vite vars must be provided at build time (baked into the bundle).
+        VITE_NODE_ENV: production
+        VITE_PUBSUB_TOPICS: todo._peer-discovery._p2p._pubsub
+        # Default: connect to the relay service exposed on localhost via port mapping.
+        VITE_RELAY_BOOTSTRAP_ADDR_PROD: ${VITE_RELAY_BOOTSTRAP_ADDR_PROD:-/ip4/127.0.0.1/tcp/4001/ws/p2p/12D3KooWAJjbRkp8FPF5MKgMU53aUTxWkqvDrs4zc1VMbwRwfsbE}
     ports:
       - '5173:5173' # Main app port
     environment:
       - NODE_ENV=production
-      # Point to relay service for P2P connectivity
-      - VITE_RELAY_WEBSOCKET=ws://relay:4001/ws
-      - VITE_RELAY_WEBRTC=/ip4/127.0.0.1/udp/4003/webrtc
     depends_on:
       - relay
     networks:
@@ -29,35 +32,27 @@ services:
     ports:
       - '4001:4001' # WebSocket port for browsers
       - '4002:4002' # TCP port for native libp2p nodes
-      - '4003:4003/udp' # WebRTC port
-      - '4006:4006/udp' # WebRTC Direct port
-      - '3000:3000' # HTTP API port
+      - '4003:4003/udp' # WebRTC Direct port (UDP)
+      - '3000:3000' # Prometheus metrics (/metrics)
     environment:
       - NODE_ENV=production
       - RELAY_WS_PORT=4001
       - RELAY_TCP_PORT=4002
       - RELAY_WEBRTC_PORT=4003
-      - RELAY_WEBRTC_DIRECT_PORT=4006
-      - HTTP_PORT=3000
-      - DATASTORE_PATH=/app/data/relay-datastore
+      - METRICS_PORT=3000
       - PUBSUB_TOPICS=todo._peer-discovery._p2p._pubsub
-      # Optional: Set a fixed private key for consistent Peer ID
-      # - RELAY_PRIV_KEY=your_hex_private_key_here
-      # Optional: API password for HTTP endpoints (recommended in production)
-      # - API_PASSWORD=your_secure_password_here
-      # Optional: Enable datastore diagnostics
-      # - ENABLE_DATASTORE_DIAGNOSTICS=true
-      # Optional: Configure pinning allowed identities
-      # - PINNING_ALLOWED_IDENTITIES=identity1,identity2
-      # Optional: Enable structured logging
-      # - STRUCTURED_LOGS=true
+      - DATASTORE_PATH=/app/data/pinning-service
+      # Deterministic relay identity (required because bootstrap multiaddrs include peer id).
+      - RELAY_PRIV_KEY=${RELAY_PRIV_KEY:-08011240821cb6bc3d4547fcccb513e82e4d718089f8a166b23ffcd4a436754b6b0774cf07447d1693cd10ce11ef950d7517bad6e9472b41a927cd17fc3fb23f8c70cd99}
+      - TEST_PRIVATE_KEY=${TEST_PRIVATE_KEY:-08011240821cb6bc3d4547fcccb513e82e4d718089f8a166b23ffcd4a436754b6b0774cf07447d1693cd10ce11ef950d7517bad6e9472b41a927cd17fc3fb23f8c70cd99}
+    command: ["node", "./node_modules/orbitdb-relay-pinner/dist/cli.js", "--test"]
     volumes:
       - ./data/relay:/app/data
     networks:
       - todo-network
     restart: unless-stopped
     healthcheck:
-      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3000/health']
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/metrics').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3

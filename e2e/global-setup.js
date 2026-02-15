@@ -1,5 +1,5 @@
 import { spawn } from "child_process";
-import { writeFileSync, existsSync } from "fs";
+import { writeFileSync, existsSync, mkdirSync } from "fs";
 import { rm } from "fs/promises";
 import path from "path";
 import http from "http";
@@ -57,6 +57,8 @@ export default async function globalSetup() {
 			console.warn("⚠️ Could not clean up test datastore:", error.message);
 		}
 	}
+	// orbitdb-relay-pinner@0.1.0 uses a fixed relative storage dir, so we isolate it via cwd.
+	mkdirSync(testDatastorePath, { recursive: true });
 
 	// Kill any processes holding ports
 	try {
@@ -78,25 +80,32 @@ export default async function globalSetup() {
 
 	const relayCliPath = resolveRelayCliPath();
 	const usePackageRelay = Boolean(relayCliPath) && process.env.RELAY_IMPL !== "local";
+	const testPrivateKeyHex = process.env.TEST_PRIVATE_KEY || process.env.RELAY_PRIV_KEY;
 
 	if (usePackageRelay) {
 		console.log("🧩 Using orbitdb-relay-pinner from " + relayCliPath);
 	} else {
 		console.log("🧩 Using local relay (relay/relay-enhanced.js)");
 		if (!relayCliPath) {
-			console.warn("⚠️ orbitdb-relay-pinner not installed; falling back to local relay. Run: npm i -D ../bolt-orbitdb-blog/packages/orbitdb-relay-pinner");
+			console.warn("⚠️ orbitdb-relay-pinner not installed; falling back to local relay. Run: npm i -D orbitdb-relay-pinner");
 		}
 	}
 
 	// Start relay server
 	return new Promise((resolve, reject) => {
+		const packageRelayArgs = [];
+		// orbitdb-relay-pinner@0.1.0 requires TEST_PRIVATE_KEY in --test mode.
+		if (testPrivateKeyHex) packageRelayArgs.push("--test");
+
 		relayProcess = usePackageRelay
-			? spawn("node", [relayCliPath, "--test"], {
-					cwd: process.cwd(),
+			? spawn("node", [relayCliPath, ...packageRelayArgs], {
+					cwd: testDatastorePath,
 					env: {
 						...process.env,
 						NODE_ENV: "development",
+						// Support either var name for convenience.
 						RELAY_PRIV_KEY: process.env.RELAY_PRIV_KEY,
+						TEST_PRIVATE_KEY: testPrivateKeyHex,
 						RELAY_TCP_PORT: TCP_PORT,
 						RELAY_WS_PORT: WS_PORT,
 						RELAY_WEBRTC_PORT: WEBRTC_PORT,
@@ -105,7 +114,6 @@ export default async function globalSetup() {
 						DATASTORE_PATH: testDatastorePath,
 						PUBSUB_TOPICS: "todo._peer-discovery._p2p._pubsub",
 						STRUCTURED_LOGS: "false",
-						RELAY_DISABLE_WEBRTC: "true",
 						METRICS_PORT: "0"
 					},
 					stdio: ["ignore", "pipe", "pipe"]
@@ -116,6 +124,7 @@ export default async function globalSetup() {
 						...process.env,
 						NODE_ENV: "development",
 						RELAY_PRIV_KEY: process.env.RELAY_PRIV_KEY,
+						TEST_PRIVATE_KEY: testPrivateKeyHex,
 						RELAY_TCP_PORT: TCP_PORT,
 						RELAY_WS_PORT: WS_PORT,
 						RELAY_WEBRTC_PORT: WEBRTC_PORT,
@@ -137,16 +146,18 @@ export default async function globalSetup() {
 			output += text;
 			process.stdout.write(text);
 
-			let peerIdMatch = text.match(/Relay PeerId[:\s]+([12][A-HJ-NP-Za-km-z1-9]{50,})/i);
-			if (!peerIdMatch && output.includes("Relay Server Information")) {
-				const relayInfoMatch = output.match(/Relay PeerId[:\s]+([12D][A-HJ-NP-Za-km-z1-9]{50,})/i);
-				if (relayInfoMatch) {
-					peerIdMatch = relayInfoMatch;
-				}
-			}
+			const extractPeerId = (s) => {
+				// Local relay prints: "Relay PeerId: <peerId>"
+				let m = s.match(/Relay PeerId[:\s]+([12D][A-HJ-NP-Za-km-z1-9]{50,})/i);
+				if (m) return m[1];
+				// orbitdb-relay-pinner@0.1.0 prints: "p2p addr:  [ '.../p2p/<peerId>', ... ]"
+				m = s.match(/\/p2p\/([12D][A-HJ-NP-Za-km-z1-9]{50,})/i);
+				if (m) return m[1];
+				return null;
+			};
+			const peerId = extractPeerId(text) || extractPeerId(output);
 
-			if (peerIdMatch && !relayMultiaddr && !resolved) {
-				const peerId = peerIdMatch[1];
+			if (peerId && !relayMultiaddr && !resolved) {
 				if (!peerId.startsWith("12D")) {
 					console.warn("⚠️  Extracted peerId doesn't start with 12D: " + peerId + ", skipping...");
 					return;

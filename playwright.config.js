@@ -99,10 +99,10 @@ export default defineConfig({
 	outputDir: 'test-results/',
 
 	// Retry configuration
-	// retries: process.env.CI ? 2 : 1,
+	retries: process.env.CI ? 2 : 0,
 
 	// Worker configuration
-	// workers: process.env.CI ? 1 : 2, // Limit workers to avoid port conflicts
+	workers: process.env.PW_WORKERS ? Number(process.env.PW_WORKERS) : (process.env.CI ? 1 : 2),
 
 	// Use baseURL for all tests
 	use: {

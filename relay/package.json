@@ -44,6 +44,7 @@
 		"@libp2p/webrtc": "^5.2.23",
 		"@libp2p/websockets": "^9.2.19",
 		"@orbitdb/core": "^3.0.2",
+		"@orbitdb/identity-provider-did": "^1.0.2",
 		"blockstore-level": "^2.0.1",
 		"datastore-core": "^11.0.2",
 		"datastore-level": "^11.0.4",
@@ -56,12 +57,12 @@
 		"it-all": "^3.0.9",
 		"it-pipe": "^3.0.1",
 		"it-pushable": "^3.2.3",
+		"key-did-resolver": "^4.0.0",
 		"libp2p": "^2.9.0",
 		"multiformats": "^13.3.7",
+		"orbitdb-relay-pinner": "^0.1.1",
 		"p-queue": "^8.1.0",
-		"uint8arrays": "^5.1.0",
-		"@orbitdb/identity-provider-did": "^1.0.2",
-		"key-did-resolver": "^4.0.0"
+		"uint8arrays": "^5.1.0"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.3.2",
