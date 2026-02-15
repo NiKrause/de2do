@@ -34,6 +34,7 @@
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.12.1",
 		"globals": "^16.3.0",
+		"orbitdb-relay-pinner": "file:../bolt-orbitdb-blog/packages/orbitdb-relay-pinner",
 		"playwright": "^1.56.1",
 		"prettier": "~3.6.2",
 		"prettier-plugin-svelte": "^3.4.0",
