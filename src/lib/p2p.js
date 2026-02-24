@@ -20,8 +20,9 @@ import { currentIdentityStore, peerIdStore } from './stores.js';
 import { isWebAuthnAvailable, hasExistingCredentials } from './identity/webauthn-identity.js';
 import {
 	getOrCreateVarsigIdentity,
-	createWebAuthnVarsigIdentitiesWithStorage,
-	createIpfsIdentityStorage
+	createWebAuthnVarsigIdentities,
+	createIpfsIdentityStorage,
+	wrapWithVarsigVerification
 } from './identity/varsig-identity.js';
 import {
 	OrbitDBWebAuthnIdentityProviderFunction,
@@ -759,11 +760,7 @@ export async function initializeP2P(preferences = {}) {
 			try {
 				const identity = await getOrCreateVarsigIdentity(varsigCredential);
 				const identityStorage = createIpfsIdentityStorage(helia);
-				const identities = createWebAuthnVarsigIdentitiesWithStorage(
-					identity,
-					identityStorage,
-					varsigCredential
-				);
+				const identities = createWebAuthnVarsigIdentities(identity, {}, identityStorage);
 
 				console.log('🔍 Created WebAuthn varsig identity:', {
 					id: identity.id,
@@ -816,8 +813,9 @@ export async function initializeP2P(preferences = {}) {
 				// Register WebAuthn provider
 				useIdentityProvider(OrbitDBWebAuthnIdentityProviderFunction);
 
-				// Create identities instance
-				const identities = await Identities({ ipfs: helia });
+				// Create identities instance with varsig verification support
+				const baseIdentities = await Identities({ ipfs: helia });
+				const identities = wrapWithVarsigVerification(baseIdentities, helia);
 
 				// Create WebAuthn identity
 				const identity = await identities.createIdentity({
@@ -852,18 +850,29 @@ export async function initializeP2P(preferences = {}) {
 				console.error('❌ Failed to create OrbitDB with WebAuthn identity:', error);
 				showToast('⚠️ WebAuthn failed, using software identity', 'warning', 3000);
 
-				// Fall back to default identity
+				// Fall back to default identity with varsig verification support
+				const fallbackIdentities = wrapWithVarsigVerification(
+					await Identities({ ipfs: helia }),
+					helia
+				);
 				orbitdb = await createOrbitDB({
 					ipfs: helia,
+					identities: fallbackIdentities,
 					id: 'simple-todo-app',
 					directory: './orbitdb'
 				});
 				orbitdbCreated = true;
 			}
 		} else if (!orbitdbCreated) {
-			// Create OrbitDB with default identity
+			// Create OrbitDB with default identity + varsig verification support
+			// This enables verifying entries from peers who use varsig identities
+			const defaultIdentities = wrapWithVarsigVerification(
+				await Identities({ ipfs: helia }),
+				helia
+			);
 			orbitdb = await createOrbitDB({
 				ipfs: helia,
+				identities: defaultIdentities,
 				id: 'simple-todo-app',
 				directory: './orbitdb'
 			});

@@ -12,8 +12,8 @@ import {
 } from '@le-space/orbitdb-identity-provider-webauthn-did';
 import { getOrCreateVarsigIdentity } from './varsig-identity.js';
 import { showToast } from '../toast-store.js';
-import { DIDKey } from 'iso-did';
-import { parseAttestationObject } from 'iso-passkeys';
+import { DIDKey } from '@le-space/iso-did';
+import { parseAttestationObject } from '@le-space/iso-passkeys';
 
 // Legacy storage keys for WebAuthn credentials (kept for compatibility)
 const STORAGE_KEY_CREDENTIAL_ID = 'webauthn_credential_id';

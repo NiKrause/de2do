@@ -4,8 +4,10 @@
 	import {
 		createWebAuthnIdentity,
 		getWebAuthnCapabilities,
-		clearWebAuthnCredentials
+		clearWebAuthnCredentials,
+		getStoredCredentialInfo
 	} from '$lib/identity/webauthn-identity.js';
+	import { loadCachedVarsigIdentity } from '$lib/identity/varsig-identity.js';
 
 	const dispatch = createEventDispatcher();
 
@@ -22,12 +24,32 @@
 		hasExistingCredentials: false
 	};
 
+	let credentialDetails = null;
 	let isLoading = false;
 	let error = '';
 	let success = '';
 
+	function loadCredentialDetails() {
+		const info = getStoredCredentialInfo();
+		if (!info) {
+			credentialDetails = null;
+			return;
+		}
+		const varsigIdentity = loadCachedVarsigIdentity();
+		credentialDetails = {
+			did: varsigIdentity?.id || null,
+			type: info.credentialType,
+			credentialId: info.credentialId
+				? info.credentialId.length > 16
+					? info.credentialId.substring(0, 16) + '…'
+					: info.credentialId
+				: null
+		};
+	}
+
 	onMount(async () => {
 		capabilities = await getWebAuthnCapabilities();
+		loadCredentialDetails();
 	});
 
 	async function handleSetupWebAuthn() {
@@ -139,6 +161,28 @@
 								<p class="mt-1 text-sm text-green-700">
 									You already have WebAuthn credentials configured. They will be used automatically.
 								</p>
+								{#if credentialDetails}
+									<div
+										class="mt-2 space-y-1 rounded bg-green-100/50 p-2 font-mono text-xs text-green-800"
+									>
+										{#if credentialDetails.did}
+											<p class="truncate" title={credentialDetails.did}>
+												<span class="font-sans font-medium">DID:</span>
+												{credentialDetails.did}
+											</p>
+										{/if}
+										<p>
+											<span class="font-sans font-medium">Type:</span>
+											{credentialDetails.type}
+										</p>
+										{#if credentialDetails.credentialId}
+											<p>
+												<span class="font-sans font-medium">Credential:</span>
+												{credentialDetails.credentialId}
+											</p>
+										{/if}
+									</div>
+								{/if}
 								<button
 									on:click={handleClearCredentials}
 									class="mt-2 text-xs text-green-800 underline hover:text-green-900"

@@ -636,3 +636,27 @@ export async function handleWebAuthnModal(page, timeout = 5000) {
 		console.log('ℹ️ WebAuthn modal did not appear (expected in many cases)');
 	}
 }
+
+/**
+ * Set up a CDP virtual authenticator for WebAuthn testing (Chromium only).
+ * Call after creating the page but before navigating.
+ *
+ * @param {import('@playwright/test').Page} page - Playwright page instance
+ * @returns {Promise<{cdpSession: Object, authenticatorId: string}>}
+ */
+export async function addVirtualAuthenticator(page) {
+	const cdpSession = await page.context().newCDPSession(page);
+	await cdpSession.send('WebAuthn.enable');
+	const { authenticatorId } = await cdpSession.send('WebAuthn.addVirtualAuthenticator', {
+		options: {
+			protocol: 'ctap2',
+			transport: 'internal',
+			hasResidentKey: true,
+			hasUserVerification: true,
+			isUserVerified: true,
+			automaticPresenceSimulation: true
+		}
+	});
+	console.log(`✅ Virtual authenticator added (id: ${authenticatorId})`);
+	return { cdpSession, authenticatorId };
+}

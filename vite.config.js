@@ -174,7 +174,10 @@ export default defineConfig({
 		alias: {
 			// Stub out 'fs' module for browser compatibility
 			// orbitdb-storacha-bridge imports fs but it's not used in browser code paths
-			fs: resolve(__dirname, 'src/lib/browser-stubs/fs.js')
+			fs: resolve(__dirname, 'src/lib/browser-stubs/fs.js'),
+			// Normalize @le-space aliases to top-level npm aliased installs.
+			'@le-space/iso-did': resolve(__dirname, 'node_modules/iso-did'),
+			'@le-space/iso-passkeys': resolve(__dirname, 'node_modules/iso-passkeys')
 		}
 	},
 	// Handle CommonJS modules that don't have default exports
