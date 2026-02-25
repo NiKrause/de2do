@@ -1,5 +1,5 @@
 <script>
-	import { peerIdStore, currentIdentityStore } from '$lib/stores.js';
+	import { peerIdStore, currentIdentityStore, delegatedWriteAuthStore } from '$lib/stores.js';
 	import { libp2pStore } from '$lib/p2p.js';
 
 	let showPeerList = $state(false);
@@ -22,6 +22,17 @@
 		identity?.id
 			? `${identity.id.slice(0, 13)}...${identity.id.slice(-5)}`
 			: 'did:key:-----...-----'
+	);
+
+	let delegatedAuth = $derived($delegatedWriteAuthStore);
+	let delegatedAuthLabel = $derived(
+		delegatedAuth.state === 'awaiting'
+			? 'Passkey'
+			: delegatedAuth.state === 'success'
+				? 'Signed'
+				: delegatedAuth.state === 'error'
+					? 'Auth failed'
+					: 'Idle'
 	);
 
 	// Update peer count from libp2p events
@@ -139,8 +150,25 @@
 			<code class="rounded bg-purple-50 px-2 py-1 font-mono text-purple-600">{shortDid}</code>
 		</div>
 
-		<!-- Right: Connected Peers -->
-		<div class="relative flex items-center gap-2">
+		<!-- Right: Delegated auth + connected peers -->
+		<div class="relative flex items-center gap-4">
+			<div class="flex items-center gap-2">
+				<span class="text-gray-500">Delegated Auth:</span>
+				<span
+					data-testid="delegated-auth-state"
+					data-state={delegatedAuth.state}
+					class="font-semibold {delegatedAuth.state === 'awaiting'
+						? 'text-amber-600'
+						: delegatedAuth.state === 'success'
+							? 'text-green-600'
+							: delegatedAuth.state === 'error'
+								? 'text-red-600'
+								: 'text-gray-500'}"
+					title={delegatedAuth.message || 'Delegated write auth status'}
+				>
+					{delegatedAuthLabel}
+				</span>
+			</div>
 			<span class="text-gray-500">Peers:</span>
 			<span
 				class="cursor-help font-semibold text-green-600 hover:text-green-700"

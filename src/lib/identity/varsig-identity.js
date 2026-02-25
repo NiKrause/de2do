@@ -28,6 +28,32 @@ function base64urlToBytes(str) {
 const STORAGE_KEY_IDENTITY = 'webauthn-varsig-orbitdb-identity';
 let lastPasskeyToastAt = 0;
 
+function bytesEqual(a, b) {
+	if (a instanceof ArrayBuffer) a = new Uint8Array(a);
+	if (b instanceof ArrayBuffer) b = new Uint8Array(b);
+	if (ArrayBuffer.isView(a) && !(a instanceof Uint8Array)) {
+		a = new Uint8Array(a.buffer, a.byteOffset, a.byteLength);
+	}
+	if (ArrayBuffer.isView(b) && !(b instanceof Uint8Array)) {
+		b = new Uint8Array(b.buffer, b.byteOffset, b.byteLength);
+	}
+	if (!(a instanceof Uint8Array) || !(b instanceof Uint8Array)) return false;
+	if (a.length !== b.length) return false;
+	for (let i = 0; i < a.length; i += 1) {
+		if (a[i] !== b[i]) return false;
+	}
+	return true;
+}
+
+function verifyWithFlexibleArgs(provider, fallbackPublicKey, signature, arg2, arg3) {
+	// OrbitDB calls identities.verify(signature, publicKey, data).
+	// Some callers may still pass verify(signature, data).
+	const hasExplicitPublicKey = arg3 !== undefined;
+	const publicKey = hasExplicitPublicKey ? arg2 : fallbackPublicKey;
+	const data = hasExplicitPublicKey ? arg3 : arg2;
+	return provider.verify(signature, publicKey, data, DEFAULT_DOMAIN_LABELS.entry);
+}
+
 function showPasskeyPrompt(reason) {
 	const now = Date.now();
 	if (now - lastPasskeyToastAt < 1500) return;
@@ -101,8 +127,36 @@ export function storeCachedVarsigIdentity(identity) {
 	}
 }
 
+export function clearCachedVarsigIdentity() {
+	if (typeof window === 'undefined') return;
+	try {
+		localStorage.removeItem(STORAGE_KEY_IDENTITY);
+		console.log('🧹 Cleared cached varsig identity');
+	} catch (error) {
+		console.warn('Failed to clear cached varsig identity:', error);
+	}
+}
+
 export async function getOrCreateVarsigIdentity(credential) {
-	const cached = loadCachedVarsigIdentity();
+	let cached = loadCachedVarsigIdentity();
+	if (cached && credential) {
+		const didMismatch = Boolean(credential.did && cached.id !== credential.did);
+		const publicKeyMismatch = Boolean(
+			credential.publicKey &&
+				cached.publicKey instanceof Uint8Array &&
+				!bytesEqual(cached.publicKey, credential.publicKey)
+		);
+		if (didMismatch || publicKeyMismatch) {
+			console.warn('⚠️ Cached varsig identity does not match current credential, recreating', {
+				cachedId: cached.id,
+				credentialDid: credential.did || null,
+				didMismatch,
+				publicKeyMismatch
+			});
+			clearCachedVarsigIdentity();
+			cached = null;
+		}
+	}
 	if (cached) {
 		try {
 			const valid = await verifyVarsigIdentity(cached);
@@ -121,17 +175,17 @@ export async function getOrCreateVarsigIdentity(credential) {
 					hash = encoded.hash;
 				}
 				const provider = new WebAuthnVarsigProvider(credential);
-				const restored = {
-					...cached,
-					bytes,
-					hash,
-					sign: (_identity, data) => {
-						showPasskeyPrompt('sign database entry');
-						return provider.sign(data, DEFAULT_DOMAIN_LABELS.entry);
-					},
-					verify: (signature, data) =>
-						provider.verify(signature, cached.publicKey, data, DEFAULT_DOMAIN_LABELS.entry)
-				};
+					const restored = {
+						...cached,
+						bytes,
+						hash,
+						sign: (_identity, data) => {
+							showPasskeyPrompt('sign database entry');
+							return provider.sign(data, DEFAULT_DOMAIN_LABELS.entry);
+						},
+						verify: (signature, arg2, arg3) =>
+							verifyWithFlexibleArgs(provider, cached.publicKey, signature, arg2, arg3)
+					};
 				console.log('🔐 Varsig identity restored from cache', {
 					id: restored.id,
 					type: restored.type,
@@ -159,8 +213,8 @@ export async function getOrCreateVarsigIdentity(credential) {
 			showPasskeyPrompt('sign database entry');
 			return provider.sign(data, DEFAULT_DOMAIN_LABELS.entry);
 		},
-		verify: (signature, data) =>
-			provider.verify(signature, identity.publicKey, data, DEFAULT_DOMAIN_LABELS.entry)
+		verify: (signature, arg2, arg3) =>
+			verifyWithFlexibleArgs(provider, identity.publicKey, signature, arg2, arg3)
 	};
 }
 

@@ -1,5 +1,12 @@
 import { get } from 'svelte/store';
-import { addTodo, deleteTodo, toggleTodoComplete, loadTodos } from '$lib/db-actions.js';
+import {
+	addTodo,
+	deleteTodo,
+	toggleTodoComplete,
+	loadTodos,
+	revokeTodoDelegation,
+	getCurrentAccessControllerType
+} from '$lib/db-actions.js';
 import {
 	createSubList,
 	currentTodoListNameStore,
@@ -29,16 +36,39 @@ export function createTodoHandlers(options = {}) {
 		 * @returns {Promise<boolean>} Success status
 		 */
 		async handleAddTodo(event) {
-			const { text, description, priority, estimatedTime, estimatedCosts } = event.detail;
+			const {
+				text,
+				description,
+				priority,
+				estimatedTime,
+				estimatedCosts,
+				delegateDid,
+				delegationExpiresAt
+			} = event.detail;
 
 			try {
+				if (delegateDid) {
+					const accessType = getCurrentAccessControllerType();
+					if (accessType !== 'todo-delegation') {
+						toastStore.show(
+							'❌ Delegation requires todo-delegation access controller. This list uses legacy access control.',
+							'error'
+						);
+						return false;
+					}
+				}
+
 				const success = await addTodo(
 					text,
 					null, // assignee
 					description,
 					priority,
 					estimatedTime,
-					estimatedCosts
+					estimatedCosts,
+					{
+						delegateDid,
+						expiresAt: delegationExpiresAt
+					}
 				);
 
 				if (success) {
@@ -97,6 +127,24 @@ export function createTodoHandlers(options = {}) {
 			} catch (err) {
 				console.error('Error toggling todo:', err);
 				toastStore.show(`❌ Failed to update todo: ${err.message}`, 'error');
+				return false;
+			}
+		},
+
+		async handleRevokeDelegation(event) {
+			try {
+				const success = await revokeTodoDelegation(event.detail.key);
+
+				if (success) {
+					toastStore.show('✅ Delegation revoked', 'success');
+					return true;
+				}
+
+				toastStore.show('❌ Failed to revoke delegation', 'error');
+				return false;
+			} catch (err) {
+				console.error('Error revoking delegation:', err);
+				toastStore.show(`❌ Failed to revoke delegation: ${err.message}`, 'error');
 				return false;
 			}
 		},

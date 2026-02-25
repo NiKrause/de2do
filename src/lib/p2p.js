@@ -7,6 +7,7 @@ import {
 	OrbitDBAccessController,
 	MemoryStorage,
 	Identities,
+	useAccessController,
 	useIdentityProvider
 } from '@orbitdb/core';
 import SimpleEncryption from '@le-space/orbitdb-simple-encryption';
@@ -30,6 +31,19 @@ import {
 	loadWebAuthnVarsigCredential,
 	WebAuthnVarsigProvider
 } from '@le-space/orbitdb-identity-provider-webauthn-did';
+import DelegatedTodoAccessController from './access/delegated-todo-access-controller.js';
+import {
+	decodeWebAuthnVarsigV1,
+	parseClientDataJSON,
+	verifyWebAuthnAssertion,
+	reconstructSignedData,
+	verifyEd25519Signature,
+	verifyP256Signature,
+	bytesToBase64url,
+	concat
+} from 'iso-webauthn-varsig';
+
+useAccessController(DelegatedTodoAccessController);
 
 function describeEncryptionSecret(secret) {
 	if (!secret) return 'NO';
@@ -40,6 +54,127 @@ function describeEncryptionSecret(secret) {
 		return `YES (bytes: ${secret.length})`;
 	}
 	return 'YES';
+}
+
+function describeBinaryValue(value) {
+	if (value instanceof Uint8Array) {
+		return { kind: 'Uint8Array', length: value.length };
+	}
+	if (value instanceof ArrayBuffer) {
+		return { kind: 'ArrayBuffer', length: value.byteLength };
+	}
+	if (ArrayBuffer.isView(value)) {
+		return { kind: value.constructor?.name || 'TypedArray', length: value.byteLength };
+	}
+	if (typeof value === 'string') {
+		return { kind: 'string', length: value.length };
+	}
+	if (value == null) {
+		return { kind: String(value), length: 0 };
+	}
+	return { kind: typeof value, length: value.length ?? 0 };
+}
+
+function toUint8Array(value) {
+	if (value instanceof Uint8Array) return value;
+	if (value instanceof ArrayBuffer) return new Uint8Array(value);
+	if (ArrayBuffer.isView(value)) {
+		return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+	}
+	if (typeof value === 'string') {
+		return new TextEncoder().encode(value);
+	}
+	return new Uint8Array(0);
+}
+
+async function buildVarsigExpectedChallenge(domainLabel, payloadBytes) {
+	const domain = new TextEncoder().encode(domainLabel);
+	const digest = await crypto.subtle.digest('SHA-256', concat([domain, payloadBytes]));
+	return new Uint8Array(digest);
+}
+
+function getVarsigAlgorithm(publicKeyBytes) {
+	if (publicKeyBytes?.length === 32) return 'Ed25519';
+	if (publicKeyBytes?.length === 65 && publicKeyBytes[0] === 0x04) return 'P-256';
+	return 'unknown';
+}
+
+async function analyzeVarsigVerifyFailure(signature, publicKey, data) {
+	const signatureBytes = toUint8Array(signature);
+	const publicKeyBytes = toUint8Array(publicKey);
+	const payloadBytes = toUint8Array(data);
+	const analysis = {
+		sources: {
+			signature: 'entry.sig from OrbitDB Entry.verify -> identities.verify(signature, key, bytes)',
+			publicKey: 'entry.key from oplog entry',
+			data: 'dag-cbor encoded entry value (id,payload,next,refs,clock,v)'
+		},
+		lengths: {
+			signature: signatureBytes.length,
+			publicKey: publicKeyBytes.length,
+			data: payloadBytes.length
+		},
+		algorithmFromPublicKey: getVarsigAlgorithm(publicKeyBytes),
+		origin: typeof window !== 'undefined' ? window.location.origin : null,
+		rpId: typeof window !== 'undefined' ? window.location.hostname : null
+	};
+
+	try {
+		const decoded = decodeWebAuthnVarsigV1(signatureBytes);
+		const clientData = parseClientDataJSON(decoded.clientDataJSON);
+		analysis.clientData = {
+			type: clientData?.type || null,
+			origin: clientData?.origin || null,
+			challenge: clientData?.challenge || null
+		};
+
+		const labels = {
+			entry: 'orbitdb-entry:',
+			id: 'orbitdb-id:',
+			publicKey: 'orbitdb-pubkey:'
+		};
+		analysis.domainChecks = {};
+
+		for (const [labelName, labelValue] of Object.entries(labels)) {
+			const expectedChallenge = await buildVarsigExpectedChallenge(labelValue, payloadBytes);
+			const expectedChallengeB64 = bytesToBase64url(expectedChallenge);
+			const assertion = await verifyWebAuthnAssertion(decoded, {
+				expectedOrigin: window.location.origin,
+				expectedRpId: window.location.hostname,
+				expectedChallenge
+			});
+			analysis.domainChecks[labelName] = {
+				domainLabel: labelValue,
+				challengeMatch: clientData?.challenge === expectedChallengeB64,
+				expectedChallenge: expectedChallengeB64,
+				verifyAssertionValid: assertion.valid,
+				verifyAssertionError: assertion.error || null,
+				flags: assertion.flags || null
+			};
+		}
+
+		const signedData = await reconstructSignedData(decoded);
+		analysis.signedDataLength = signedData.length;
+		if (analysis.algorithmFromPublicKey === 'Ed25519') {
+			analysis.cryptoSignatureValid = await verifyEd25519Signature(
+				signedData,
+				decoded.signature,
+				publicKeyBytes
+			);
+		} else if (analysis.algorithmFromPublicKey === 'P-256') {
+			analysis.cryptoSignatureValid = await verifyP256Signature(
+				signedData,
+				decoded.signature,
+				publicKeyBytes
+			);
+		} else {
+			analysis.cryptoSignatureValid = false;
+		}
+	} catch (error) {
+		analysis.decodeOrAnalysisError = error?.message || String(error);
+	}
+
+	return analysis;
 }
 
 // Export libp2p instance for plugins
@@ -85,7 +220,7 @@ function buildDatabaseOptions(
 	const { enableNetworkConnection = true } = preferences;
 
 	// Set up access controller - allow the specified identity to write
-	const accessController = OrbitDBAccessController({
+	const accessController = DelegatedTodoAccessController({
 		write: [identityId]
 	});
 
@@ -198,6 +333,11 @@ export async function openTodoList(
 		}
 	}
 	console.log('✅ Database opened successfully:', todoDB);
+	console.log('🔐 Database access controller:', {
+		type: todoDB?.access?.type || null,
+		address: todoDB?.access?.address || null,
+		canAppend: typeof todoDB?.access?.canAppend === 'function'
+	});
 
 	// Initialize database stores and actions (dynamic import to avoid circular dependency)
 	const { initializeDatabase } = await import('./db-actions.js');
@@ -287,6 +427,11 @@ export async function openDatabaseByName(
 			console.log('✅ Database opened successfully by name:', todoDB);
 			console.log('🔧 Database address after open:', todoDB.address);
 			console.log('🔧 Database name:', todoDB.name);
+			console.log('🔐 Database access controller:', {
+				type: todoDB?.access?.type || null,
+				address: todoDB?.access?.address || null,
+				canAppend: typeof todoDB?.access?.canAppend === 'function'
+			});
 
 			// Initialize database stores and actions (dynamic import to avoid circular dependency)
 			const { initializeDatabase } = await import('./db-actions.js');
@@ -360,6 +505,11 @@ export async function openDatabaseByName(
 			}
 		}
 		console.log('✅ Database opened successfully by name:', todoDB);
+		console.log('🔐 Database access controller:', {
+			type: todoDB?.access?.type || null,
+			address: todoDB?.access?.address || null,
+			canAppend: typeof todoDB?.access?.canAppend === 'function'
+		});
 
 		// Initialize database stores and actions (dynamic import to avoid circular dependency)
 		const { initializeDatabase } = await import('./db-actions.js');
@@ -446,6 +596,36 @@ export async function openDatabaseByAddress(
 	console.log(`  → Database opened, address: ${todoDB.address}`);
 	console.log(`  → Address match: ${dbAddress === todoDB.address ? 'YES ✅' : 'NO ❌'}`);
 
+	// When opening by address, OrbitDB can resolve to the legacy "orbitdb" access type.
+	// If we can infer the owner DID from db.name, reopen by name with delegated AC options
+	// so delegated writes behave consistently for shared databases.
+	const initialAccessType = todoDB?.access?.type || null;
+	if (initialAccessType === 'orbitdb' && typeof todoDB?.name === 'string' && todoDB.name.includes('_')) {
+		const inferredIdentityId = todoDB.name.substring(0, todoDB.name.indexOf('_'));
+		if (inferredIdentityId) {
+			console.warn('⚠️ Remote DB opened with legacy orbitdb AC; reopening by name with delegated AC', {
+				address: todoDB.address,
+				name: todoDB.name,
+				inferredIdentityId
+			});
+
+			await todoDB.close();
+			const reopenOptions = buildDatabaseOptions(
+				inferredIdentityId,
+				preferences,
+				enableEncryption,
+				encryption,
+				false
+			);
+			todoDB = await orbitdb.open(todoDB.name, reopenOptions);
+			console.log('🔁 Reopened database by name with delegated AC options:', {
+				name: todoDB.name,
+				address: todoDB.address,
+				accessType: todoDB?.access?.type || null
+			});
+		}
+	}
+
 	// Log database sync state to debug
 	console.log('🔍 Database sync state:', {
 		address: todoDB.address,
@@ -462,6 +642,11 @@ export async function openDatabaseByAddress(
 	try {
 		entryCount = (await todoDB.all()).length;
 		console.log(`✅ Database opened successfully (${entryCount} entries)`);
+		console.log('🔐 Database access controller:', {
+			type: todoDB?.access?.type || null,
+			address: todoDB?.access?.address || null,
+			canAppend: typeof todoDB?.access?.canAppend === 'function'
+		});
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		if (errorMessage.includes('decrypt')) {
@@ -761,6 +946,53 @@ export async function initializeP2P(preferences = {}) {
 				const identity = await getOrCreateVarsigIdentity(varsigCredential);
 				const identityStorage = createIpfsIdentityStorage(helia);
 				const identities = createWebAuthnVarsigIdentities(identity, {}, identityStorage);
+				const originalVerify = identities.verify?.bind(identities);
+				const originalGetIdentity = identities.getIdentity?.bind(identities);
+				if (originalVerify) {
+					identities.verify = async (signature, publicKey, data) => {
+						try {
+							const result = await originalVerify(signature, publicKey, data);
+							if (!result) {
+								const details = await analyzeVarsigVerifyFailure(signature, publicKey, data);
+								console.error('❌ Varsig identities.verify failed (returned false)', {
+									localDid: identity?.id || null,
+									signature: describeBinaryValue(signature),
+									publicKey: describeBinaryValue(publicKey),
+									data: describeBinaryValue(data),
+									stack: new Error().stack,
+									details
+								});
+							}
+							return result;
+						} catch (error) {
+							let details = null;
+							try {
+								details = await analyzeVarsigVerifyFailure(signature, publicKey, data);
+							} catch {
+								// ignore secondary analyzer failures
+							}
+							console.error('❌ Varsig identities.verify threw', {
+								localDid: identity?.id || null,
+								error: error?.message || String(error),
+								signature: describeBinaryValue(signature),
+								publicKey: describeBinaryValue(publicKey),
+								data: describeBinaryValue(data),
+								stack: new Error().stack,
+								details
+							});
+							throw error;
+						}
+					};
+				}
+				if (originalGetIdentity) {
+					identities.getIdentity = async (hash) => {
+						const resolved = await originalGetIdentity(hash);
+						if (!resolved) {
+							console.warn('⚠️ Varsig identities.getIdentity miss', { hash });
+						}
+						return resolved;
+					};
+				}
 
 				console.log('🔍 Created WebAuthn varsig identity:', {
 					id: identity.id,

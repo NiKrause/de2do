@@ -46,6 +46,73 @@ export function setupDatabaseDebug() {
 		return todoDB?.address || null;
 	};
 
+	// Verify that identities referenced by current DB entries can be resolved and verified.
+	// Useful for debugging signature verification issues across peers.
+	window.debugIdentityCoverage = async (limit = 200) => {
+		const orbitdb = get(orbitdbStore);
+		const todoDB = get(todoDBStore);
+		if (!orbitdb || !todoDB) {
+			console.warn('⚠️ OrbitDB or TodoDB not available');
+			return null;
+		}
+
+		const identities = orbitdb.identities;
+		if (!identities?.getIdentity || !identities?.verifyIdentity) {
+			console.warn('⚠️ OrbitDB identities API not available');
+			return null;
+		}
+
+		const identityHashes = new Set();
+		let scannedEntries = 0;
+
+		for await (const entry of todoDB.log.traverse()) {
+			scannedEntries += 1;
+			if (entry?.identity) {
+				identityHashes.add(entry.identity);
+			}
+			if (scannedEntries >= limit) break;
+		}
+
+		const rows = [];
+		for (const hash of identityHashes) {
+			try {
+				const resolved = await identities.getIdentity(hash);
+				const verified = resolved ? await identities.verifyIdentity(resolved) : false;
+				rows.push({
+					identityHash: hash,
+					resolved: Boolean(resolved),
+					verified,
+					id: resolved?.id || null,
+					type: resolved?.type || null,
+					publicKeyLength: resolved?.publicKey?.length ?? null
+				});
+			} catch (error) {
+				rows.push({
+					identityHash: hash,
+					resolved: false,
+					verified: false,
+					id: null,
+					type: null,
+					publicKeyLength: null,
+					error: error?.message || String(error)
+				});
+			}
+		}
+
+		const summary = {
+			currentIdentity: orbitdb.identity?.id || null,
+			databaseAddress: todoDB.address?.toString?.() || String(todoDB.address || ''),
+			scannedEntries,
+			distinctIdentityHashes: identityHashes.size,
+			missingIdentityCount: rows.filter((r) => !r.resolved).length,
+			failedVerificationCount: rows.filter((r) => r.resolved && !r.verified).length
+		};
+
+		console.log('🔍 Identity coverage summary:', summary);
+		console.table(rows);
+		return { summary, rows };
+	};
+
 	// Subscribe to availableTodoListsStore and expose to window
 	availableTodoListsStore.subscribe((lists) => {
 		if (typeof window !== 'undefined') {
@@ -57,6 +124,9 @@ export function setupDatabaseDebug() {
 	console.log('  - window.debugDatabase() - Inspect database state');
 	console.log('  - window.forceReloadTodos() - Force reload todos');
 	console.log('  - window.__getDbAddress() - Get current database address');
+	console.log(
+		'  - window.debugIdentityCoverage(limit?) - Resolve/verify identities used by current DB oplog'
+	);
 }
 
 /**

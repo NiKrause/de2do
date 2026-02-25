@@ -1,16 +1,19 @@
 <script>
-	import { createEventDispatcher } from 'svelte';
-	import { formatPeerId } from '../../utils.js';
-	import { FolderPlus, Edit2, Save, X } from 'lucide-svelte';
-	import { updateTodo } from '../../db-actions.js';
+import { createEventDispatcher } from 'svelte';
+import { formatPeerId } from '../../utils.js';
+import { FolderPlus, Edit2, Save, X } from 'lucide-svelte';
+import { updateTodo } from '../../db-actions.js';
+import { currentIdentityStore } from '../../stores.js';
 
 	export let text;
 	export let description = '';
 	export let priority = null;
 	export let completed = false;
-	export let assignee = null;
-	export let createdBy;
-	export let todoKey;
+export let assignee = null;
+export let createdBy;
+export let createdByIdentity = null;
+export let delegation = null;
+export let todoKey;
 	export let estimatedTime = null;
 	export let estimatedCosts = {};
 	export let allowEdit = true;
@@ -57,6 +60,10 @@
 
 	function handleCreateSubList() {
 		dispatch('createSubList', { text, key: todoKey });
+	}
+
+	function handleRevokeDelegation() {
+		dispatch('revokeDelegation', { key: todoKey });
 	}
 
 	function startEdit() {
@@ -106,6 +113,19 @@
 		if (priority === 'C') return 'bg-green-100 text-green-800 border-green-300';
 		return '';
 	}
+
+	function hasActiveDelegationFor(identityId) {
+		if (!delegation?.delegateDid || !identityId) return false;
+		if (delegation.revokedAt) return false;
+		if (delegation.expiresAt && Date.parse(delegation.expiresAt) < Date.now()) return false;
+		return delegation.delegateDid === identityId;
+	}
+
+	$: currentIdentityId = $currentIdentityStore?.id || null;
+	$: isOwner = Boolean(currentIdentityId && createdByIdentity && currentIdentityId === createdByIdentity);
+	$: canToggleComplete =
+		allowEdit && (isOwner || hasActiveDelegationFor(currentIdentityId) || !createdByIdentity);
+	$: delegationIsActive = Boolean(hasActiveDelegationFor(delegation?.delegateDid || null));
 </script>
 
 <div class="rounded-md border border-gray-200 p-4 transition-colors hover:bg-gray-50">
@@ -214,6 +234,7 @@
 				type="checkbox"
 				checked={completed}
 				on:change={handleToggleComplete}
+				disabled={!canToggleComplete}
 				class="mt-1 h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
 			/>
 			<div class="min-w-0 flex-1">
@@ -263,6 +284,20 @@
 						>Created by: <code class="rounded bg-gray-100 px-1">{formatPeerId(createdBy)}</code
 						></span
 					>
+					{#if delegation?.delegateDid}
+						<span>
+							Delegated to:
+							<code class="rounded bg-blue-100 px-1">{delegation.delegateDid}</code>
+							{#if delegation.expiresAt}
+								(until {new Date(delegation.expiresAt).toLocaleString()})
+							{/if}
+							{#if delegation.revokedAt}
+								<span class="text-red-600"> revoked</span>
+							{:else if delegationIsActive}
+								<span class="text-green-600"> active</span>
+							{/if}
+						</span>
+					{/if}
 				</div>
 			</div>
 			<div class="flex gap-2">
@@ -291,6 +326,14 @@
 					>
 						Delete
 					</button>
+					{#if isOwner && delegation?.delegateDid && !delegation.revokedAt}
+						<button
+							on:click={handleRevokeDelegation}
+							class="min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-md px-3 py-2 text-amber-700 transition-colors hover:bg-amber-50 hover:text-amber-800 active:bg-amber-100"
+						>
+							Revoke
+						</button>
+					{/if}
 				{/if}
 			</div>
 		</div>
