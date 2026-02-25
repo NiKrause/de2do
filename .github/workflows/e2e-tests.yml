@@ -33,7 +33,7 @@ jobs:
           sudo apt-get install -y build-essential python3 cmake pkg-config libssl-dev
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit
 
       - name: Ensure native node-datachannel is built
         run: |
@@ -106,7 +106,7 @@ jobs:
           sudo apt-get install -y build-essential python3 cmake pkg-config libssl-dev
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit
 
       - name: Ensure native node-datachannel is built
         run: |
