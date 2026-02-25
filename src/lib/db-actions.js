@@ -1,6 +1,12 @@
 import { writable, derived, get } from 'svelte/store';
 import { systemToasts } from './toast-store.js';
-import { currentDbAddressStore, peerIdStore } from './stores.js';
+import {
+	currentDbAddressStore,
+	currentIdentityStore,
+	peerIdStore,
+	delegatedWriteAuthStore
+} from './stores.js';
+import { authenticateWithWebAuthn, hasExistingCredentials } from './identity/webauthn-identity.js';
 
 // Store for OrbitDB instances
 export const orbitdbStore = writable(null);
@@ -14,6 +20,77 @@ let previousTodoDB = null;
 
 // Derived store that updates when todos change
 export const todosCountStore = derived(todosStore, ($todos) => $todos.length);
+
+export function getCurrentAccessControllerType() {
+	const todoDB = get(todoDBStore);
+	return todoDB?.access?.type || null;
+}
+
+function isDelegationActiveFor(todo, identityId) {
+	const delegation = todo?.delegation;
+	if (!delegation?.delegateDid || !identityId) return false;
+	if (delegation.delegateDid !== identityId) return false;
+	if (delegation.revokedAt) return false;
+	if (delegation.expiresAt && Date.parse(delegation.expiresAt) < Date.now()) return false;
+	return true;
+}
+
+function buildDelegationActionKey(taskKey, delegateDid) {
+	const encodedDelegateDid = encodeURIComponent(delegateDid);
+	return `delegation-action/${taskKey}/${encodedDelegateDid}/${Date.now()}_${Math.random()
+		.toString(36)
+		.slice(2, 9)}`;
+}
+
+function setDelegatedAuthState(state, action, message = '') {
+	delegatedWriteAuthStore.set({
+		state,
+		action,
+		at: new Date().toISOString(),
+		message
+	});
+}
+
+function scheduleDelegatedAuthReset() {
+	if (typeof window === 'undefined') return;
+	window.setTimeout(() => {
+		delegatedWriteAuthStore.update((current) => {
+			if (current.state === 'awaiting') return current;
+			return { state: 'idle', action: null, at: null, message: '' };
+		});
+	}, 3000);
+}
+
+async function requireDelegatedWriteAuthentication(actionName) {
+	// If no credentials exist we keep current behavior and let access control enforce auth failures.
+	if (!hasExistingCredentials()) {
+		return true;
+	}
+
+	const startedAt = Date.now();
+	setDelegatedAuthState('awaiting', actionName, 'Confirm passkey to sign delegated write');
+	try {
+		const authResult = await authenticateWithWebAuthn();
+		const elapsed = Date.now() - startedAt;
+		if (elapsed < 250) {
+			await new Promise((resolve) => setTimeout(resolve, 250 - elapsed));
+		}
+		if (authResult?.identity) {
+			currentIdentityStore.set(authResult.identity);
+		}
+		setDelegatedAuthState('success', actionName, 'Delegated write signed');
+		scheduleDelegatedAuthReset();
+		return true;
+	} catch (error) {
+		setDelegatedAuthState(
+			'error',
+			actionName,
+			error?.message || 'Delegated write authentication failed'
+		);
+		scheduleDelegatedAuthReset();
+		return false;
+	}
+}
 
 // Initialize database and load existing todos
 export async function initializeDatabase(orbitdb, todoDB, preferences) {
@@ -68,8 +145,6 @@ export async function loadTodos() {
 		const allTodos = await todoDB.all();
 		console.log('🔍 Raw database entries:', allTodos); // Add this debug log
 
-		// Handle both array and object structures
-		let todosArray;
 		if (!Array.isArray(allTodos)) {
 			console.error('Expected array from todoDB.all()', {
 				actualType: typeof allTodos,
@@ -78,20 +153,83 @@ export async function loadTodos() {
 			return;
 		}
 
-		todosArray = allTodos
-			.map((todo, index) => {
-				if (!todo || typeof todo !== 'object') {
-					console.warn(`⚠️ Invalid todo at index ${index}:`, todo);
-					return null;
-				}
+		const todosArray = [];
+		const delegationActions = [];
 
-				return {
-					id: todo.hash,
-					key: todo.key,
-					...todo.value // Access the nested value property
-				};
-			})
-			.filter(Boolean); // Remove null entries
+		for (const [index, todo] of allTodos.entries()) {
+			if (!todo || typeof todo !== 'object') {
+				console.warn(`⚠️ Invalid todo at index ${index}:`, todo);
+				continue;
+			}
+
+			const key = todo.key;
+			const value = todo.value || {};
+			if (typeof key === 'string' && key.startsWith('delegation-action/')) {
+				delegationActions.push({
+					key,
+					hash: todo.hash,
+					...value
+				});
+				continue;
+			}
+
+			todosArray.push({
+				id: todo.hash,
+				key,
+				...value
+			});
+		}
+
+		const todosByKey = new Map(todosArray.map((todo) => [todo.key, todo]));
+		const delegationActionsByTask = new Map();
+
+		for (const action of delegationActions) {
+			if (action.type !== 'delegation-action') continue;
+			if (!['set-completed', 'patch-fields'].includes(action.action)) continue;
+			if (typeof action.taskKey !== 'string') continue;
+			if (action.action === 'set-completed' && typeof action.setCompleted !== 'boolean') continue;
+			if (action.action === 'patch-fields' && (!action.patch || typeof action.patch !== 'object'))
+				continue;
+
+			const task = todosByKey.get(action.taskKey);
+			if (!task) continue;
+
+			if (!isDelegationActiveFor(task, action.delegateDid)) continue;
+
+			const actionTime = Date.parse(action.performedAt || '');
+			if (Number.isNaN(actionTime)) continue;
+
+			const actionsForTask = delegationActionsByTask.get(action.taskKey) || [];
+			actionsForTask.push(action);
+			delegationActionsByTask.set(action.taskKey, actionsForTask);
+		}
+
+		for (const [taskKey, actionsForTask] of delegationActionsByTask.entries()) {
+			const task = todosByKey.get(taskKey);
+			if (!task) continue;
+
+			actionsForTask.sort((a, b) => {
+				const at = Date.parse(a.performedAt || '') || 0;
+				const bt = Date.parse(b.performedAt || '') || 0;
+				return at - bt;
+			});
+
+			for (const action of actionsForTask) {
+				if (action.action === 'set-completed') {
+					task.completed = action.setCompleted;
+				}
+				if (action.action === 'patch-fields') {
+					if (typeof action.patch.text === 'string') {
+						task.text = action.patch.text;
+					}
+					if (typeof action.patch.description === 'string') {
+						task.description = action.patch.description;
+					}
+				}
+				task.updatedAt = action.performedAt || task.updatedAt;
+				task.updatedBy = action.performedBy || action.delegateDid || task.updatedBy;
+			}
+		}
 
 		// Sort by createdAt descending (newest first)
 		const sortedTodos = todosArray.sort((a, b) => {
@@ -187,11 +325,13 @@ export async function addTodo(
 	description = '',
 	priority = null,
 	estimatedTime = null,
-	estimatedCosts = {}
+	estimatedCosts = {},
+	delegationOptions = {}
 ) {
 	console.log('🔍 Adding todo:', text);
 	const todoDB = get(todoDBStore);
 	const myPeerId = get(peerIdStore);
+	const currentIdentity = get(currentIdentityStore);
 
 	if (!todoDB || !myPeerId) {
 		console.error('❌ Database or peer ID not available');
@@ -203,8 +343,31 @@ export async function addTodo(
 		return false;
 	}
 
+	const delegateDid = delegationOptions?.delegateDid || null;
+	if (typeof delegateDid === 'string' && delegateDid.trim()) {
+		const accessType = getCurrentAccessControllerType();
+		if (accessType !== 'todo-delegation') {
+			console.error('❌ Delegation blocked: current database uses legacy access controller', {
+				accessType,
+				delegateDid
+			});
+			return false;
+		}
+	}
+
 	try {
 		const todoId = `todo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+		const expiresAt = delegationOptions?.expiresAt || null;
+		const delegation =
+			typeof delegateDid === 'string' && delegateDid.trim()
+				? {
+						delegateDid: delegateDid.trim(),
+						grantedBy: currentIdentity?.id || null,
+						grantedAt: new Date().toISOString(),
+						expiresAt: expiresAt || null,
+						revokedAt: null
+					}
+				: null;
 		const todo = {
 			text: text.trim(),
 			description: description || '',
@@ -214,8 +377,10 @@ export async function addTodo(
 			assignee: assignee,
 			estimatedTime: estimatedTime || null, // in minutes or hours
 			estimatedCosts: estimatedCosts || {}, // { usd: 0, eth: 0, btc: 0 }
+			delegation,
 			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString()
+			updatedAt: new Date().toISOString(),
+			createdByIdentity: currentIdentity?.id || null
 		};
 		console.log('🔍 Todo:', todo);
 		await todoDB.put(todoId, todo);
@@ -233,6 +398,7 @@ export async function addTodo(
 // Update a todo
 export async function updateTodo(todoId, updates) {
 	const todoDB = get(todoDBStore);
+	const currentIdentityId = get(currentIdentityStore)?.id || null;
 
 	if (!todoDB) {
 		console.error('❌ Database not available');
@@ -260,6 +426,54 @@ export async function updateTodo(todoId, updates) {
 
 		// Access the nested value property for the todo data
 		const todoData = existingTodo.value || existingTodo;
+
+		const ownerIdentityId = todoData.createdByIdentity || null;
+		const isOwner = !ownerIdentityId || ownerIdentityId === currentIdentityId;
+		const delegatedWriter = isDelegationActiveFor(todoData, currentIdentityId);
+
+		if (!isOwner && !delegatedWriter) {
+			console.error('❌ Current identity has no permission to update todo fields');
+			return false;
+		}
+
+		if (!isOwner && delegatedWriter) {
+			const authOk = await requireDelegatedWriteAuthentication('patch-fields');
+			if (!authOk) {
+				console.error('❌ Delegated update cancelled: passkey authentication failed');
+				return false;
+			}
+
+			const patch = {};
+			if (typeof updates.text === 'string') patch.text = updates.text;
+			if (typeof updates.description === 'string') patch.description = updates.description;
+			if (Object.keys(patch).length === 0) {
+				console.error('❌ Delegated updates are limited to text/description');
+				return false;
+			}
+
+			const actionKey = buildDelegationActionKey(actualTodoId, currentIdentityId);
+			console.log('📝 Attempting delegated patch action append', {
+				actionKey,
+				taskKey: actualTodoId,
+				delegateDid: currentIdentityId,
+				todoOwnerDid: ownerIdentityId,
+				todoDelegation: todoData.delegation || null,
+				dbAccessType: todoDB?.access?.type || null
+			});
+			await todoDB.put(actionKey, {
+				type: 'delegation-action',
+				action: 'patch-fields',
+				taskKey: actualTodoId,
+				delegateDid: currentIdentityId,
+				performedBy: currentIdentityId,
+				performedAt: new Date().toISOString(),
+				patch,
+				expiresAt: todoData.delegation?.expiresAt || null
+			});
+			await loadTodos();
+			console.log('✅ Delegated todo patch action added:', actionKey);
+			return true;
+		}
 
 		const updatedTodo = {
 			...todoData,
@@ -318,6 +532,7 @@ export async function deleteTodo(todoId) {
 // Toggle todo completion status
 export async function toggleTodoComplete(todoId) {
 	const todoDB = get(todoDBStore);
+	const currentIdentityId = get(currentIdentityStore)?.id || null;
 
 	if (!todoDB) {
 		console.error('❌ Database not available');
@@ -352,9 +567,48 @@ export async function toggleTodoComplete(todoId) {
 			return false;
 		}
 
-		// Access the nested value property for the todo data
 		const todoData = existingTodo.value || existingTodo;
 		const currentCompleted = todoData.completed || false;
+		const ownerIdentityId = todoData.createdByIdentity || null;
+		const isOwner = !ownerIdentityId || ownerIdentityId === currentIdentityId;
+		const delegatedWriter = isDelegationActiveFor(todoData, currentIdentityId);
+
+		if (!isOwner && !delegatedWriter) {
+			console.error('❌ Current identity has no permission to update todo completion');
+			return false;
+		}
+
+		// Delegates write action entries; owners write canonical todo entries.
+		if (!isOwner && delegatedWriter) {
+			const authOk = await requireDelegatedWriteAuthentication('set-completed');
+			if (!authOk) {
+				console.error('❌ Delegated completion cancelled: passkey authentication failed');
+				return false;
+			}
+
+			const actionKey = buildDelegationActionKey(actualTodoId, currentIdentityId);
+			console.log('📝 Attempting delegated completion action append', {
+				actionKey,
+				taskKey: actualTodoId,
+				delegateDid: currentIdentityId,
+				todoOwnerDid: ownerIdentityId,
+				todoDelegation: todoData.delegation || null,
+				dbAccessType: todoDB?.access?.type || null
+			});
+			await todoDB.put(actionKey, {
+				type: 'delegation-action',
+				action: 'set-completed',
+				taskKey: actualTodoId,
+				delegateDid: currentIdentityId,
+				performedBy: currentIdentityId,
+				performedAt: new Date().toISOString(),
+				setCompleted: !currentCompleted,
+				expiresAt: todoData.delegation?.expiresAt || null
+			});
+			console.log('✅ Delegated completion action added:', actionKey);
+			await loadTodos();
+			return true;
+		}
 
 		const updatedTodo = {
 			...todoData,
@@ -401,6 +655,53 @@ export async function updateTodoAssignee(todoId, assignee) {
 		return true;
 	} catch (error) {
 		console.error('❌ Error updating todo assignee:', error);
+		return false;
+	}
+}
+
+export async function revokeTodoDelegation(todoId) {
+	const todoDB = get(todoDBStore);
+	const currentIdentityId = get(currentIdentityStore)?.id || null;
+
+	if (!todoDB) {
+		console.error('❌ Database not available');
+		return false;
+	}
+
+	try {
+		const existingTodo = await todoDB.get(todoId);
+		if (!existingTodo) {
+			console.error('❌ Todo not found:', todoId);
+			return false;
+		}
+
+		const todoData = existingTodo.value || existingTodo;
+		if (!todoData.delegation?.delegateDid) {
+			console.warn('⚠️ Todo has no active delegation:', todoId);
+			return false;
+		}
+
+		if (todoData.createdByIdentity && todoData.createdByIdentity !== currentIdentityId) {
+			console.error('❌ Only the task owner can revoke delegation');
+			return false;
+		}
+
+		const updatedTodo = {
+			...todoData,
+			delegation: {
+				...todoData.delegation,
+				revokedAt: new Date().toISOString(),
+				revokedBy: currentIdentityId || null
+			},
+			updatedAt: new Date().toISOString()
+		};
+
+		await todoDB.put(todoId, updatedTodo);
+		await loadTodos();
+		console.log('✅ Delegation revoked for todo:', todoId);
+		return true;
+	} catch (error) {
+		console.error('❌ Error revoking delegation:', error);
 		return false;
 	}
 }

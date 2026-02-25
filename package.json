@@ -1,7 +1,7 @@
 {
 	"name": "simple-todo",
 	"private": true,
-	"version": "0.4.5",
+	"version": "0.4.6",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
@@ -34,7 +34,6 @@
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.12.1",
 		"globals": "^16.3.0",
-		"orbitdb-relay-pinner": "^0.1.1",
 		"playwright": "^1.56.1",
 		"prettier": "~3.6.2",
 		"prettier-plugin-svelte": "^3.4.0",
@@ -100,6 +99,7 @@
 		"libp2p": "^2.9.0",
 		"lucide-svelte": "^0.500.0",
 		"multiformats": "^13.3.7",
+		"orbitdb-relay-pinner": "^0.1.6",
 		"orbitdb-storacha-bridge": "^0.4.2",
 		"p-queue": "^8.1.0",
 		"svelte-qrcode": "^1.0.1",

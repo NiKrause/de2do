@@ -13,6 +13,103 @@ import {
 } from './helpers.js';
 
 test.describe('Simple Todo P2P Application', () => {
+	async function safeCloseContext(context) {
+		if (!context) return;
+		try {
+			await context.close();
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			// Playwright can throw ENOENT while flushing trace/video artifacts on close.
+			// The test assertions already passed at this point, so don't fail teardown on this race.
+			if (message.includes('ENOENT')) {
+				console.warn('⚠️ Ignoring context close ENOENT during artifact flush:', message);
+				return;
+			}
+			throw error;
+		}
+	}
+
+	async function initializeWithWebAuthn(page, label = 'User') {
+		await addVirtualAuthenticator(page);
+		await page.goto('http://localhost:4174/');
+		await page.waitForFunction(
+			() =>
+				document.querySelector('main') !== null ||
+				document.querySelector('[data-testid="consent-modal"]') !== null,
+			{ timeout: 30000 }
+		);
+		await page.waitForTimeout(1000);
+
+		console.log(`📱 ${label}: Accepting consent...`);
+		const consentModal = page.locator('[data-testid="consent-modal"]');
+		await expect(consentModal).toBeVisible({ timeout: 10000 });
+		await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+		await page.getByTestId('consent-accept-button').click();
+		await expect(consentModal).not.toBeVisible();
+
+		console.log(`🔐 ${label}: Creating passkey...`);
+		await page.waitForSelector('[data-testid="webauthn-setup-modal"]', {
+			state: 'attached',
+			timeout: 10000
+		});
+		const setupButton = page.getByRole('button', { name: /Set Up WebAuthn/i });
+		await expect(setupButton).toBeVisible({ timeout: 5000 });
+		await setupButton.click();
+		await expect(page.locator('[data-testid="webauthn-setup-modal"]')).not.toBeVisible({
+			timeout: 20000
+		});
+
+		await waitForP2PInitialization(page);
+	}
+
+	async function addAndSelectUserByDid(page, did) {
+		const usersInput = page.locator('#users-list');
+		await expect(usersInput).toBeVisible({ timeout: 15000 });
+		await usersInput.click();
+		await usersInput.fill(did);
+
+		const addButton = page.locator('button[title="Add identity"]');
+		await expect(addButton).toBeEnabled({ timeout: 10000 });
+		await addButton.click();
+
+		const usersListbox = page.getByTestId('users-listbox');
+		await expect(usersListbox).toBeVisible({ timeout: 30000 });
+		const userOptionButton = usersListbox.locator('button').filter({ hasText: did }).first();
+		await expect(userOptionButton).toBeVisible({ timeout: 60000 });
+		await userOptionButton.click();
+	}
+
+	async function waitForTodoAfterDidSwitch(page, did, todoText) {
+		const usersListbox = page.getByTestId('users-listbox');
+		let lastError = null;
+
+		for (let attempt = 1; attempt <= 3; attempt++) {
+			try {
+				await waitForTodoText(page, todoText, 25000, { browserName: test.info().project.name });
+				return;
+			} catch (error) {
+				lastError = error;
+				if (attempt === 3) break;
+
+				const userOptionButton = usersListbox.locator('button').filter({ hasText: did }).first();
+				await userOptionButton.click();
+				await page.waitForTimeout(4000);
+			}
+		}
+
+		throw lastError;
+	}
+
+	async function getCurrentAccessControllerType(page) {
+		return await page.evaluate(() => window.__todoDB__?.access?.type || null);
+	}
+
+	async function assertAccessControllerType(page, expectedType, timeout = 30000) {
+		await expect
+			.poll(async () => await getCurrentAccessControllerType(page), { timeout })
+			.toBe(expectedType);
+	}
+
 	test('should have webserver running and accessible', async ({ page, request }) => {
 		// Check if the webserver is responding
 		const response = await request.get('/');
@@ -504,6 +601,9 @@ test.describe('Simple Todo P2P Application', () => {
 		const dbAddress = await getCurrentDatabaseAddress(page1, 15000);
 		expect(dbAddress).toBeTruthy();
 		console.log(`✅ Alice: Database address: ${dbAddress}`);
+		const aliceDid = await page1.evaluate(() => window.__currentIdentityId__ || null);
+		expect(aliceDid).toBeTruthy();
+		console.log(`✅ Alice: DID: ${aliceDid}`);
 
 		// ===== BOB: Open shared database and verify todos =====
 		console.log('📱 Bob: Opening shared database...');
@@ -512,6 +612,14 @@ test.describe('Simple Todo P2P Application', () => {
 
 		// Hash URL auto-initializes P2P (skips consent)
 		await waitForP2PInitialization(page2);
+
+		// Verify Alice DID is visible in Bob's left users list by default
+		const usersListbox = page2.getByTestId('users-listbox');
+		await expect(usersListbox).toBeVisible({ timeout: 30000 });
+		await expect(usersListbox.getByRole('option', { name: aliceDid })).toBeVisible({
+			timeout: 60000
+		});
+		console.log('✅ Bob: Alice DID is visible in UsersList');
 
 		// Wait for peer connection
 		console.log('🔗 Bob: Waiting for peer connections...');
@@ -530,6 +638,141 @@ test.describe('Simple Todo P2P Application', () => {
 		await context2.close();
 
 		console.log('🎉 Passkey + database sharing test completed!');
+	});
+
+	test('should allow delegated user to edit and complete todo via UsersList DID flow', async ({
+		browser
+	}) => {
+		test.setTimeout(180000);
+		const contextAlice = await browser.newContext();
+		const contextBob = await browser.newContext();
+
+		const alice = await contextAlice.newPage();
+		const bob = await contextBob.newPage();
+
+		await initializeWithWebAuthn(alice, 'Alice');
+		await initializeWithWebAuthn(bob, 'Bob');
+
+		const aliceDid = await alice.evaluate(() => window.__currentIdentityId__ || null);
+		const bobDid = await bob.evaluate(() => window.__currentIdentityId__ || null);
+		expect(aliceDid).toBeTruthy();
+		expect(bobDid).toBeTruthy();
+
+		const originalTitle = `Delegated todo ${Date.now()}`;
+		const originalDescription = 'Original description';
+		const updatedTitle = `${originalTitle} - updated by Bob`;
+		const updatedDescription = 'Updated by Bob via delegation';
+
+		await alice.getByRole('button', { name: /Show Advanced Fields/i }).click();
+		await alice.getByTestId('todo-input').fill(originalTitle);
+		await alice.locator('#add-todo-description').fill(originalDescription);
+			await alice.locator('#add-todo-delegate-did').fill(bobDid);
+			await alice.getByTestId('add-todo-button').click();
+			await waitForTodoText(alice, originalTitle, 15000, { browserName: test.info().project.name });
+			const aliceOriginalTodoRow = alice
+				.locator('div.rounded-md.border', { has: alice.locator(`[data-todo-text="${originalTitle}"]`) })
+				.first();
+			await expect(aliceOriginalTodoRow.locator(`text=${bobDid}`)).toBeVisible({ timeout: 15000 });
+
+			const aliceDbAddress = await getCurrentDatabaseAddress(alice, 15000);
+			expect(aliceDbAddress).toBeTruthy();
+			await assertAccessControllerType(alice, 'todo-delegation', 30000);
+
+			await addAndSelectUserByDid(bob, aliceDid);
+
+			await expect
+				.poll(async () => await getCurrentDatabaseAddress(bob, 10000), { timeout: 60000 })
+				.toBe(aliceDbAddress);
+			await assertAccessControllerType(bob, 'todo-delegation', 30000);
+
+			await waitForPeerCount(bob, 1, 90000);
+			await waitForTodoAfterDidSwitch(bob, aliceDid, originalTitle);
+
+		await bob.getByRole('button', { name: 'Edit' }).first().click();
+		await bob.locator('input[id^="edit-title-"]').first().fill(updatedTitle);
+		await bob.locator('textarea[id^="edit-description-"]').first().fill(updatedDescription);
+		const saveButton = bob.getByRole('button', { name: 'Save' }).first();
+		await saveButton.click();
+		const delegatedAuthState = bob.getByTestId('delegated-auth-state');
+		await expect(delegatedAuthState).toHaveAttribute('data-state', 'awaiting', { timeout: 10000 });
+		await expect(delegatedAuthState).toHaveAttribute('data-state', 'success', { timeout: 15000 });
+
+		await waitForTodoText(bob, updatedTitle, 30000, { browserName: test.info().project.name });
+
+		const bobTodoRow = bob
+			.locator('div.rounded-md.border', { has: bob.locator(`[data-todo-text="${updatedTitle}"]`) })
+			.first();
+		await bobTodoRow.locator('input[type="checkbox"]').click();
+		await expect(delegatedAuthState).toHaveAttribute('data-state', 'awaiting', { timeout: 10000 });
+		await expect(delegatedAuthState).toHaveAttribute('data-state', 'success', { timeout: 15000 });
+
+		const aliceTodoRow = alice
+			.locator(
+				'div.rounded-md.border',
+				{ has: alice.locator(`[data-todo-text="${updatedTitle}"]`) }
+			)
+			.first();
+		await expect(aliceTodoRow.locator('input[type="checkbox"]')).toBeChecked({ timeout: 60000 });
+		await expect(alice.locator('text=' + updatedDescription).first()).toBeVisible({ timeout: 60000 });
+
+		await safeCloseContext(contextAlice);
+		await safeCloseContext(contextBob);
+	});
+
+	test('should prevent malicious user from editing or completing non-delegated todo', async ({
+		browser
+	}) => {
+		test.setTimeout(180000);
+		const contextAlice = await browser.newContext();
+		const contextMallory = await browser.newContext();
+
+		const alice = await contextAlice.newPage();
+		const mallory = await contextMallory.newPage();
+
+		await initializeWithWebAuthn(alice, 'Alice');
+		await initializeWithWebAuthn(mallory, 'Mallory');
+
+		const aliceDid = await alice.evaluate(() => window.__currentIdentityId__ || null);
+		expect(aliceDid).toBeTruthy();
+
+		const originalTitle = `Owner only todo ${Date.now()}`;
+		const maliciousTitle = `${originalTitle} - hacked`;
+
+		await alice.getByTestId('todo-input').fill(originalTitle);
+		await alice.getByTestId('add-todo-button').click();
+		await waitForTodoText(alice, originalTitle, 15000, { browserName: test.info().project.name });
+
+		const aliceDbAddress = await getCurrentDatabaseAddress(alice, 15000);
+		expect(aliceDbAddress).toBeTruthy();
+
+		await addAndSelectUserByDid(mallory, aliceDid);
+
+		await expect
+			.poll(async () => await getCurrentDatabaseAddress(mallory, 10000), { timeout: 60000 })
+			.toBe(aliceDbAddress);
+
+		await waitForPeerCount(mallory, 1, 90000);
+		await waitForTodoAfterDidSwitch(mallory, aliceDid, originalTitle);
+
+		const malloryTodoRow = mallory
+			.locator(
+				'div.rounded-md.border',
+				{ has: mallory.locator(`[data-todo-text="${originalTitle}"]`) }
+			)
+			.first();
+		await expect(malloryTodoRow.locator('input[type="checkbox"]')).toBeDisabled();
+
+		await mallory.getByRole('button', { name: 'Edit' }).first().click();
+		await mallory.locator('input[id^="edit-title-"]').first().fill(maliciousTitle);
+		await mallory.getByRole('button', { name: 'Save' }).first().click();
+
+		await expect(alice.locator(`[data-todo-text="${originalTitle}"]`).first()).toBeVisible({
+			timeout: 30000
+		});
+		await expect(alice.locator(`[data-todo-text="${maliciousTitle}"]`).first()).toHaveCount(0);
+
+		await safeCloseContext(contextAlice);
+		await safeCloseContext(contextMallory);
 	});
 
 	test.skip('should replicate database when Browser B opens Browser A database by name', async ({

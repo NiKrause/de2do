@@ -235,6 +235,7 @@
 
 	// Create todo event handlers using factory
 	$: todoHandlers = createTodoHandlers({ preferences, enableEncryption, encryptionPassword });
+	$: delegationEnabledForCurrentDb = $todoDBStore?.access?.type === 'todo-delegation';
 
 	// Delegate to handlers from factory
 	const handleAddTodo = async (event) => {
@@ -251,6 +252,10 @@
 
 	const handleCreateSubList = async (event) => {
 		return await todoHandlers.handleCreateSubList(event, { isEmbedMode, embedAllowAdd });
+	};
+
+	const handleRevokeDelegation = async (event) => {
+		return await todoHandlers.handleRevokeDelegation(event);
 	};
 
 	// Track the last manually-set encryption state to prevent overwrites
@@ -362,7 +367,7 @@
 			<BreadcrumbNavigation {preferences} {enableEncryption} {encryptionPassword} />
 
 			{#if embedAllowAdd}
-				<AddTodoForm on:add={handleAddTodo} />
+				<AddTodoForm on:add={handleAddTodo} delegationEnabled={delegationEnabledForCurrentDb} />
 			{/if}
 			<TodoList
 				todos={$todosStore}
@@ -371,6 +376,7 @@
 				on:delete={handleDelete}
 				on:toggleComplete={handleToggleComplete}
 				on:createSubList={handleCreateSubList}
+				on:revokeDelegation={handleRevokeDelegation}
 			/>
 		</div>
 	{:else}
@@ -413,7 +419,11 @@
 		</div>
 
 		<!-- Add TODO Form -->
-		<AddTodoForm on:add={handleAddTodo} disabled={!$initializationStore.isInitialized} />
+		<AddTodoForm
+			on:add={handleAddTodo}
+			disabled={!$initializationStore.isInitialized}
+			delegationEnabled={delegationEnabledForCurrentDb}
+		/>
 
 		<!-- Breadcrumb Navigation -->
 		<BreadcrumbNavigation {preferences} {enableEncryption} {encryptionPassword} />
@@ -424,6 +434,7 @@
 			on:delete={handleDelete}
 			on:toggleComplete={handleToggleComplete}
 			on:createSubList={handleCreateSubList}
+			on:revokeDelegation={handleRevokeDelegation}
 		/>
 
 		<!-- Storacha Test Suite - Temporarily disabled

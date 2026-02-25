@@ -5,6 +5,7 @@
 	export let placeholder = 'What needs to be done?';
 	export let buttonText = 'Add'; // Changed from 'Add TODO' to 'Add'
 	export let disabled = false;
+	export let delegationEnabled = true;
 
 	let inputText = '';
 	let description = '';
@@ -12,6 +13,8 @@
 	let estimatedTime = '';
 	let estimatedCost = '';
 	let estimatedCostCurrency = 'usd';
+	let delegateDid = '';
+	let delegationExpiresAt = '';
 	let showAdvanced = false;
 
 	const dispatch = createEventDispatcher();
@@ -32,7 +35,9 @@
 			description: description.trim(),
 			priority: priority || null,
 			estimatedTime: estimatedTime ? parseFloat(estimatedTime) : null,
-			estimatedCosts: Object.keys(estimatedCosts).length > 0 ? estimatedCosts : {}
+			estimatedCosts: Object.keys(estimatedCosts).length > 0 ? estimatedCosts : {},
+			delegateDid: delegationEnabled ? delegateDid.trim() || null : null,
+			delegationExpiresAt: delegationEnabled ? delegationExpiresAt || null : null
 		});
 
 		// Reset form
@@ -42,6 +47,8 @@
 		estimatedTime = '';
 		estimatedCost = '';
 		estimatedCostCurrency = 'usd';
+		delegateDid = '';
+		delegationExpiresAt = '';
 		showAdvanced = false;
 	}
 
@@ -154,6 +161,40 @@
 						</select>
 					</div>
 				</div>
+
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+					<div>
+						<label for="add-todo-delegate-did" class="mb-1 block text-sm font-medium text-gray-700">
+							Delegate DID
+						</label>
+						<input
+							id="add-todo-delegate-did"
+							type="text"
+							bind:value={delegateDid}
+							disabled={disabled || !delegationEnabled}
+							placeholder="did:key:..."
+							class="w-full rounded-md border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+						/>
+					</div>
+
+					<div>
+						<label for="add-todo-delegation-expiry" class="mb-1 block text-sm font-medium text-gray-700">
+							Delegation Expires At
+						</label>
+						<input
+							id="add-todo-delegation-expiry"
+							type="datetime-local"
+							bind:value={delegationExpiresAt}
+							disabled={disabled || !delegationEnabled}
+							class="w-full rounded-md border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+						/>
+					</div>
+				</div>
+				{#if !delegationEnabled}
+					<p class="text-xs text-amber-700">
+						Delegation is disabled for this list because it uses legacy access control.
+					</p>
+				{/if}
 			</div>
 		{/if}
 

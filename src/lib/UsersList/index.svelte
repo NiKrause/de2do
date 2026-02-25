@@ -13,7 +13,7 @@
 	import { showToast } from '../toast-store.js';
 	import { get } from 'svelte/store';
 
-	let showDropdown = false;
+	let showDropdown = true;
 	let inputValue = '';
 	let filteredUsers = [];
 	let isAdding = false;
@@ -63,7 +63,6 @@
 				showToast(`✅ Added user (could not discover projects database)`, 'info', 3000);
 			}
 			inputValue = '';
-			showDropdown = false;
 		} catch (error) {
 			console.error('Failed to add user:', error);
 			showToast(`Failed to add user: ${error.message}`, 'error', 3000);
@@ -73,7 +72,6 @@
 	}
 
 	async function handleSelect(userId) {
-		showDropdown = false;
 		inputValue = userId;
 
 		// Copy to clipboard when selecting
@@ -228,9 +226,7 @@
 	}
 
 	function handleInputBlur() {
-		setTimeout(() => {
-			showDropdown = false;
-		}, 200);
+		// Keep dropdown visible by default to make discovered users immediately visible.
 	}
 
 	function handleKeydown(event) {
@@ -242,7 +238,7 @@
 				handleAdd();
 			}
 		} else if (event.key === 'Escape') {
-			showDropdown = false;
+			showDropdown = true;
 		}
 	}
 </script>
@@ -277,6 +273,7 @@
 		<div
 			class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg"
 			role="listbox"
+			data-testid="users-listbox"
 		>
 			{#if filteredUsers.length > 0}
 				{#each filteredUsers as userId (userId)}

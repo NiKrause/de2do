@@ -10,7 +10,7 @@ import {
 	loadWebAuthnVarsigCredential,
 	clearWebAuthnVarsigCredential
 } from '@le-space/orbitdb-identity-provider-webauthn-did';
-import { getOrCreateVarsigIdentity } from './varsig-identity.js';
+import { getOrCreateVarsigIdentity, clearCachedVarsigIdentity } from './varsig-identity.js';
 import { showToast } from '../toast-store.js';
 import { DIDKey } from '@le-space/iso-did';
 import { parseAttestationObject } from '@le-space/iso-passkeys';
@@ -436,6 +436,7 @@ export function clearWebAuthnCredentials() {
 		// Clear using the library function
 		clearCredential();
 		clearWebAuthnVarsigCredential();
+		clearCachedVarsigIdentity();
 
 		// Also clear our own storage keys
 		localStorage.removeItem(STORAGE_KEY_CREDENTIAL_ID);

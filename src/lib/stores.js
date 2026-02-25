@@ -11,6 +11,15 @@ export const currentIdentityStore = writable(null);
 // Store for peer ID (moved here to break circular dependency: db-actions -> p2p -> db-actions)
 export const peerIdStore = writable(null);
 
+// Delegated write authentication status for UI + e2e assertions.
+// States: idle | awaiting | success | error
+export const delegatedWriteAuthStore = writable({
+	state: 'idle',
+	action: null,
+	at: null,
+	message: ''
+});
+
 // Helper function to get current identity ID (no circular dependency!)
 export function getCurrentIdentityId() {
 	const identity = get(currentIdentityStore);
