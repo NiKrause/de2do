@@ -21,6 +21,11 @@ jobs:
           node-version: '22'
           cache: ${{ env.ENABLE_CACHE != 'false' && 'npm' || '' }}
 
+      - name: Pin npm version
+        run: |
+          npm install -g npm@11.10.1
+          npm --version
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -88,6 +93,11 @@ jobs:
         with:
           node-version: '22'
           cache: ${{ env.ENABLE_CACHE != 'false' && 'npm' || '' }}
+
+      - name: Pin npm version
+        run: |
+          npm install -g npm@11.10.1
+          npm --version
 
       - name: Install system dependencies
         run: |
