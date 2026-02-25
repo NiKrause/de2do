@@ -666,27 +666,29 @@ test.describe('Simple Todo P2P Application', () => {
 		await alice.getByRole('button', { name: /Show Advanced Fields/i }).click();
 		await alice.getByTestId('todo-input').fill(originalTitle);
 		await alice.locator('#add-todo-description').fill(originalDescription);
-			await alice.locator('#add-todo-delegate-did').fill(bobDid);
-			await alice.getByTestId('add-todo-button').click();
-			await waitForTodoText(alice, originalTitle, 15000, { browserName: test.info().project.name });
-			const aliceOriginalTodoRow = alice
-				.locator('div.rounded-md.border', { has: alice.locator(`[data-todo-text="${originalTitle}"]`) })
-				.first();
-			await expect(aliceOriginalTodoRow.locator(`text=${bobDid}`)).toBeVisible({ timeout: 15000 });
+		await alice.locator('#add-todo-delegate-did').fill(bobDid);
+		await alice.getByTestId('add-todo-button').click();
+		await waitForTodoText(alice, originalTitle, 15000, { browserName: test.info().project.name });
+		const aliceOriginalTodoRow = alice
+			.locator('div.rounded-md.border', {
+				has: alice.locator(`[data-todo-text="${originalTitle}"]`)
+			})
+			.first();
+		await expect(aliceOriginalTodoRow.locator(`text=${bobDid}`)).toBeVisible({ timeout: 15000 });
 
-			const aliceDbAddress = await getCurrentDatabaseAddress(alice, 15000);
-			expect(aliceDbAddress).toBeTruthy();
-			await assertAccessControllerType(alice, 'todo-delegation', 30000);
+		const aliceDbAddress = await getCurrentDatabaseAddress(alice, 15000);
+		expect(aliceDbAddress).toBeTruthy();
+		await assertAccessControllerType(alice, 'todo-delegation', 30000);
 
-			await addAndSelectUserByDid(bob, aliceDid);
+		await addAndSelectUserByDid(bob, aliceDid);
 
-			await expect
-				.poll(async () => await getCurrentDatabaseAddress(bob, 10000), { timeout: 60000 })
-				.toBe(aliceDbAddress);
-			await assertAccessControllerType(bob, 'todo-delegation', 30000);
+		await expect
+			.poll(async () => await getCurrentDatabaseAddress(bob, 10000), { timeout: 60000 })
+			.toBe(aliceDbAddress);
+		await assertAccessControllerType(bob, 'todo-delegation', 30000);
 
-			await waitForPeerCount(bob, 1, 90000);
-			await waitForTodoAfterDidSwitch(bob, aliceDid, originalTitle);
+		await waitForPeerCount(bob, 1, 90000);
+		await waitForTodoAfterDidSwitch(bob, aliceDid, originalTitle);
 
 		await bob.getByRole('button', { name: 'Edit' }).first().click();
 		await bob.locator('input[id^="edit-title-"]').first().fill(updatedTitle);
@@ -707,13 +709,14 @@ test.describe('Simple Todo P2P Application', () => {
 		await expect(delegatedAuthState).toHaveAttribute('data-state', 'success', { timeout: 15000 });
 
 		const aliceTodoRow = alice
-			.locator(
-				'div.rounded-md.border',
-				{ has: alice.locator(`[data-todo-text="${updatedTitle}"]`) }
-			)
+			.locator('div.rounded-md.border', {
+				has: alice.locator(`[data-todo-text="${updatedTitle}"]`)
+			})
 			.first();
 		await expect(aliceTodoRow.locator('input[type="checkbox"]')).toBeChecked({ timeout: 60000 });
-		await expect(alice.locator('text=' + updatedDescription).first()).toBeVisible({ timeout: 60000 });
+		await expect(alice.locator('text=' + updatedDescription).first()).toBeVisible({
+			timeout: 60000
+		});
 
 		await safeCloseContext(contextAlice);
 		await safeCloseContext(contextBob);
@@ -755,10 +758,9 @@ test.describe('Simple Todo P2P Application', () => {
 		await waitForTodoAfterDidSwitch(mallory, aliceDid, originalTitle);
 
 		const malloryTodoRow = mallory
-			.locator(
-				'div.rounded-md.border',
-				{ has: mallory.locator(`[data-todo-text="${originalTitle}"]`) }
-			)
+			.locator('div.rounded-md.border', {
+				has: mallory.locator(`[data-todo-text="${originalTitle}"]`)
+			})
 			.first();
 		await expect(malloryTodoRow.locator('input[type="checkbox"]')).toBeDisabled();
 

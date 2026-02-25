@@ -178,7 +178,10 @@
 					</div>
 
 					<div>
-						<label for="add-todo-delegation-expiry" class="mb-1 block text-sm font-medium text-gray-700">
+						<label
+							for="add-todo-delegation-expiry"
+							class="mb-1 block text-sm font-medium text-gray-700"
+						>
 							Delegation Expires At
 						</label>
 						<input

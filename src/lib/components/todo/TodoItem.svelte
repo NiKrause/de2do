@@ -1,19 +1,19 @@
 <script>
-import { createEventDispatcher } from 'svelte';
-import { formatPeerId } from '../../utils.js';
-import { FolderPlus, Edit2, Save, X } from 'lucide-svelte';
-import { updateTodo } from '../../db-actions.js';
-import { currentIdentityStore } from '../../stores.js';
+	import { createEventDispatcher } from 'svelte';
+	import { formatPeerId } from '../../utils.js';
+	import { FolderPlus, Edit2, Save, X } from 'lucide-svelte';
+	import { updateTodo } from '../../db-actions.js';
+	import { currentIdentityStore } from '../../stores.js';
 
 	export let text;
 	export let description = '';
 	export let priority = null;
 	export let completed = false;
-export let assignee = null;
-export let createdBy;
-export let createdByIdentity = null;
-export let delegation = null;
-export let todoKey;
+	export let assignee = null;
+	export let createdBy;
+	export let createdByIdentity = null;
+	export let delegation = null;
+	export let todoKey;
 	export let estimatedTime = null;
 	export let estimatedCosts = {};
 	export let allowEdit = true;
@@ -122,7 +122,9 @@ export let todoKey;
 	}
 
 	$: currentIdentityId = $currentIdentityStore?.id || null;
-	$: isOwner = Boolean(currentIdentityId && createdByIdentity && currentIdentityId === createdByIdentity);
+	$: isOwner = Boolean(
+		currentIdentityId && createdByIdentity && currentIdentityId === createdByIdentity
+	);
 	$: canToggleComplete =
 		allowEdit && (isOwner || hasActiveDelegationFor(currentIdentityId) || !createdByIdentity);
 	$: delegationIsActive = Boolean(hasActiveDelegationFor(delegation?.delegateDid || null));

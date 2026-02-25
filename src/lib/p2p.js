@@ -600,14 +600,21 @@ export async function openDatabaseByAddress(
 	// If we can infer the owner DID from db.name, reopen by name with delegated AC options
 	// so delegated writes behave consistently for shared databases.
 	const initialAccessType = todoDB?.access?.type || null;
-	if (initialAccessType === 'orbitdb' && typeof todoDB?.name === 'string' && todoDB.name.includes('_')) {
+	if (
+		initialAccessType === 'orbitdb' &&
+		typeof todoDB?.name === 'string' &&
+		todoDB.name.includes('_')
+	) {
 		const inferredIdentityId = todoDB.name.substring(0, todoDB.name.indexOf('_'));
 		if (inferredIdentityId) {
-			console.warn('⚠️ Remote DB opened with legacy orbitdb AC; reopening by name with delegated AC', {
-				address: todoDB.address,
-				name: todoDB.name,
-				inferredIdentityId
-			});
+			console.warn(
+				'⚠️ Remote DB opened with legacy orbitdb AC; reopening by name with delegated AC',
+				{
+					address: todoDB.address,
+					name: todoDB.name,
+					inferredIdentityId
+				}
+			);
 
 			await todoDB.close();
 			const reopenOptions = buildDatabaseOptions(

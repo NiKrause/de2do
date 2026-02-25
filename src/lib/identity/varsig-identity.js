@@ -175,17 +175,17 @@ export async function getOrCreateVarsigIdentity(credential) {
 					hash = encoded.hash;
 				}
 				const provider = new WebAuthnVarsigProvider(credential);
-					const restored = {
-						...cached,
-						bytes,
-						hash,
-						sign: (_identity, data) => {
-							showPasskeyPrompt('sign database entry');
-							return provider.sign(data, DEFAULT_DOMAIN_LABELS.entry);
-						},
-						verify: (signature, arg2, arg3) =>
-							verifyWithFlexibleArgs(provider, cached.publicKey, signature, arg2, arg3)
-					};
+				const restored = {
+					...cached,
+					bytes,
+					hash,
+					sign: (_identity, data) => {
+						showPasskeyPrompt('sign database entry');
+						return provider.sign(data, DEFAULT_DOMAIN_LABELS.entry);
+					},
+					verify: (signature, arg2, arg3) =>
+						verifyWithFlexibleArgs(provider, cached.publicKey, signature, arg2, arg3)
+				};
 				console.log('🔐 Varsig identity restored from cache', {
 					id: restored.id,
 					type: restored.type,
