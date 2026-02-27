@@ -20,6 +20,14 @@ export const delegatedWriteAuthStore = writable({
 	message: ''
 });
 
+// Active identity mode for UI/debug.
+// mode: software | worker | hardware | unknown
+// algorithm: ed25519 | p-256 | null
+export const identityModeStore = writable({
+	mode: 'unknown',
+	algorithm: null
+});
+
 // Helper function to get current identity ID (no circular dependency!)
 export function getCurrentIdentityId() {
 	const identity = get(currentIdentityStore);

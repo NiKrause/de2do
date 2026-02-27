@@ -1,6 +1,46 @@
 import { OrbitDBAccessController } from '@orbitdb/core';
+import { OrbitDBWebAuthnIdentityProviderFunction } from '@le-space/orbitdb-identity-provider-webauthn-did';
 
 const type = 'todo-delegation';
+
+function isUnsupportedVarsigHeaderError(error) {
+	return String(error?.message || '').toLowerCase().includes('unsupported varsig header');
+}
+
+async function verifyIdentityWithFallback(identities, writerIdentity) {
+	try {
+		if (await identities.verifyIdentity(writerIdentity)) {
+			return true;
+		}
+	} catch (error) {
+		if (!isUnsupportedVarsigHeaderError(error)) {
+			throw error;
+		}
+	}
+
+	// Mixed-mode fallback: varsig-only verifier may reject worker WebAuthn identities.
+	try {
+		if (
+			writerIdentity?.type === 'webauthn' &&
+			typeof OrbitDBWebAuthnIdentityProviderFunction.verifyIdentity === 'function'
+		) {
+			return await OrbitDBWebAuthnIdentityProviderFunction.verifyIdentity(writerIdentity);
+		}
+	} catch {
+		// continue
+	}
+
+	const fallbackVerify = identities?.verifyIdentityFallback;
+	if (typeof fallbackVerify === 'function') {
+		try {
+			return await fallbackVerify(writerIdentity);
+		} catch {
+			// continue
+		}
+	}
+
+	return false;
+}
 
 function parseDelegationActionKey(key) {
 	if (typeof key !== 'string') return null;
@@ -129,7 +169,7 @@ const DelegatedTodoAccessController =
 				});
 				return false;
 			}
-			if (!(await identities.verifyIdentity(writerIdentity))) {
+			if (!(await verifyIdentityWithFallback(identities, writerIdentity))) {
 				console.warn('🚫 Delegated AC rejected: writer identity verification failed', {
 					key: payload.key,
 					entryIdentity: entry.identity,

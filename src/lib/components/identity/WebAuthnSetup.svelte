@@ -5,7 +5,8 @@
 		createWebAuthnIdentity,
 		getWebAuthnCapabilities,
 		clearWebAuthnCredentials,
-		getStoredCredentialInfo
+		getStoredCredentialInfo,
+		setPreferredWebAuthnMode
 	} from '$lib/identity/webauthn-identity.js';
 	import { loadCachedVarsigIdentity } from '$lib/identity/varsig-identity.js';
 
@@ -28,6 +29,7 @@
 	let isLoading = false;
 	let error = '';
 	let success = '';
+	let selectedMode = 'worker';
 
 	function loadCredentialDetails() {
 		const info = getStoredCredentialInfo();
@@ -49,6 +51,7 @@
 
 	onMount(async () => {
 		capabilities = await getWebAuthnCapabilities();
+		selectedMode = capabilities.preferredMode || 'worker';
 		loadCredentialDetails();
 	});
 
@@ -58,11 +61,14 @@
 		success = '';
 
 		try {
-			const { identity, credentialInfo } = await createWebAuthnIdentity();
+			const { identity, credentialInfo } = await createWebAuthnIdentity('Simple Todo User', {
+				mode: selectedMode
+			});
+			setPreferredWebAuthnMode(selectedMode);
 			success = 'WebAuthn credential created successfully!';
 
 			// Notify parent component
-			dispatch('created', { identity, credentialInfo });
+			dispatch('created', { identity, credentialInfo, authMode: selectedMode });
 
 			// Update capabilities
 			capabilities = await getWebAuthnCapabilities();
@@ -194,6 +200,43 @@
 					</div>
 				{:else}
 					<div class="space-y-3">
+						<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+							<h3 class="mb-3 text-sm font-semibold text-gray-900">Identity mode</h3>
+							<div class="space-y-2">
+								<label
+									class="flex cursor-pointer items-start gap-2 rounded border border-gray-200 bg-white p-2"
+								>
+									<input
+										type="radio"
+										name="auth-mode"
+										value="worker"
+										bind:group={selectedMode}
+										data-testid="auth-mode-worker"
+									/>
+									<span class="text-sm text-gray-800">
+										<strong>Worker mode (default):</strong> Ed25519 keystore encrypted at rest. The encryption
+										password is derived from WebAuthn PRF.
+									</span>
+								</label>
+								<label
+									class="flex cursor-pointer items-start gap-2 rounded border border-gray-200 bg-white p-2"
+								>
+									<input
+										type="radio"
+										name="auth-mode"
+										value="hardware"
+										bind:group={selectedMode}
+										data-testid="auth-mode-hardware"
+									/>
+									<span class="text-sm text-gray-800">
+										<strong>Hardware mode:</strong> uses authenticator-backed Ed25519 (preferred) or
+										P-256 (fallback) keys. Private keys never leave hardware, but startup currently requires
+										about 3 passkey confirmations.
+									</span>
+								</label>
+							</div>
+						</div>
+
 						<div class="rounded-lg bg-blue-50 p-4">
 							<h3 class="mb-2 text-sm font-semibold text-blue-900">Benefits:</h3>
 							<ul class="space-y-1 text-sm text-blue-800">

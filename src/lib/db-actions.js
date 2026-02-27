@@ -75,9 +75,6 @@ async function requireDelegatedWriteAuthentication(actionName) {
 		if (elapsed < 250) {
 			await new Promise((resolve) => setTimeout(resolve, 250 - elapsed));
 		}
-		if (authResult?.identity) {
-			currentIdentityStore.set(authResult.identity);
-		}
 		setDelegatedAuthState('success', actionName, 'Delegated write signed');
 		scheduleDelegatedAuthReset();
 		return true;
