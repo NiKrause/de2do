@@ -156,7 +156,8 @@ export default defineConfig({
 	],
 	define: {
 		__APP_VERSION__: JSON.stringify(pkg.version),
-		__BUILD_DATE__: JSON.stringify(buildDate)
+		__BUILD_DATE__: JSON.stringify(buildDate),
+		__PWA_DEV_ENABLED__: JSON.stringify(process.env.PWA_DEV_ENABLED === 'true')
 	},
 	optimizeDeps: {
 		// Exclude problematic packages that include .d.ts files in their bin
