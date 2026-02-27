@@ -100,7 +100,7 @@
 		"libp2p": "^2.9.0",
 		"lucide-svelte": "^0.500.0",
 		"multiformats": "^13.3.7",
-		"orbitdb-relay-pinner": "^0.1.6",
+		"orbitdb-relay-pinner": "^0.1.7",
 		"orbitdb-storacha-bridge": "^0.4.2",
 		"p-queue": "^8.1.0",
 		"svelte-qrcode": "^1.0.1",
