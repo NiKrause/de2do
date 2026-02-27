@@ -376,6 +376,7 @@
 				todos={$todosStore}
 				showTitle={false}
 				allowEdit={embedAllowAdd}
+				delegationEnabled={delegationEnabledForCurrentDb}
 				on:delete={handleDelete}
 				on:toggleComplete={handleToggleComplete}
 				on:createSubList={handleCreateSubList}
@@ -434,6 +435,7 @@
 		<!-- TODO List -->
 		<TodoList
 			todos={$todosStore}
+			delegationEnabled={delegationEnabledForCurrentDb}
 			on:delete={handleDelete}
 			on:toggleComplete={handleToggleComplete}
 			on:createSubList={handleCreateSubList}

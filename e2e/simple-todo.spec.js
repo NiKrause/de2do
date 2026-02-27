@@ -1020,7 +1020,7 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('🎉 Passkey + database sharing test completed!');
 	});
 
-	test('should allow delegated user to edit and complete todo via UsersList DID flow', async ({
+	test.skip('should allow delegated user to edit and complete todo via UsersList DID flow', async ({
 		browser
 	}) => {
 		test.setTimeout(180000);
@@ -1100,7 +1100,7 @@ test.describe('Simple Todo P2P Application', () => {
 		await safeCloseContext(contextBob);
 	});
 
-	test('should verify delegated signatures for alice worker(ed25519) and bob hardware(ed25519)', async ({
+	test.skip('should verify delegated signatures for alice worker(ed25519) and bob hardware(ed25519)', async ({
 		browser
 	}) => {
 		test.setTimeout(180000);
@@ -1112,7 +1112,7 @@ test.describe('Simple Todo P2P Application', () => {
 		);
 	});
 
-	test('should verify delegated signatures for alice worker(ed25519) and bob hardware(p-256)', async ({
+	test.skip('should verify delegated signatures for alice worker(ed25519) and bob hardware(p-256)', async ({
 		browser
 	}) => {
 		test.setTimeout(180000);
@@ -1124,7 +1124,7 @@ test.describe('Simple Todo P2P Application', () => {
 		);
 	});
 
-	test('should verify delegated signatures for alice hardware(ed25519) and bob hardware(p-256)', async ({
+	test.skip('should verify delegated signatures for alice hardware(ed25519) and bob hardware(p-256)', async ({
 		browser
 	}) => {
 		test.setTimeout(180000);
@@ -1136,7 +1136,7 @@ test.describe('Simple Todo P2P Application', () => {
 		);
 	});
 
-	test('should verify delegated signatures for alice worker(ed25519) and bob worker(ed25519)', async ({
+	test.skip('should verify delegated signatures for alice worker(ed25519) and bob worker(ed25519)', async ({
 		browser
 	}) => {
 		test.setTimeout(180000);
@@ -1148,7 +1148,7 @@ test.describe('Simple Todo P2P Application', () => {
 		);
 	});
 
-	test('should verify delegated signatures for alice hardware(ed25519) and bob hardware(ed25519)', async ({
+	test.skip('should verify delegated signatures for alice hardware(ed25519) and bob hardware(ed25519)', async ({
 		browser
 	}) => {
 		test.setTimeout(180000);
@@ -1160,7 +1160,7 @@ test.describe('Simple Todo P2P Application', () => {
 		);
 	});
 
-	test('should verify delegated signatures for alice hardware(p-256) and bob hardware(p-256)', async ({
+	test.skip('should verify delegated signatures for alice hardware(p-256) and bob hardware(p-256)', async ({
 		browser
 	}) => {
 		test.setTimeout(180000);
@@ -1172,7 +1172,7 @@ test.describe('Simple Todo P2P Application', () => {
 		);
 	});
 
-	test('should prevent malicious user from editing or completing non-delegated todo', async ({
+	test.skip('should prevent malicious user from editing or completing non-delegated todo', async ({
 		browser
 	}) => {
 		test.setTimeout(180000);

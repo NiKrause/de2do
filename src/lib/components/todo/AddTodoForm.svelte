@@ -2,22 +2,46 @@
 	import { createEventDispatcher } from 'svelte';
 	import { Save } from 'lucide-svelte';
 
+	export let mode = 'add'; // add | edit
+	export let title = '';
+	export let showTitle = true;
 	export let placeholder = 'What needs to be done?';
-	export let buttonText = 'Add'; // Changed from 'Add TODO' to 'Add'
+	export let buttonText = '';
 	export let disabled = false;
 	export let delegationEnabled = true;
+	export let initialText = '';
+	export let initialDescription = '';
+	export let initialPriority = '';
+	export let initialEstimatedTime = '';
+	export let initialEstimatedCosts = {};
+	export let initialDelegateDid = '';
+	export let initialDelegationExpiresAt = '';
 
-	let inputText = '';
-	let description = '';
-	let priority = '';
-	let estimatedTime = '';
+	let inputText = initialText || '';
+	let description = initialDescription || '';
+	let priority = initialPriority || '';
+	let estimatedTime = initialEstimatedTime ? String(initialEstimatedTime) : '';
 	let estimatedCost = '';
 	let estimatedCostCurrency = 'usd';
-	let delegateDid = '';
-	let delegationExpiresAt = '';
-	let showAdvanced = false;
+	let delegateDid = initialDelegateDid || '';
+	let delegationExpiresAt = initialDelegationExpiresAt || '';
+	let showAdvanced = mode === 'edit';
 
 	const dispatch = createEventDispatcher();
+	$: resolvedButtonText = buttonText || (mode === 'edit' ? 'Save' : 'Add');
+	$: resolvedTitle = title || (mode === 'edit' ? 'Edit TODO' : 'Add New TODO');
+
+	// Initialize currency + value from existing estimatedCosts.
+	if (initialEstimatedCosts?.usd) {
+		estimatedCost = String(initialEstimatedCosts.usd);
+		estimatedCostCurrency = 'usd';
+	} else if (initialEstimatedCosts?.eth) {
+		estimatedCost = String(initialEstimatedCosts.eth);
+		estimatedCostCurrency = 'eth';
+	} else if (initialEstimatedCosts?.btc) {
+		estimatedCost = String(initialEstimatedCosts.btc);
+		estimatedCostCurrency = 'btc';
+	}
 
 	function handleSubmit() {
 		if (!inputText || inputText.trim() === '') return;
@@ -30,7 +54,7 @@
 			}
 		}
 
-		dispatch('add', {
+		const payload = {
 			text: inputText.trim(),
 			description: description.trim(),
 			priority: priority || null,
@@ -38,18 +62,22 @@
 			estimatedCosts: Object.keys(estimatedCosts).length > 0 ? estimatedCosts : {},
 			delegateDid: delegationEnabled ? delegateDid.trim() || null : null,
 			delegationExpiresAt: delegationEnabled ? delegationExpiresAt || null : null
-		});
+		};
+		dispatch(mode === 'edit' ? 'save' : 'add', payload);
+		dispatch('submit', payload);
 
-		// Reset form
-		inputText = '';
-		description = '';
-		priority = '';
-		estimatedTime = '';
-		estimatedCost = '';
-		estimatedCostCurrency = 'usd';
-		delegateDid = '';
-		delegationExpiresAt = '';
-		showAdvanced = false;
+		if (mode === 'add') {
+			// Reset form after add only.
+			inputText = '';
+			description = '';
+			priority = '';
+			estimatedTime = '';
+			estimatedCost = '';
+			estimatedCostCurrency = 'usd';
+			delegateDid = '';
+			delegationExpiresAt = '';
+			showAdvanced = false;
+		}
 	}
 
 	function handleKeydown(event) {
@@ -61,7 +89,9 @@
 </script>
 
 <div class="mb-6 rounded-lg bg-white p-6 shadow-md">
-	<h2 class="mb-4 text-xl font-semibold">Add New TODO</h2>
+	{#if showTitle}
+		<h2 class="mb-4 text-xl font-semibold">{resolvedTitle}</h2>
+	{/if}
 	<div class="space-y-4">
 		<div>
 			<input
@@ -209,7 +239,7 @@
 				class="flex items-center gap-1 rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
 			>
 				<Save class="h-4 w-4" />
-				{buttonText}
+				{resolvedButtonText}
 			</button>
 		</div>
 	</div>

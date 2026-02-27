@@ -7,6 +7,7 @@
 	export let emptyMessage = 'No TODOs yet. Add one above!';
 	export let showTitle = true;
 	export let allowEdit = true;
+	export let delegationEnabled = true;
 
 	const dispatch = createEventDispatcher();
 
@@ -48,6 +49,7 @@
 					estimatedTime={estimatedTime || null}
 					estimatedCosts={estimatedCosts || {}}
 					{allowEdit}
+					{delegationEnabled}
 					on:delete={handleDelete}
 					on:toggleComplete={handleToggleComplete}
 					on:createSubList={handleCreateSubList}

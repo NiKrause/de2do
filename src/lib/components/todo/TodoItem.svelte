@@ -1,7 +1,8 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
 	import { formatPeerId } from '../../utils.js';
-	import { FolderPlus, Edit2, Save, X } from 'lucide-svelte';
+	import { FolderPlus, Edit2, X } from 'lucide-svelte';
+	import AddTodoForm from './AddTodoForm.svelte';
 	import { updateTodo } from '../../db-actions.js';
 	import { currentIdentityStore } from '../../stores.js';
 
@@ -17,36 +18,9 @@
 	export let estimatedTime = null;
 	export let estimatedCosts = {};
 	export let allowEdit = true;
+	export let delegationEnabled = true;
 
 	let isEditing = false;
-	let editText = text;
-	let editDescription = description || '';
-	let editPriority = priority || '';
-	let editEstimatedTime = estimatedTime ? String(estimatedTime) : '';
-
-	// Determine current cost and currency from estimatedCosts
-	let editCost = '';
-	let editCostCurrency = 'usd';
-
-	// Update editCost and editCostCurrency from props, but only when not editing
-	$: if (!isEditing && estimatedCosts) {
-		if (estimatedCosts.usd) {
-			editCost = String(estimatedCosts.usd);
-			editCostCurrency = 'usd';
-		} else if (estimatedCosts.eth) {
-			editCost = String(estimatedCosts.eth);
-			editCostCurrency = 'eth';
-		} else if (estimatedCosts.btc) {
-			editCost = String(estimatedCosts.btc);
-			editCostCurrency = 'btc';
-		} else {
-			editCost = '';
-			editCostCurrency = 'usd';
-		}
-	} else if (!isEditing) {
-		editCost = '';
-		editCostCurrency = 'usd';
-	}
 
 	const dispatch = createEventDispatcher();
 
@@ -68,37 +42,60 @@
 
 	function startEdit() {
 		isEditing = true;
-		editText = text;
-		editDescription = description || '';
-		editPriority = priority || '';
-		editEstimatedTime = estimatedTime ? String(estimatedTime) : '';
-		// editCost and editCostCurrency are set by reactive statement
 	}
 
 	function cancelEdit() {
 		isEditing = false;
 	}
 
-	async function saveEdit() {
-		if (!editText.trim()) {
+	function toDateTimeLocal(value) {
+		if (!value) return '';
+		const date = new Date(value);
+		if (Number.isNaN(date.getTime())) return '';
+		const pad = (n) => String(n).padStart(2, '0');
+		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+			date.getHours()
+		)}:${pad(date.getMinutes())}`;
+	}
+
+	async function saveEdit(event) {
+		const {
+			text: nextText,
+			description: nextDescription,
+			priority: nextPriority,
+			estimatedTime: nextEstimatedTime,
+			estimatedCosts: nextEstimatedCosts,
+			delegateDid,
+			delegationExpiresAt
+		} = event.detail || {};
+		if (!nextText || !nextText.trim()) {
 			return;
 		}
 
-		const estimatedCosts = {};
-		if (editCost) {
-			const costValue = parseFloat(editCost) || 0;
-			if (costValue > 0) {
-				estimatedCosts[editCostCurrency] = costValue;
+		const updates = {
+			text: nextText.trim(),
+			description: (nextDescription || '').trim(),
+			priority: nextPriority || null,
+			estimatedTime: nextEstimatedTime ? parseFloat(nextEstimatedTime) : null,
+			estimatedCosts:
+				nextEstimatedCosts && Object.keys(nextEstimatedCosts).length > 0 ? nextEstimatedCosts : {}
+		};
+		if (isOwner && delegationEnabled) {
+			if (delegateDid && delegateDid.trim()) {
+				const normalizedDelegateDid = delegateDid.trim();
+				const grantedAt =
+					delegation?.delegateDid === normalizedDelegateDid && delegation?.grantedAt
+						? delegation.grantedAt
+						: new Date().toISOString();
+				updates.delegation = {
+					delegateDid: normalizedDelegateDid,
+					grantedBy: currentIdentityId || createdByIdentity || createdBy || null,
+					grantedAt,
+					expiresAt: delegationExpiresAt ? new Date(delegationExpiresAt).toISOString() : null,
+					revokedAt: null
+				};
 			}
 		}
-
-		const updates = {
-			text: editText.trim(),
-			description: editDescription.trim(),
-			priority: editPriority || null,
-			estimatedTime: editEstimatedTime ? parseFloat(editEstimatedTime) : null,
-			estimatedCosts: Object.keys(estimatedCosts).length > 0 ? estimatedCosts : {}
-		};
 
 		const success = await updateTodo(todoKey, updates);
 		if (success) {
@@ -128,98 +125,28 @@
 	$: canToggleComplete =
 		allowEdit && (isOwner || hasActiveDelegationFor(currentIdentityId) || !createdByIdentity);
 	$: delegationIsActive = Boolean(hasActiveDelegationFor(delegation?.delegateDid || null));
+	$: canEditDelegation = Boolean(isOwner && delegationEnabled);
 </script>
 
 <div class="rounded-md border border-gray-200 p-4 transition-colors hover:bg-gray-50">
 	{#if isEditing}
 		<!-- Edit Mode -->
-		<div class="space-y-4">
-			<div>
-				<label for="edit-title-{todoKey}" class="mb-1 block text-sm font-medium text-gray-700"
-					>Title</label
-				>
-				<input
-					id="edit-title-{todoKey}"
-					type="text"
-					bind:value={editText}
-					class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-				/>
-			</div>
-			<div>
-				<label for="edit-description-{todoKey}" class="mb-1 block text-sm font-medium text-gray-700"
-					>Description</label
-				>
-				<textarea
-					id="edit-description-{todoKey}"
-					bind:value={editDescription}
-					rows="3"
-					class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-				></textarea>
-			</div>
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-				<div>
-					<label for="edit-priority-{todoKey}" class="mb-1 block text-sm font-medium text-gray-700"
-						>Priority</label
-					>
-					<select
-						id="edit-priority-{todoKey}"
-						bind:value={editPriority}
-						class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-					>
-						<option value="">None</option>
-						<option value="A">A (High)</option>
-						<option value="B">B (Medium)</option>
-						<option value="C">C (Low)</option>
-					</select>
-				</div>
-				<div>
-					<label for="edit-time-{todoKey}" class="mb-1 block text-sm font-medium text-gray-700"
-						>Estimated Time (hours)</label
-					>
-					<input
-						id="edit-time-{todoKey}"
-						type="number"
-						bind:value={editEstimatedTime}
-						placeholder="e.g., 2.5"
-						min="0"
-						step="0.1"
-						class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-					/>
-				</div>
-			</div>
-			<div>
-				<label for="edit-cost-{todoKey}" class="mb-2 block text-sm font-medium text-gray-700"
-					>Estimated Cost</label
-				>
-				<div class="flex gap-2">
-					<input
-						id="edit-cost-{todoKey}"
-						type="number"
-						bind:value={editCost}
-						placeholder="0.00"
-						min="0"
-						step="0.01"
-						class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-					/>
-					<select
-						id="edit-cost-currency-{todoKey}"
-						bind:value={editCostCurrency}
-						class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-					>
-						<option value="usd">USD ($)</option>
-						<option value="eth">ETH</option>
-						<option value="btc">BTC</option>
-					</select>
-				</div>
-			</div>
+		<div>
+			<AddTodoForm
+				mode="edit"
+				showTitle={false}
+				placeholder="Edit todo..."
+				initialText={text}
+				initialDescription={description || ''}
+				initialPriority={priority || ''}
+				initialEstimatedTime={estimatedTime}
+				initialEstimatedCosts={estimatedCosts || {}}
+				initialDelegateDid={delegation?.delegateDid || ''}
+				initialDelegationExpiresAt={toDateTimeLocal(delegation?.expiresAt)}
+				delegationEnabled={canEditDelegation}
+				on:save={saveEdit}
+			/>
 			<div class="flex gap-2">
-				<button
-					on:click={saveEdit}
-					class="flex items-center gap-1 rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-				>
-					<Save class="h-4 w-4" />
-					Save
-				</button>
 				<button
 					on:click={cancelEdit}
 					class="flex items-center gap-1 rounded-md bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300"
