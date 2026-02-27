@@ -514,7 +514,7 @@ test.describe('Encryption E2E Tests', () => {
 		await browserB.close();
 	});
 
-	test.skip('should allow opening unencrypted database without password', async ({
+	test('should allow opening unencrypted database without password', async ({
 		page: browserAPage
 	}) => {
 		console.log('\n🚀 Starting unencrypted database test...\n');
