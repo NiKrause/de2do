@@ -4,7 +4,7 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm install -g npm@11.11.0 && npm ci
 
 COPY . .
 
@@ -30,7 +30,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 
 #DO NOT omit dev deps because vite preview is used
-RUN npm ci
+RUN npm install -g npm@11.11.0 && npm ci
 
 # Copy built output from build stage
 COPY --from=build /app/build ./build
