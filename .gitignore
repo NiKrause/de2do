@@ -11,8 +11,8 @@ relay/relay-datastore/
 relay-datastore/
 playwright-report/
 p2p-todo-demo
+e2e/relay-info.json
 e2e/web-info.json
-
 # Output
 .output
 .vercel
