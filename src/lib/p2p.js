@@ -17,8 +17,12 @@ import { createLibp2pConfig } from './libp2p-config.js';
 import { LevelBlockstore } from 'blockstore-level';
 import { LevelDatastore } from 'datastore-level';
 import { systemToasts, showToast } from './toast-store.js';
-import { currentIdentityStore, peerIdStore } from './stores.js';
-import { isWebAuthnAvailable, hasExistingCredentials } from './identity/webauthn-identity.js';
+import { currentIdentityStore, peerIdStore, identityModeStore } from './stores.js';
+import {
+	isWebAuthnAvailable,
+	hasExistingCredentials,
+	getPreferredWebAuthnMode
+} from './identity/webauthn-identity.js';
 import {
 	getOrCreateVarsigIdentity,
 	createWebAuthnVarsigIdentities,
@@ -32,18 +36,10 @@ import {
 	WebAuthnVarsigProvider
 } from '@le-space/orbitdb-identity-provider-webauthn-did';
 import DelegatedTodoAccessController from './access/delegated-todo-access-controller.js';
-import {
-	decodeWebAuthnVarsigV1,
-	parseClientDataJSON,
-	verifyWebAuthnAssertion,
-	reconstructSignedData,
-	verifyEd25519Signature,
-	verifyP256Signature,
-	bytesToBase64url,
-	concat
-} from 'iso-webauthn-varsig';
-
 useAccessController(DelegatedTodoAccessController);
+// Register webauthn provider up-front so identity verification works in mixed-mode
+// scenarios (hardware varsig peers verifying worker-webAuthn entries).
+useIdentityProvider(OrbitDBWebAuthnIdentityProviderFunction);
 
 function describeEncryptionSecret(secret) {
 	if (!secret) return 'NO';
@@ -73,108 +69,6 @@ function describeBinaryValue(value) {
 		return { kind: String(value), length: 0 };
 	}
 	return { kind: typeof value, length: value.length ?? 0 };
-}
-
-function toUint8Array(value) {
-	if (value instanceof Uint8Array) return value;
-	if (value instanceof ArrayBuffer) return new Uint8Array(value);
-	if (ArrayBuffer.isView(value)) {
-		return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
-	}
-	if (typeof value === 'string') {
-		return new TextEncoder().encode(value);
-	}
-	return new Uint8Array(0);
-}
-
-async function buildVarsigExpectedChallenge(domainLabel, payloadBytes) {
-	const domain = new TextEncoder().encode(domainLabel);
-	const digest = await crypto.subtle.digest('SHA-256', concat([domain, payloadBytes]));
-	return new Uint8Array(digest);
-}
-
-function getVarsigAlgorithm(publicKeyBytes) {
-	if (publicKeyBytes?.length === 32) return 'Ed25519';
-	if (publicKeyBytes?.length === 65 && publicKeyBytes[0] === 0x04) return 'P-256';
-	return 'unknown';
-}
-
-async function analyzeVarsigVerifyFailure(signature, publicKey, data) {
-	const signatureBytes = toUint8Array(signature);
-	const publicKeyBytes = toUint8Array(publicKey);
-	const payloadBytes = toUint8Array(data);
-	const analysis = {
-		sources: {
-			signature: 'entry.sig from OrbitDB Entry.verify -> identities.verify(signature, key, bytes)',
-			publicKey: 'entry.key from oplog entry',
-			data: 'dag-cbor encoded entry value (id,payload,next,refs,clock,v)'
-		},
-		lengths: {
-			signature: signatureBytes.length,
-			publicKey: publicKeyBytes.length,
-			data: payloadBytes.length
-		},
-		algorithmFromPublicKey: getVarsigAlgorithm(publicKeyBytes),
-		origin: typeof window !== 'undefined' ? window.location.origin : null,
-		rpId: typeof window !== 'undefined' ? window.location.hostname : null
-	};
-
-	try {
-		const decoded = decodeWebAuthnVarsigV1(signatureBytes);
-		const clientData = parseClientDataJSON(decoded.clientDataJSON);
-		analysis.clientData = {
-			type: clientData?.type || null,
-			origin: clientData?.origin || null,
-			challenge: clientData?.challenge || null
-		};
-
-		const labels = {
-			entry: 'orbitdb-entry:',
-			id: 'orbitdb-id:',
-			publicKey: 'orbitdb-pubkey:'
-		};
-		analysis.domainChecks = {};
-
-		for (const [labelName, labelValue] of Object.entries(labels)) {
-			const expectedChallenge = await buildVarsigExpectedChallenge(labelValue, payloadBytes);
-			const expectedChallengeB64 = bytesToBase64url(expectedChallenge);
-			const assertion = await verifyWebAuthnAssertion(decoded, {
-				expectedOrigin: window.location.origin,
-				expectedRpId: window.location.hostname,
-				expectedChallenge
-			});
-			analysis.domainChecks[labelName] = {
-				domainLabel: labelValue,
-				challengeMatch: clientData?.challenge === expectedChallengeB64,
-				expectedChallenge: expectedChallengeB64,
-				verifyAssertionValid: assertion.valid,
-				verifyAssertionError: assertion.error || null,
-				flags: assertion.flags || null
-			};
-		}
-
-		const signedData = await reconstructSignedData(decoded);
-		analysis.signedDataLength = signedData.length;
-		if (analysis.algorithmFromPublicKey === 'Ed25519') {
-			analysis.cryptoSignatureValid = await verifyEd25519Signature(
-				signedData,
-				decoded.signature,
-				publicKeyBytes
-			);
-		} else if (analysis.algorithmFromPublicKey === 'P-256') {
-			analysis.cryptoSignatureValid = await verifyP256Signature(
-				signedData,
-				decoded.signature,
-				publicKeyBytes
-			);
-		} else {
-			analysis.cryptoSignatureValid = false;
-		}
-	} catch (error) {
-		analysis.decodeOrAnalysisError = error?.message || String(error);
-	}
-
-	return analysis;
 }
 
 // Export libp2p instance for plugins
@@ -918,10 +812,13 @@ export async function initializeP2P(preferences = {}) {
 		let varsigCredential = null;
 		let useVarsig = false;
 		const useWebAuthn = preferences.useWebAuthn !== false; // Default to true
+		const configuredWebAuthnMode = preferences.useWebAuthnMode || getPreferredWebAuthnMode();
+		const preferHardware = configuredWebAuthnMode === 'hardware';
+		identityModeStore.set({ mode: 'unknown', algorithm: null });
 
 		if (useWebAuthn && isWebAuthnAvailable() && hasExistingCredentials()) {
 			try {
-				if (WebAuthnVarsigProvider.isSupported()) {
+				if (preferHardware && WebAuthnVarsigProvider.isSupported()) {
 					console.log('🔐 Loading WebAuthn varsig credential...');
 					varsigCredential = loadWebAuthnVarsigCredential();
 					if (varsigCredential) {
@@ -939,6 +836,16 @@ export async function initializeP2P(preferences = {}) {
 						showToast('🔐 Using WebAuthn-encrypted keystore', 'success', 3000);
 					}
 				}
+
+				if (!webauthnCredential && !useVarsig && WebAuthnVarsigProvider.isSupported()) {
+					console.log('🔐 Worker credential unavailable, falling back to hardware credential...');
+					varsigCredential = loadWebAuthnVarsigCredential();
+					if (varsigCredential) {
+						useVarsig = true;
+						console.log('✅ WebAuthn varsig credential loaded (fallback)');
+						showToast('🔐 Using hardware-secured identity (varsig)', 'success', 3000);
+					}
+				}
 			} catch (error) {
 				console.warn('⚠️ Failed to load WebAuthn credential, falling back to default:', error);
 				showToast('⚠️ WebAuthn load failed, using software identity', 'warning', 3000);
@@ -953,53 +860,97 @@ export async function initializeP2P(preferences = {}) {
 				const identity = await getOrCreateVarsigIdentity(varsigCredential);
 				const identityStorage = createIpfsIdentityStorage(helia);
 				const identities = createWebAuthnVarsigIdentities(identity, {}, identityStorage);
+				// Short-term mixed-mode compatibility:
+				// in hardware mode, varsig verification alone rejects worker-signed identities.
+				// Attach a generic fallback verifier so hardware+worker peers can interoperate.
+				const fallbackIdentities = wrapWithVarsigVerification(await Identities({ ipfs: helia }), helia);
 				const originalVerify = identities.verify?.bind(identities);
 				const originalGetIdentity = identities.getIdentity?.bind(identities);
-				if (originalVerify) {
-					identities.verify = async (signature, publicKey, data) => {
+				const originalVerifyIdentity = identities.verifyIdentity?.bind(identities);
+				const unsupportedVarsigHeader = (err) =>
+					String(err?.message || '').toLowerCase().includes('unsupported varsig header');
+
+				identities.verify = async (signature, publicKey, data) => {
+					if (originalVerify) {
 						try {
 							const result = await originalVerify(signature, publicKey, data);
-							if (!result) {
-								const details = await analyzeVarsigVerifyFailure(signature, publicKey, data);
-								console.error('❌ Varsig identities.verify failed (returned false)', {
-									localDid: identity?.id || null,
+							if (result) return true;
+						} catch (error) {
+							if (!unsupportedVarsigHeader(error)) {
+								console.warn('⚠️ Varsig verify failed, trying generic fallback', {
+									error: error?.message || String(error),
 									signature: describeBinaryValue(signature),
 									publicKey: describeBinaryValue(publicKey),
-									data: describeBinaryValue(data),
-									stack: new Error().stack,
-									details
+									data: describeBinaryValue(data)
 								});
 							}
-							return result;
-						} catch (error) {
-							let details = null;
-							try {
-								details = await analyzeVarsigVerifyFailure(signature, publicKey, data);
-							} catch {
-								// ignore secondary analyzer failures
-							}
-							console.error('❌ Varsig identities.verify threw', {
-								localDid: identity?.id || null,
-								error: error?.message || String(error),
-								signature: describeBinaryValue(signature),
-								publicKey: describeBinaryValue(publicKey),
-								data: describeBinaryValue(data),
-								stack: new Error().stack,
-								details
-							});
-							throw error;
 						}
-					};
-				}
-				if (originalGetIdentity) {
+					}
+
+					try {
+						return await fallbackIdentities.verify(signature, publicKey, data);
+					} catch (fallbackError) {
+						console.warn('⚠️ Generic verify fallback failed', {
+							error: fallbackError?.message || String(fallbackError),
+							signature: describeBinaryValue(signature),
+							publicKey: describeBinaryValue(publicKey),
+							data: describeBinaryValue(data)
+						});
+						return false;
+					}
+				};
+
 					identities.getIdentity = async (hash) => {
-						const resolved = await originalGetIdentity(hash);
-						if (!resolved) {
-							console.warn('⚠️ Varsig identities.getIdentity miss', { hash });
+						if (originalGetIdentity) {
+							try {
+								const resolved = await originalGetIdentity(hash);
+								if (resolved) return resolved;
+							} catch (error) {
+								console.debug('Varsig identities.getIdentity miss before fallback', {
+									hash,
+									error: error?.message || String(error)
+								});
+							}
 						}
-						return resolved;
+						return await fallbackIdentities.getIdentity(hash);
 					};
-				}
+
+				identities.verifyIdentity = async (identityToVerify) => {
+					if (originalVerifyIdentity) {
+						try {
+							const result = await originalVerifyIdentity(identityToVerify);
+							if (result) return true;
+						} catch (error) {
+							if (!unsupportedVarsigHeader(error)) {
+								console.warn('⚠️ Varsig verifyIdentity failed, trying generic fallback', {
+									error: error?.message || String(error),
+									identityId: identityToVerify?.id || null,
+									identityType: identityToVerify?.type || null
+								});
+							}
+						}
+					}
+					try {
+						return await fallbackIdentities.verifyIdentity(identityToVerify);
+					} catch (fallbackError) {
+						console.warn('⚠️ Generic verifyIdentity fallback failed', {
+							error: fallbackError?.message || String(fallbackError),
+							identityId: identityToVerify?.id || null,
+							identityType: identityToVerify?.type || null
+						});
+						return false;
+					}
+				};
+				identities.verifyIdentityFallback = async (identityToVerify) => {
+					if (
+						identityToVerify?.type === 'webauthn' &&
+						typeof OrbitDBWebAuthnIdentityProviderFunction.verifyIdentity === 'function'
+					) {
+						const verified = await OrbitDBWebAuthnIdentityProviderFunction.verifyIdentity(identityToVerify);
+						if (verified) return true;
+					}
+					return await fallbackIdentities.verifyIdentity(identityToVerify);
+				};
 
 				console.log('🔍 Created WebAuthn varsig identity:', {
 					id: identity.id,
@@ -1034,6 +985,10 @@ export async function initializeP2P(preferences = {}) {
 				}
 
 				orbitdbCreated = true;
+				identityModeStore.set({
+					mode: 'hardware',
+					algorithm: varsigCredential?.algorithm?.toLowerCase() === 'p-256' ? 'p-256' : 'ed25519'
+				});
 				showToast('✅ Authenticated with hardware-secured identity (varsig)', 'success', 3000);
 			} catch (error) {
 				console.error('❌ Failed to create OrbitDB with varsig identity:', error);
@@ -1084,6 +1039,7 @@ export async function initializeP2P(preferences = {}) {
 				});
 
 				orbitdbCreated = true;
+				identityModeStore.set({ mode: 'worker', algorithm: 'ed25519' });
 				showToast('✅ Authenticated with WebAuthn-encrypted keystore', 'success', 3000);
 			} catch (error) {
 				console.error('❌ Failed to create OrbitDB with WebAuthn identity:', error);
@@ -1101,6 +1057,7 @@ export async function initializeP2P(preferences = {}) {
 					directory: './orbitdb'
 				});
 				orbitdbCreated = true;
+				identityModeStore.set({ mode: 'software', algorithm: null });
 			}
 		} else if (!orbitdbCreated) {
 			// Create OrbitDB with default identity + varsig verification support
@@ -1116,6 +1073,7 @@ export async function initializeP2P(preferences = {}) {
 				directory: './orbitdb'
 			});
 			orbitdbCreated = true;
+			identityModeStore.set({ mode: 'software', algorithm: null });
 		}
 
 		// Show toast for OrbitDB creation

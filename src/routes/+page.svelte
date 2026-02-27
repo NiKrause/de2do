@@ -125,6 +125,9 @@
 		// If WebAuthn credential was created, store flag to use it
 		if (event?.detail?.identity) {
 			console.log('✅ WebAuthn credential created, will use for P2P initialization');
+			if (event?.detail?.authMode) {
+				preferences = { ...preferences, useWebAuthnMode: event.detail.authMode };
+			}
 			// The flag is already stored by the WebAuthn identity module
 		}
 

@@ -17,14 +17,27 @@
 	let inputValue = '';
 	let filteredUsers = [];
 	let isAdding = false;
+	let rootEl;
 
 	onMount(async () => {
+		const handleDocumentPointerDown = (event) => {
+			if (!rootEl) return;
+			if (!rootEl.contains(event.target)) {
+				showDropdown = false;
+			}
+		};
+		document.addEventListener('pointerdown', handleDocumentPointerDown);
+
 		const unsubscribe = initializationStore.subscribe(async (state) => {
 			if (state.isInitialized) {
 				await listUniqueUsers();
 			}
 		});
-		return unsubscribe;
+
+		return () => {
+			document.removeEventListener('pointerdown', handleDocumentPointerDown);
+			unsubscribe();
+		};
 	});
 
 	// Refresh list when initialization completes or when todo lists change
@@ -193,6 +206,9 @@
 				showToast('Failed to open projects database. It may be unavailable.', 'error', 3000);
 			}
 		}
+
+		// Close the dropdown after selection/toggle for expected combobox behavior.
+		showDropdown = false;
 	}
 
 	async function handleDelete(event, userId) {
@@ -226,7 +242,14 @@
 	}
 
 	function handleInputBlur() {
-		// Keep dropdown visible by default to make discovered users immediately visible.
+		// Close when focus leaves this widget via keyboard navigation.
+		requestAnimationFrame(() => {
+			if (!rootEl) return;
+			const active = document.activeElement;
+			if (!active || !rootEl.contains(active)) {
+				showDropdown = false;
+			}
+		});
 	}
 
 	function handleKeydown(event) {
@@ -238,12 +261,12 @@
 				handleAdd();
 			}
 		} else if (event.key === 'Escape') {
-			showDropdown = true;
+			showDropdown = false;
 		}
 	}
 </script>
 
-<div class="w-full">
+<div class="w-full" bind:this={rootEl}>
 	<label for="users-list" class="mb-1 block text-sm font-medium text-gray-700"> Users </label>
 	<div class="relative">
 		<input

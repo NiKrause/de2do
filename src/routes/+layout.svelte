@@ -5,8 +5,11 @@
 	// Register service worker for PWA offline support
 	import { registerSW } from 'virtual:pwa-register';
 
+	const shouldRegisterServiceWorker =
+		'serviceWorker' in navigator && (!import.meta.env.DEV || __PWA_DEV_ENABLED__);
+
 	// Auto-update service worker when new version is available
-	if ('serviceWorker' in navigator) {
+	if (shouldRegisterServiceWorker) {
 		registerSW({
 			immediate: true,
 			onNeedRefresh() {

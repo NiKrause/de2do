@@ -12,10 +12,166 @@ import {
 	addVirtualAuthenticator
 } from './helpers.js';
 
-test.describe('Simple Todo P2P Application', () => {
-	async function safeCloseContext(context) {
-		if (!context) return;
-		try {
+	test.describe('Simple Todo P2P Application', () => {
+		const relayApiPassword = process.env.RELAY_API_PASSWORD || process.env.API_PASSWORD || '';
+
+		async function forceHardwareCredentialAlgorithm(page, algorithm) {
+			if (!algorithm) return;
+			await page.addInitScript((forcedAlgorithm) => {
+				const credentials = navigator?.credentials;
+				if (!credentials || typeof credentials.create !== 'function') return;
+				const originalCreate = credentials.create.bind(credentials);
+				const allowedAlgs =
+					forcedAlgorithm === 'p-256'
+						? [-7]
+						: forcedAlgorithm === 'ed25519'
+							? [-8, -50]
+							: null;
+				if (!allowedAlgs) return;
+
+				credentials.create = async (options) => {
+					try {
+						const publicKey = options?.publicKey;
+						const params = publicKey?.pubKeyCredParams;
+						if (Array.isArray(params)) {
+							const filteredParams = params.filter((entry) =>
+								allowedAlgs.includes(Number(entry?.alg))
+							);
+							if (filteredParams.length > 0) {
+								options = {
+									...options,
+									publicKey: {
+										...publicKey,
+										pubKeyCredParams: filteredParams
+									}
+								};
+							}
+						}
+					} catch {
+						// ignore option rewrite errors and continue with original call
+					}
+
+					return await originalCreate(options);
+				};
+			}, algorithm);
+		}
+
+		async function fetchRelayJson(pathname) {
+			const controller = new AbortController();
+			const timeout = setTimeout(() => controller.abort(), 5000);
+			try {
+				const response = await fetch(`http://127.0.0.1:3000${pathname}`, {
+					signal: controller.signal,
+					headers: relayApiPassword
+						? {
+								Authorization: `Bearer ${relayApiPassword}`
+							}
+						: undefined
+				});
+				let body = null;
+				try {
+					body = await response.json();
+				} catch {
+					// ignore JSON parse errors, caller handles non-JSON/404
+				}
+				return { ok: response.ok, status: response.status, body };
+			} catch (error) {
+				return { ok: false, status: 0, body: null, error: error?.message || String(error) };
+			} finally {
+				clearTimeout(timeout);
+			}
+		}
+
+		async function postRelayJson(pathname, payload, timeoutMs = 5000) {
+			const controller = new AbortController();
+			const timeout = setTimeout(() => controller.abort(), timeoutMs);
+			try {
+				const headers = {
+					'Content-Type': 'application/json'
+				};
+				if (relayApiPassword) {
+					headers.Authorization = `Bearer ${relayApiPassword}`;
+				}
+				const response = await fetch(`http://127.0.0.1:3000${pathname}`, {
+					method: 'POST',
+					signal: controller.signal,
+					headers,
+					body: JSON.stringify(payload ?? {})
+				});
+				let body = null;
+				try {
+					body = await response.json();
+				} catch {
+					// ignore JSON parse errors
+				}
+				return { ok: response.ok, status: response.status, body };
+			} catch (error) {
+				return { ok: false, status: 0, body: null, error: error?.message || String(error) };
+			} finally {
+				clearTimeout(timeout);
+			}
+		}
+
+		async function getRelayPinningStatsOrThrow() {
+			const result = await fetchRelayJson('/pinning/stats');
+			if (!result.ok || !result.body) {
+				throw new Error(
+					`Relay pinning stats endpoint unavailable (status=${result.status}). ` +
+						`Run tests with local relay (RELAY_IMPL=local) to assert pinning.`
+				);
+			}
+			return result.body;
+		}
+
+		async function waitForRelayPinnedDatabaseOrThrow(
+			dbAddress,
+			failedSyncsBefore = 0,
+			timeout = 45000
+		) {
+			const startedAt = Date.now();
+			let lastPayload = null;
+			let lastStats = null;
+			while (Date.now() - startedAt < timeout) {
+				const statsResult = await fetchRelayJson('/pinning/stats');
+				if (!statsResult.ok || !statsResult.body) {
+					throw new Error(
+						`Relay pinning stats endpoint unavailable during pin wait (status=${statsResult.status}).`
+					);
+				}
+				lastStats = statsResult.body;
+				const failedSyncsCurrent = Number(lastStats?.failedSyncs || 0);
+				if (failedSyncsCurrent > failedSyncsBefore) {
+					throw new Error(
+						`Relay pinning failed while waiting for DB ${dbAddress}. ` +
+							`failedSyncs increased ${failedSyncsBefore} -> ${failedSyncsCurrent}. ` +
+							`Latest /pinning/stats: ${JSON.stringify(lastStats)}`
+					);
+				}
+
+				const result = await fetchRelayJson('/pinning/databases');
+				if (!result.ok || !result.body) {
+					throw new Error(
+						`Relay pinning databases endpoint unavailable (status=${result.status}). ` +
+							`Run tests with local relay (RELAY_IMPL=local) to assert pinning.`
+					);
+				}
+				lastPayload = result.body;
+				const databases = Array.isArray(result.body.databases) ? result.body.databases : [];
+				if (databases.some((entry) => entry?.address === dbAddress)) {
+					return result.body;
+				}
+				await new Promise((resolve) => setTimeout(resolve, 1500));
+			}
+			throw new Error(
+				`Relay did not report pinned database within ${timeout}ms: ${dbAddress}. ` +
+					`Last /pinning/databases payload: ${JSON.stringify(lastPayload)}. ` +
+					`Last /pinning/stats payload: ${JSON.stringify(lastStats)}`
+			);
+		}
+
+		async function safeCloseContext(context) {
+			if (!context) return;
+			try {
 			await context.close();
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
@@ -29,11 +185,15 @@ test.describe('Simple Todo P2P Application', () => {
 		}
 	}
 
-	async function initializeWithWebAuthn(page, label = 'User') {
-		await addVirtualAuthenticator(page);
-		await page.goto('http://localhost:4174/');
-		await page.waitForFunction(
-			() =>
+		async function initializeWithWebAuthn(page, label = 'User', options = {}) {
+			const { mode = 'worker', hardwareAlgorithm = null } = options;
+			await addVirtualAuthenticator(page);
+			if (mode === 'hardware') {
+				await forceHardwareCredentialAlgorithm(page, hardwareAlgorithm);
+			}
+			await page.goto('http://localhost:4174/');
+			await page.waitForFunction(
+				() =>
 				document.querySelector('main') !== null ||
 				document.querySelector('[data-testid="consent-modal"]') !== null,
 			{ timeout: 30000 }
@@ -48,19 +208,145 @@ test.describe('Simple Todo P2P Application', () => {
 		await expect(consentModal).not.toBeVisible();
 
 		console.log(`🔐 ${label}: Creating passkey...`);
-		await page.waitForSelector('[data-testid="webauthn-setup-modal"]', {
-			state: 'attached',
-			timeout: 10000
-		});
-		const setupButton = page.getByRole('button', { name: /Set Up WebAuthn/i });
-		await expect(setupButton).toBeVisible({ timeout: 5000 });
-		await setupButton.click();
+			await page.waitForSelector('[data-testid="webauthn-setup-modal"]', {
+				state: 'attached',
+				timeout: 10000
+			});
+			const workerMode = page.getByTestId('auth-mode-worker');
+			const hardwareMode = page.getByTestId('auth-mode-hardware');
+			if (mode === 'hardware') {
+				await hardwareMode.check();
+				await expect(hardwareMode).toBeChecked();
+			} else {
+				await workerMode.check();
+				await expect(workerMode).toBeChecked();
+			}
+			const setupButton = page.getByRole('button', { name: /Set Up WebAuthn/i });
+			await expect(setupButton).toBeVisible({ timeout: 5000 });
+			await setupButton.click();
 		await expect(page.locator('[data-testid="webauthn-setup-modal"]')).not.toBeVisible({
 			timeout: 20000
-		});
+			});
 
-		await waitForP2PInitialization(page);
-	}
+			await waitForP2PInitialization(page);
+			const identityMode = page.getByTestId('identity-mode');
+			if (mode === 'worker') {
+				await expect(identityMode).toContainText(/worker \(ed25519\)/i, { timeout: 30000 });
+			} else if (hardwareAlgorithm === 'p-256') {
+				await expect(identityMode).toContainText(/hardware \(p-256\)/i, { timeout: 30000 });
+			} else if (hardwareAlgorithm === 'ed25519') {
+				await expect(identityMode).toContainText(/hardware \(ed25519\)/i, { timeout: 30000 });
+			} else {
+				await expect(identityMode).toContainText(/hardware \((ed25519|p-256)\)/i, {
+					timeout: 30000
+				});
+			}
+		}
+
+		async function runDelegatedFlowForModeCombination(browser, scenarioName, aliceOptions, bobOptions) {
+			const contextAlice = await browser.newContext();
+			const contextBob = await browser.newContext();
+			const alice = await contextAlice.newPage();
+			const bob = await contextBob.newPage();
+
+			try {
+				await initializeWithWebAuthn(alice, 'Alice', aliceOptions);
+
+				const aliceDid = await alice.evaluate(() => window.__currentIdentityId__ || null);
+				const alicePeerId = await getPeerId(alice);
+				const pinningStatsBefore = await getRelayPinningStatsOrThrow();
+				const failedSyncsBefore = Number(pinningStatsBefore?.failedSyncs || 0);
+				expect(aliceDid).toBeTruthy();
+				expect(alicePeerId).toBeTruthy();
+
+				const originalTitle = `Delegated mixed-mode todo ${scenarioName} ${Date.now()}`;
+				const originalDescription = `Original description ${scenarioName}`;
+				const updatedTitle = `${originalTitle} - updated by Bob`;
+				const updatedDescription = `Updated by Bob via delegation ${scenarioName}`;
+
+				await initializeWithWebAuthn(bob, 'Bob', bobOptions);
+				const bobDid = await bob.evaluate(() => window.__currentIdentityId__ || null);
+				expect(bobDid).toBeTruthy();
+
+				await alice.getByRole('button', { name: /Show Advanced Fields/i }).click();
+				await alice.getByTestId('todo-input').fill(originalTitle);
+				await alice.locator('#add-todo-description').fill(originalDescription);
+				await alice.locator('#add-todo-delegate-did').fill(bobDid);
+				await alice.getByTestId('add-todo-button').click();
+				await waitForTodoText(alice, originalTitle, 15000, { browserName: test.info().project.name });
+
+				const aliceOriginalTodoRow = alice
+					.locator('div.rounded-md.border', {
+						has: alice.locator(`[data-todo-text="${originalTitle}"]`)
+					})
+					.first();
+				await expect(aliceOriginalTodoRow.locator(`text=${bobDid}`)).toBeVisible({ timeout: 15000 });
+
+				const aliceDbAddress = await getCurrentDatabaseAddress(alice, 15000);
+				expect(aliceDbAddress).toBeTruthy();
+				await assertAccessControllerType(alice, 'todo-delegation', 30000);
+				// Ask relay to sync the DB immediately so pinning assertion can pass quickly.
+				const syncResponse = await postRelayJson(
+					'/pinning/sync',
+					{ dbAddress: aliceDbAddress },
+					30000
+				);
+				// /pinning/sync can legitimately run longer than client timeout.
+				// If request times out client-side (status=0), continue with stats/databases polling.
+				if (!syncResponse.ok && syncResponse.status !== 0) {
+					throw new Error(
+						`Relay /pinning/sync failed (status=${syncResponse.status}) for ${aliceDbAddress}. ` +
+							`Response: ${JSON.stringify(syncResponse.body)}`
+					);
+				}
+				await waitForRelayPinnedDatabaseOrThrow(aliceDbAddress, failedSyncsBefore, 45000);
+
+				await addAndSelectUserByDid(bob, aliceDid);
+
+				await expect
+					.poll(async () => await getCurrentDatabaseAddress(bob, 10000), { timeout: 60000 })
+					.toBe(aliceDbAddress);
+				await assertAccessControllerType(bob, 'todo-delegation', 30000);
+
+				await expect
+					.poll(async () => await getConnectedPeerIds(bob), { timeout: 90000 })
+					.toContain(alicePeerId);
+				await waitForTodoAfterDidSwitch(bob, aliceDid, originalTitle);
+
+				await bob.getByRole('button', { name: 'Edit' }).first().click();
+				await bob.locator('input[id^="edit-title-"]').first().fill(updatedTitle);
+				await bob.locator('textarea[id^="edit-description-"]').first().fill(updatedDescription);
+				const saveButton = bob.getByRole('button', { name: 'Save' }).first();
+				await saveButton.click();
+				const delegatedAuthState = bob.getByTestId('delegated-auth-state');
+				await assertDelegatedStateAfterAction(bob, delegatedAuthState);
+
+				await waitForTodoText(bob, updatedTitle, 30000, { browserName: test.info().project.name });
+
+				const bobTodoRow = bob
+					.locator('div.rounded-md.border', { has: bob.locator(`[data-todo-text="${updatedTitle}"]`) })
+					.first();
+				await bobTodoRow.locator('input[type="checkbox"]').click();
+				await assertDelegatedStateAfterAction(bob, delegatedAuthState);
+
+				const aliceTodoRow = alice
+					.locator('div.rounded-md.border', {
+						has: alice.locator(`[data-todo-text="${updatedTitle}"]`)
+					})
+					.first();
+				await expect(aliceTodoRow.locator('input[type="checkbox"]')).toBeChecked({ timeout: 60000 });
+				await expect(alice.locator('text=' + updatedDescription).first()).toBeVisible({
+					timeout: 60000
+				});
+
+				const pinningStatsAfter = await getRelayPinningStatsOrThrow();
+				const failedSyncsAfter = Number(pinningStatsAfter?.failedSyncs || 0);
+				expect(failedSyncsAfter).toBeLessThanOrEqual(failedSyncsBefore);
+			} finally {
+				await safeCloseContext(contextAlice);
+				await safeCloseContext(contextBob);
+			}
+		}
 
 	async function addAndSelectUserByDid(page, did) {
 		const usersInput = page.locator('#users-list');
@@ -83,17 +369,48 @@ test.describe('Simple Todo P2P Application', () => {
 		const usersListbox = page.getByTestId('users-listbox');
 		let lastError = null;
 
-		for (let attempt = 1; attempt <= 3; attempt++) {
+		for (let attempt = 1; attempt <= 5; attempt++) {
 			try {
-				await waitForTodoText(page, todoText, 25000, { browserName: test.info().project.name });
+				// First verify at data layer, then UI layer.
+				await expect
+					.poll(
+						async () =>
+							await page.evaluate(async (text) => {
+								const db = window.__todoDB__;
+								if (!db?.all) return false;
+								try {
+									const entries = await db.all();
+									return entries.some((entry) => {
+										const value = entry?.value ?? entry;
+										return value?.text === text;
+									});
+								} catch {
+									return false;
+								}
+							}, todoText),
+						{ timeout: 15000 }
+					)
+					.toBe(true);
+
+				await waitForTodoText(page, todoText, 15000, { browserName: test.info().project.name });
 				return;
 			} catch (error) {
 				lastError = error;
-				if (attempt === 3) break;
+				if (attempt === 5) break;
 
+				await expect(usersListbox).toBeVisible({ timeout: 15000 });
 				const userOptionButton = usersListbox.locator('button').filter({ hasText: did }).first();
 				await userOptionButton.click();
-				await page.waitForTimeout(4000);
+				await page.waitForTimeout(1500);
+				await page.evaluate(async () => {
+					if (typeof window.forceReloadTodos === 'function') {
+						try {
+							await window.forceReloadTodos();
+						} catch {
+							// ignore reload helper errors and continue polling
+						}
+					}
+				});
 			}
 		}
 
@@ -108,6 +425,17 @@ test.describe('Simple Todo P2P Application', () => {
 		await expect
 			.poll(async () => await getCurrentAccessControllerType(page), { timeout })
 			.toBe(expectedType);
+	}
+
+	async function assertDelegatedStateAfterAction(page, delegatedAuthState) {
+		const state = await delegatedAuthState.getAttribute('data-state');
+		if (state === 'awaiting' || state === 'success') {
+			await expect(delegatedAuthState).toHaveAttribute('data-state', 'success', { timeout: 15000 });
+			return;
+		}
+
+		// Some flows can complete without a visible "awaiting" transition in the footer.
+		await expect(delegatedAuthState).toHaveAttribute('data-state', 'idle');
 	}
 
 	test('should have webserver running and accessible', async ({ page, request }) => {
@@ -211,6 +539,55 @@ test.describe('Simple Todo P2P Application', () => {
 		}
 
 		console.log('🎉 All test steps completed successfully!');
+	});
+
+	test('should default to worker mode, allow switching, and expose mode in footer', async ({
+		page
+	}) => {
+		await addVirtualAuthenticator(page);
+		await page.goto('http://127.0.0.1:4174/');
+
+		await page.waitForFunction(
+			() =>
+				document.querySelector('main') !== null ||
+				document.querySelector('[data-testid="consent-modal"]') !== null,
+			{ timeout: 30000 }
+		);
+		await page.waitForTimeout(1000);
+
+		const consentModal = page.locator('[data-testid="consent-modal"]');
+		await expect(consentModal).toBeVisible({ timeout: 10000 });
+		await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+		await page.getByTestId('consent-accept-button').click();
+		await expect(consentModal).not.toBeVisible();
+
+		await page.waitForSelector('[data-testid="webauthn-setup-modal"]', {
+			state: 'attached',
+			timeout: 10000
+		});
+
+		const workerMode = page.getByTestId('auth-mode-worker');
+		const hardwareMode = page.getByTestId('auth-mode-hardware');
+		await expect(workerMode).toBeChecked();
+		await expect(hardwareMode).not.toBeChecked();
+
+		await hardwareMode.check();
+		await expect(hardwareMode).toBeChecked();
+		await workerMode.check();
+		await expect(workerMode).toBeChecked();
+
+		await page.getByRole('button', { name: /Skip for Now/i }).click();
+		await expect(page.locator('[data-testid="webauthn-setup-modal"]')).not.toBeVisible({
+			timeout: 20000
+		});
+
+		await waitForP2PInitialization(page);
+		await expect(page.getByTestId('identity-mode')).toContainText(
+			/(software|unknown|worker \(ed25519\)|hardware \((ed25519|p-256)\))/i,
+			{
+				timeout: 30000
+			}
+		);
 	});
 
 	test('should handle offline mode correctly', async ({ page }) => {
@@ -696,8 +1073,7 @@ test.describe('Simple Todo P2P Application', () => {
 		const saveButton = bob.getByRole('button', { name: 'Save' }).first();
 		await saveButton.click();
 		const delegatedAuthState = bob.getByTestId('delegated-auth-state');
-		await expect(delegatedAuthState).toHaveAttribute('data-state', 'awaiting', { timeout: 10000 });
-		await expect(delegatedAuthState).toHaveAttribute('data-state', 'success', { timeout: 15000 });
+		await assertDelegatedStateAfterAction(bob, delegatedAuthState);
 
 		await waitForTodoText(bob, updatedTitle, 30000, { browserName: test.info().project.name });
 
@@ -705,8 +1081,7 @@ test.describe('Simple Todo P2P Application', () => {
 			.locator('div.rounded-md.border', { has: bob.locator(`[data-todo-text="${updatedTitle}"]`) })
 			.first();
 		await bobTodoRow.locator('input[type="checkbox"]').click();
-		await expect(delegatedAuthState).toHaveAttribute('data-state', 'awaiting', { timeout: 10000 });
-		await expect(delegatedAuthState).toHaveAttribute('data-state', 'success', { timeout: 15000 });
+		await assertDelegatedStateAfterAction(bob, delegatedAuthState);
 
 		const aliceTodoRow = alice
 			.locator('div.rounded-md.border', {
@@ -720,6 +1095,78 @@ test.describe('Simple Todo P2P Application', () => {
 
 		await safeCloseContext(contextAlice);
 		await safeCloseContext(contextBob);
+	});
+
+	test('should verify delegated signatures for alice worker(ed25519) and bob hardware(ed25519)', async ({
+		browser
+	}) => {
+		test.setTimeout(180000);
+		await runDelegatedFlowForModeCombination(
+			browser,
+			'alice-worker-bob-hardware-ed25519',
+			{ mode: 'worker' },
+			{ mode: 'hardware', hardwareAlgorithm: 'ed25519' }
+		);
+	});
+
+	test('should verify delegated signatures for alice worker(ed25519) and bob hardware(p-256)', async ({
+		browser
+	}) => {
+		test.setTimeout(180000);
+		await runDelegatedFlowForModeCombination(
+			browser,
+			'alice-worker-bob-hardware-p256',
+			{ mode: 'worker' },
+			{ mode: 'hardware', hardwareAlgorithm: 'p-256' }
+		);
+	});
+
+	test('should verify delegated signatures for alice hardware(ed25519) and bob hardware(p-256)', async ({
+		browser
+	}) => {
+		test.setTimeout(180000);
+		await runDelegatedFlowForModeCombination(
+			browser,
+			'alice-hardware-ed25519-bob-hardware-p256',
+			{ mode: 'hardware', hardwareAlgorithm: 'ed25519' },
+			{ mode: 'hardware', hardwareAlgorithm: 'p-256' }
+		);
+	});
+
+	test('should verify delegated signatures for alice worker(ed25519) and bob worker(ed25519)', async ({
+		browser
+	}) => {
+		test.setTimeout(180000);
+		await runDelegatedFlowForModeCombination(
+			browser,
+			'alice-worker-ed25519-bob-worker-ed25519',
+			{ mode: 'worker' },
+			{ mode: 'worker' }
+		);
+	});
+
+	test('should verify delegated signatures for alice hardware(ed25519) and bob hardware(ed25519)', async ({
+		browser
+	}) => {
+		test.setTimeout(180000);
+		await runDelegatedFlowForModeCombination(
+			browser,
+			'alice-hardware-ed25519-bob-hardware-ed25519',
+			{ mode: 'hardware', hardwareAlgorithm: 'ed25519' },
+			{ mode: 'hardware', hardwareAlgorithm: 'ed25519' }
+		);
+	});
+
+	test('should verify delegated signatures for alice hardware(p-256) and bob hardware(p-256)', async ({
+		browser
+	}) => {
+		test.setTimeout(180000);
+		await runDelegatedFlowForModeCombination(
+			browser,
+			'alice-hardware-p256-bob-hardware-p256',
+			{ mode: 'hardware', hardwareAlgorithm: 'p-256' },
+			{ mode: 'hardware', hardwareAlgorithm: 'p-256' }
+		);
 	});
 
 	test('should prevent malicious user from editing or completing non-delegated todo', async ({

@@ -1,6 +1,12 @@
 <script>
-	import { peerIdStore, currentIdentityStore, delegatedWriteAuthStore } from '$lib/stores.js';
+	import {
+		peerIdStore,
+		currentIdentityStore,
+		delegatedWriteAuthStore,
+		identityModeStore
+	} from '$lib/stores.js';
 	import { libp2pStore } from '$lib/p2p.js';
+	import { showToast } from '$lib/toast-store.js';
 
 	let showPeerList = $state(false);
 	let hoveredPeerId = $state(null);
@@ -13,6 +19,7 @@
 	let peerId = $derived($peerIdStore);
 	let identity = $derived($currentIdentityStore);
 	let libp2p = $derived($libp2pStore);
+	let identityMode = $derived($identityModeStore);
 
 	// Format PeerID - last 5 chars
 	let shortPeerId = $derived(peerId ? `...${peerId.slice(-5)}` : '-----');
@@ -33,6 +40,15 @@
 				: delegatedAuth.state === 'error'
 					? 'Auth failed'
 					: 'Idle'
+	);
+	let identityModeLabel = $derived(
+		identityMode.mode === 'hardware'
+			? `hardware (${identityMode.algorithm || 'unknown'})`
+			: identityMode.mode === 'worker'
+				? 'worker (ed25519)'
+				: identityMode.mode === 'software'
+					? 'software'
+					: 'unknown'
 	);
 
 	// Update peer count from libp2p events
@@ -116,12 +132,17 @@
 		}, 100);
 	}
 
-	async function copyToClipboard(text) {
+	async function copyToClipboard(text, label = 'Value') {
+		if (!text) {
+			showToast(`⚠️ ${label} is not available`, 'warning', 2000);
+			return;
+		}
 		try {
 			await navigator.clipboard.writeText(text);
-			console.log('✅ Copied to clipboard:', text);
+			showToast(`✅ ${label} copied to clipboard`, 'success', 2000);
 		} catch (error) {
 			console.error('❌ Failed to copy:', error);
+			showToast(`❌ Failed to copy ${label}`, 'error', 2500);
 		}
 	}
 
@@ -141,13 +162,34 @@
 		<!-- Left: PeerID -->
 		<div class="flex items-center gap-3">
 			<span class="text-gray-500">PeerID:</span>
-			<code class="rounded bg-blue-50 px-2 py-1 font-mono text-blue-600">{shortPeerId}</code>
+			<button
+				type="button"
+				class="cursor-pointer rounded bg-blue-50 px-2 py-1 font-mono text-blue-600 hover:bg-blue-100"
+				title="Click to copy full PeerID"
+				onclick={() => copyToClipboard(peerId, 'PeerID')}
+			>
+				{shortPeerId}
+			</button>
 		</div>
 
 		<!-- Center: DID Identity -->
-		<div class="flex items-center gap-3">
+		<div class="flex items-center gap-2">
 			<span class="text-gray-500">DID:</span>
-			<code class="rounded bg-purple-50 px-2 py-1 font-mono text-purple-600">{shortDid}</code>
+			<button
+				type="button"
+				class="cursor-pointer rounded bg-purple-50 px-2 py-1 font-mono text-purple-600 hover:bg-purple-100"
+				title="Click to copy full DID"
+				onclick={() => copyToClipboard(identity?.id, 'DID')}
+			>
+				{shortDid}
+			</button>
+			<span class="text-gray-500">Mode:</span>
+			<code
+				data-testid="identity-mode"
+				class="rounded bg-indigo-50 px-2 py-1 font-mono text-indigo-600"
+			>
+				{identityModeLabel}
+			</code>
 		</div>
 
 		<!-- Right: Delegated auth + connected peers -->

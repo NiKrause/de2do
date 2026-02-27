@@ -19,6 +19,12 @@ import { parseAttestationObject } from '@le-space/iso-passkeys';
 const STORAGE_KEY_CREDENTIAL_ID = 'webauthn_credential_id';
 const STORAGE_KEY_CREDENTIAL_TYPE = 'webauthn_credential_type';
 const STORAGE_KEY_USER_HANDLE = 'webauthn_user_handle';
+const STORAGE_KEY_PREFERRED_AUTH_MODE = 'webauthn_preferred_auth_mode';
+
+const WEBAUTHN_AUTH_MODES = {
+	WORKER: 'worker',
+	HARDWARE: 'hardware'
+};
 
 function toBase64(bytes) {
 	if (!bytes || bytes.length === 0) return '';
@@ -58,9 +64,32 @@ function shouldFallbackToKeystore(error) {
 	const message = String(error.message || '');
 	return (
 		name === 'NotSupportedError' ||
+		message.includes('invalid domain') ||
 		message.includes('not supported') ||
 		message.includes('No supported credential')
 	);
+}
+
+export function getPreferredWebAuthnMode() {
+	try {
+		const mode = localStorage.getItem(STORAGE_KEY_PREFERRED_AUTH_MODE);
+		return mode === WEBAUTHN_AUTH_MODES.HARDWARE
+			? WEBAUTHN_AUTH_MODES.HARDWARE
+			: WEBAUTHN_AUTH_MODES.WORKER;
+	} catch {
+		return WEBAUTHN_AUTH_MODES.WORKER;
+	}
+}
+
+export function setPreferredWebAuthnMode(mode) {
+	if (mode !== WEBAUTHN_AUTH_MODES.WORKER && mode !== WEBAUTHN_AUTH_MODES.HARDWARE) {
+		return;
+	}
+	try {
+		localStorage.setItem(STORAGE_KEY_PREFERRED_AUTH_MODE, mode);
+	} catch {
+		// ignore
+	}
 }
 
 function toArrayBuffer(value) {
@@ -265,94 +294,109 @@ export function getStoredCredentialInfo() {
 	}
 }
 
+async function createVarsigIdentityRecord({ userId, userName, domain }) {
+	showToast('🔐 Passkey required: create varsig credential', 'default', 3000);
+	const varsigCredential = await createWebAuthnVarsigCredentialWithPrf({
+		userId,
+		displayName: userName,
+		domain
+	});
+
+	console.log('✅ WebAuthn varsig credential created');
+	storeWebAuthnVarsigCredential(varsigCredential);
+	persistCredentialMetadata({
+		type: 'webauthn-varsig',
+		credentialId: varsigCredential.credentialId,
+		userId
+	});
+
+	const identity = await getOrCreateVarsigIdentity(varsigCredential);
+	console.log('✅ OrbitDB varsig identity created:', {
+		id: identity.id,
+		type: identity.type
+	});
+
+	return {
+		identity,
+		credentialInfo: varsigCredential,
+		type: 'webauthn-varsig'
+	};
+}
+
 /**
  * Create a new WebAuthn credential and identity
  * @param {string} userName - Display name for the credential (e.g., "Simple Todo User")
  * @returns {Promise<Object>} Object with identity and credentialInfo
  */
-export async function createWebAuthnIdentity(userName = 'Simple Todo User') {
+export async function createWebAuthnIdentity(userName = 'Simple Todo User', options = {}) {
 	if (!isWebAuthnAvailable()) {
 		throw new Error('WebAuthn is not available in this browser');
 	}
 
-	console.log('🔐 Creating WebAuthn identity (varsig preferred)...');
+	const requestedMode =
+		options.mode === WEBAUTHN_AUTH_MODES.HARDWARE
+			? WEBAUTHN_AUTH_MODES.HARDWARE
+			: WEBAUTHN_AUTH_MODES.WORKER;
+	console.log(`🔐 Creating WebAuthn identity (${requestedMode} mode)...`);
 
 	try {
 		const userId = `simple-todo-user-${Date.now()}`;
 		const domain = window.location.hostname;
 
-		if (WebAuthnVarsigProvider.isSupported()) {
-			try {
-				showToast('🔐 Passkey required: create varsig credential', 'default', 3000);
-				const varsigCredential = await createWebAuthnVarsigCredentialWithPrf({
-					userId,
-					displayName: userName,
-					domain
-				});
-
-				console.log('✅ WebAuthn varsig credential created');
-				storeWebAuthnVarsigCredential(varsigCredential);
-				persistCredentialMetadata({
-					type: 'webauthn-varsig',
-					credentialId: varsigCredential.credentialId,
-					userId
-				});
-
-				const identity = await getOrCreateVarsigIdentity(varsigCredential);
-
-				console.log('✅ OrbitDB varsig identity created:', {
-					id: identity.id,
-					type: identity.type
-				});
-
-				return {
-					identity,
-					credentialInfo: varsigCredential,
-					type: 'webauthn-varsig'
-				};
-			} catch (error) {
-				if (!shouldFallbackToKeystore(error)) {
-					throw error;
-				}
-				console.warn('⚠️ Varsig unavailable, falling back to encrypted keystore:', error);
-			}
+		if (requestedMode === WEBAUTHN_AUTH_MODES.HARDWARE && WebAuthnVarsigProvider.isSupported()) {
+			return await createVarsigIdentityRecord({ userId, userName, domain });
 		}
 
-		showToast('🔐 Passkey required: create WebAuthn credential', 'default', 3000);
-		const credentialInfo = await WebAuthnDIDProvider.createCredential({
-			userId,
-			displayName: userName,
-			domain,
-			encryptKeystore: true,
-			keystoreEncryptionMethod: 'prf'
-		});
+		try {
+			showToast('🔐 Passkey required: create WebAuthn credential', 'default', 3000);
+			const credentialInfo = await WebAuthnDIDProvider.createCredential({
+				userId,
+				displayName: userName,
+				domain,
+				encryptKeystore: true,
+				keystoreEncryptionMethod: 'prf'
+			});
 
-		console.log('✅ WebAuthn credential created (keystore fallback):', {
-			credentialId: credentialInfo.credentialId,
-			userId: credentialInfo.userId
-		});
+			console.log('✅ WebAuthn credential created (keystore fallback):', {
+				credentialId: credentialInfo.credentialId,
+				userId: credentialInfo.userId
+			});
 
-		storeWebAuthnCredential(credentialInfo);
-		persistCredentialMetadata({
-			type: 'webauthn-keystore',
-			credentialId: credentialInfo.credentialId,
-			userId
-		});
+			storeWebAuthnCredential(credentialInfo);
+			persistCredentialMetadata({
+				type: 'webauthn-keystore',
+				credentialId: credentialInfo.credentialId,
+				userId
+			});
 
-		const identity = await OrbitDBWebAuthnIdentityProvider.createIdentity({
-			webauthnCredential: credentialInfo
-		});
+			const identity = await OrbitDBWebAuthnIdentityProvider.createIdentity({
+				webauthnCredential: credentialInfo
+			});
 
-		console.log('✅ OrbitDB identity created (keystore fallback):', {
-			id: identity.id,
-			type: identity.type
-		});
+			console.log('✅ OrbitDB identity created (keystore fallback):', {
+				id: identity.id,
+				type: identity.type
+			});
 
-		return {
-			identity,
-			credentialInfo,
-			type: 'webauthn-keystore'
-		};
+			return {
+				identity,
+				credentialInfo,
+				type: 'webauthn-keystore'
+			};
+		} catch (keystoreError) {
+			if (
+				requestedMode !== WEBAUTHN_AUTH_MODES.WORKER ||
+				!shouldFallbackToKeystore(keystoreError) ||
+				!WebAuthnVarsigProvider.isSupported()
+			) {
+				throw keystoreError;
+			}
+			console.warn(
+				'⚠️ Worker mode unavailable, falling back to hardware-secured identity:',
+				keystoreError
+			);
+			return await createVarsigIdentityRecord({ userId, userName, domain });
+		}
 	} catch (error) {
 		console.error('❌ Failed to create WebAuthn identity:', error);
 
@@ -477,6 +521,7 @@ export async function getWebAuthnCapabilities() {
 		platformAuthenticator,
 		browserName,
 		hasExistingCredentials: hasExistingCredentials(),
+		preferredMode: getPreferredWebAuthnMode(),
 		varsigSupported,
 		hasVarsigCredentials,
 		hasKeystoreCredentials

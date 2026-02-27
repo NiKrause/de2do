@@ -13,6 +13,13 @@ import { bootstrap } from '@libp2p/bootstrap';
 import { privateKeyFromProtobuf } from '@libp2p/crypto/keys';
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
 import { ping } from '@libp2p/ping';
+
+const parseAddrList = (value) =>
+	(value || '')
+		.split(',')
+		.map((entry) => entry.trim())
+		.filter(Boolean);
+
 // Environment variables
 const RELAY_BOOTSTRAP_ADDR_DEV =
 	import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_DEV ||
@@ -26,12 +33,24 @@ const PUBSUB_TOPICS = (import.meta.env.VITE_PUBSUB_TOPICS || 'todo._peer-discove
 
 // Determine which relay address to use based on environment
 const isDevelopment = import.meta.env.DEV || import.meta.env.VITE_NODE_ENV === 'development';
+const SEED_NODES_DEV = import.meta.env.VITE_SEED_NODES_DEV || import.meta.env.VITE_SEED_NODES || '';
+const SEED_NODES_PROD = import.meta.env.VITE_SEED_NODES || '';
+
+const bootstrapSource = isDevelopment
+	? SEED_NODES_DEV
+		? 'VITE_SEED_NODES_DEV/VITE_SEED_NODES'
+		: 'VITE_RELAY_BOOTSTRAP_ADDR_DEV/default'
+	: SEED_NODES_PROD
+		? 'VITE_SEED_NODES'
+		: 'VITE_RELAY_BOOTSTRAP_ADDR_PROD/default';
+
+const bootstrapRaw = isDevelopment
+	? SEED_NODES_DEV || RELAY_BOOTSTRAP_ADDR_DEV
+	: SEED_NODES_PROD || RELAY_BOOTSTRAP_ADDR_PROD;
+
 console.log('isDevelopment', isDevelopment);
-export const RELAY_BOOTSTRAP_ADDR = (
-	isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_BOOTSTRAP_ADDR_PROD
-)
-	.split(',')
-	.map((addr) => addr.trim());
+export const RELAY_BOOTSTRAP_ADDR = parseAddrList(bootstrapRaw);
+console.log('RELAY_BOOTSTRAP_ADDR_SOURCE', bootstrapSource);
 console.log('RELAY_BOOTSTRAP_ADDR', RELAY_BOOTSTRAP_ADDR);
 
 export async function createLibp2pConfig(options = {}) {
