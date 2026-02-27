@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/NiKrause/simple-todo/workflows/CI/badge.svg)](https://github.com/NiKrause/simple-todo/actions)
 [![Version](https://img.shields.io/badge/version-0.1.23-blue.svg)](https://github.com/NiKrause/simple-todo)
-[![IPFS](https://img.shields.io/badge/IPFS-bafybeieg3sxigt3rqlwmxr2vx67hlspg3ylv2nokpfatrspmeup6gsu4ge-brightgreen.svg)](https://bafybeieg3sxigt3rqlwmxr2vx67hlspg3ylv2nokpfatrspmeup6gsu4ge.ipfs.dweb.link)
+[![IPFS](https://img.shields.io/badge/IPFS-bafybeieg3sxigt3rqlwmxr2vx67hlspg3ylv2nokpfatrspmeup6gsu4ge-brightgreen.svg)](https://bafybeidochwkt35vwpao5gaqafafk5qkhnr25huqoavdmpiizromujjjnq.ipfs.dweb.link)
 [![License](https://img.shields.io/badge/license-Open%20Source-blue.svg)](./LICENSE)
 
 <div align="center" style="width: 100%;">
