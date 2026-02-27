@@ -4,7 +4,9 @@ import { OrbitDBWebAuthnIdentityProviderFunction } from '@le-space/orbitdb-ident
 const type = 'todo-delegation';
 
 function isUnsupportedVarsigHeaderError(error) {
-	return String(error?.message || '').toLowerCase().includes('unsupported varsig header');
+	return String(error?.message || '')
+		.toLowerCase()
+		.includes('unsupported varsig header');
 }
 
 async function verifyIdentityWithFallback(identities, writerIdentity) {

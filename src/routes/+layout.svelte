@@ -6,7 +6,8 @@
 	import { registerSW } from 'virtual:pwa-register';
 
 	const shouldRegisterServiceWorker =
-		'serviceWorker' in navigator && (!import.meta.env.DEV || __PWA_DEV_ENABLED__);
+		'serviceWorker' in navigator &&
+		(!import.meta.env.DEV || import.meta.env.VITE_PWA_DEV_ENABLED === 'true');
 
 	// Auto-update service worker when new version is available
 	if (shouldRegisterServiceWorker) {

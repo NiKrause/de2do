@@ -70,7 +70,7 @@ async function requireDelegatedWriteAuthentication(actionName) {
 	const startedAt = Date.now();
 	setDelegatedAuthState('awaiting', actionName, 'Confirm passkey to sign delegated write');
 	try {
-		const authResult = await authenticateWithWebAuthn();
+		await authenticateWithWebAuthn();
 		const elapsed = Date.now() - startedAt;
 		if (elapsed < 250) {
 			await new Promise((resolve) => setTimeout(resolve, 250 - elapsed));

@@ -64,7 +64,7 @@ export default defineConfig({
 			},
 			protocolImports: true
 		}),
-			VitePWA({
+		VitePWA({
 			// PWA configuration optimized for offline-first operation
 			registerType: 'autoUpdate',
 			injectRegister: 'auto',
@@ -145,14 +145,14 @@ export default defineConfig({
 			},
 			// Use existing manifest.json
 			manifest: false, // We'll use our custom manifest.json
-				// Development options:
-				// disabled by default to avoid noisy generateSW warnings and /index.html 404s in e2e/dev.
-				// Enable explicitly with PWA_DEV_ENABLED=true when you want to test SW behavior in dev.
-				devOptions: {
-					enabled: process.env.PWA_DEV_ENABLED === 'true',
-					type: 'module'
-				}
-			})
+			// Development options:
+			// disabled by default to avoid noisy generateSW warnings and /index.html 404s in e2e/dev.
+			// Enable explicitly with PWA_DEV_ENABLED=true when you want to test SW behavior in dev.
+			devOptions: {
+				enabled: process.env.PWA_DEV_ENABLED === 'true',
+				type: 'module'
+			}
+		})
 	],
 	define: {
 		__APP_VERSION__: JSON.stringify(pkg.version),

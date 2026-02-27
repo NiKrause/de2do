@@ -863,12 +863,17 @@ export async function initializeP2P(preferences = {}) {
 				// Short-term mixed-mode compatibility:
 				// in hardware mode, varsig verification alone rejects worker-signed identities.
 				// Attach a generic fallback verifier so hardware+worker peers can interoperate.
-				const fallbackIdentities = wrapWithVarsigVerification(await Identities({ ipfs: helia }), helia);
+				const fallbackIdentities = wrapWithVarsigVerification(
+					await Identities({ ipfs: helia }),
+					helia
+				);
 				const originalVerify = identities.verify?.bind(identities);
 				const originalGetIdentity = identities.getIdentity?.bind(identities);
 				const originalVerifyIdentity = identities.verifyIdentity?.bind(identities);
 				const unsupportedVarsigHeader = (err) =>
-					String(err?.message || '').toLowerCase().includes('unsupported varsig header');
+					String(err?.message || '')
+						.toLowerCase()
+						.includes('unsupported varsig header');
 
 				identities.verify = async (signature, publicKey, data) => {
 					if (originalVerify) {
@@ -900,20 +905,20 @@ export async function initializeP2P(preferences = {}) {
 					}
 				};
 
-					identities.getIdentity = async (hash) => {
-						if (originalGetIdentity) {
-							try {
-								const resolved = await originalGetIdentity(hash);
-								if (resolved) return resolved;
-							} catch (error) {
-								console.debug('Varsig identities.getIdentity miss before fallback', {
-									hash,
-									error: error?.message || String(error)
-								});
-							}
+				identities.getIdentity = async (hash) => {
+					if (originalGetIdentity) {
+						try {
+							const resolved = await originalGetIdentity(hash);
+							if (resolved) return resolved;
+						} catch (error) {
+							console.debug('Varsig identities.getIdentity miss before fallback', {
+								hash,
+								error: error?.message || String(error)
+							});
 						}
-						return await fallbackIdentities.getIdentity(hash);
-					};
+					}
+					return await fallbackIdentities.getIdentity(hash);
+				};
 
 				identities.verifyIdentity = async (identityToVerify) => {
 					if (originalVerifyIdentity) {
@@ -946,7 +951,8 @@ export async function initializeP2P(preferences = {}) {
 						identityToVerify?.type === 'webauthn' &&
 						typeof OrbitDBWebAuthnIdentityProviderFunction.verifyIdentity === 'function'
 					) {
-						const verified = await OrbitDBWebAuthnIdentityProviderFunction.verifyIdentity(identityToVerify);
+						const verified =
+							await OrbitDBWebAuthnIdentityProviderFunction.verifyIdentity(identityToVerify);
 						if (verified) return true;
 					}
 					return await fallbackIdentities.verifyIdentity(identityToVerify);
