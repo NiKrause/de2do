@@ -1,5 +1,5 @@
 <script>
-	import { createEventDispatcher } from 'svelte';
+	import { beforeUpdate, createEventDispatcher, onDestroy } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { browser } from '$app/environment';
 	import QrCode from 'svelte-qrcode';
@@ -12,19 +12,40 @@
 	let currentUrl = '';
 	let allowBackdropClose = false;
 	let backdropCloseTimer;
+	let wasShown = false;
 
-	// Get current URL when component mounts and browser is available
-	$: if (browser && show) {
-		currentUrl = window.location.href;
-		allowBackdropClose = false;
-		clearTimeout(backdropCloseTimer);
+	const clearBackdropCloseTimer = () => {
+		if (backdropCloseTimer) {
+			clearTimeout(backdropCloseTimer);
+			backdropCloseTimer = undefined;
+		}
+	};
+
+	const scheduleBackdropClose = () => {
+		clearBackdropCloseTimer();
 		backdropCloseTimer = window.setTimeout(() => {
 			allowBackdropClose = true;
 		}, 120);
-	} else if (!show) {
+	};
+
+	beforeUpdate(() => {
+		if (!browser || show === wasShown) return;
+		wasShown = show;
+
+		if (show) {
+			currentUrl = window.location.href;
+			allowBackdropClose = false;
+			scheduleBackdropClose();
+			return;
+		}
+
 		allowBackdropClose = false;
-		clearTimeout(backdropCloseTimer);
-	}
+		clearBackdropCloseTimer();
+	});
+
+	onDestroy(() => {
+		clearBackdropCloseTimer();
+	});
 
 	const closeModal = () => {
 		show = false;

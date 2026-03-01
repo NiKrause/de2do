@@ -391,72 +391,80 @@ test.describe('Simple Todo P2P Application', () => {
 	}
 
 	async function getTodoDiagnostics(page, targetText = null) {
-		return await page.evaluate(async ({ wantedText }) => {
-			const todoTexts = Array.from(document.querySelectorAll('[data-testid="todo-text"]'));
-			const todoValues = todoTexts.map((node) => (node.textContent || '').replace(/\s+/g, ' ').trim());
-			const targetTodoTextNode = wantedText
-				? todoTexts.find((node) => (node.textContent || '').includes(wantedText))
-				: todoTexts[0] || null;
-			const targetCard = targetTodoTextNode?.closest('div.rounded-md.border') || null;
-			const targetCardText = targetCard ? (targetCard.textContent || '').replace(/\s+/g, ' ').trim() : null;
-			const targetHasEdit = !!targetCard?.querySelector('button[title="Edit todo"]');
-			const delegatedAuth = document.querySelector('[data-testid="delegated-auth-state"]');
-			const delegatedAuthState = delegatedAuth?.getAttribute('data-state') || null;
-			const identityMode = document.querySelector('[data-testid="identity-mode"]')?.textContent?.trim() || null;
+		return await page.evaluate(
+			async ({ wantedText }) => {
+				const todoTexts = Array.from(document.querySelectorAll('[data-testid="todo-text"]'));
+				const todoValues = todoTexts.map((node) =>
+					(node.textContent || '').replace(/\s+/g, ' ').trim()
+				);
+				const targetTodoTextNode = wantedText
+					? todoTexts.find((node) => (node.textContent || '').includes(wantedText))
+					: todoTexts[0] || null;
+				const targetCard = targetTodoTextNode?.closest('div.rounded-md.border') || null;
+				const targetCardText = targetCard
+					? (targetCard.textContent || '').replace(/\s+/g, ' ').trim()
+					: null;
+				const targetHasEdit = !!targetCard?.querySelector('button[title="Edit todo"]');
+				const delegatedAuth = document.querySelector('[data-testid="delegated-auth-state"]');
+				const delegatedAuthState = delegatedAuth?.getAttribute('data-state') || null;
+				const identityMode =
+					document.querySelector('[data-testid="identity-mode"]')?.textContent?.trim() || null;
 
-			let dbAddress = null;
-			let dbName = null;
-			let dbAccessType = null;
-			let dbEntries = null;
-			let actionEntries = 0;
-			let logMeta = null;
+				let dbAddress = null;
+				let dbName = null;
+				let dbAccessType = null;
+				let dbEntries = null;
+				let actionEntries = 0;
+				let logMeta = null;
 
-			try {
-				const db = window.__todoDB__;
-				dbAddress = db?.address || null;
-				dbName = db?.name || null;
-				dbAccessType = db?.access?.type || null;
+				try {
+					const db = window.__todoDB__;
+					dbAddress = db?.address || null;
+					dbName = db?.name || null;
+					dbAccessType = db?.access?.type || null;
 
-				if (db?.all) {
-					const all = await db.all();
-					if (Array.isArray(all)) {
-						dbEntries = all.length;
-						actionEntries = all.filter((entry) => {
-							const value = entry?.value || entry;
-							return value?.type === 'delegation-action';
-						}).length;
+					if (db?.all) {
+						const all = await db.all();
+						if (Array.isArray(all)) {
+							dbEntries = all.length;
+							actionEntries = all.filter((entry) => {
+								const value = entry?.value || entry;
+								return value?.type === 'delegation-action';
+							}).length;
+						}
 					}
+
+					const log = db?.log;
+					logMeta = {
+						hasLog: !!log,
+						logKeys: log ? Object.keys(log).slice(0, 12) : [],
+						hasHeads: !!log?.heads,
+						headsType: log?.heads ? typeof log.heads : null,
+						hasValues: !!log?.values,
+						valuesType: log?.values ? typeof log.values : null
+					};
+				} catch (error) {
+					logMeta = { error: error?.message || String(error) };
 				}
 
-				const log = db?.log;
-				logMeta = {
-					hasLog: !!log,
-					logKeys: log ? Object.keys(log).slice(0, 12) : [],
-					hasHeads: !!log?.heads,
-					headsType: log?.heads ? typeof log.heads : null,
-					hasValues: !!log?.values,
-					valuesType: log?.values ? typeof log.values : null
+				return {
+					cardCount: todoTexts.length,
+					cardTexts: todoValues.slice(0, 3),
+					targetFound: !!targetCard,
+					targetHasEdit,
+					targetCardText,
+					delegatedAuthState,
+					identityMode,
+					dbAddress,
+					dbName,
+					dbAccessType,
+					dbEntries,
+					actionEntries,
+					logMeta
 				};
-			} catch (error) {
-				logMeta = { error: error?.message || String(error) };
-			}
-
-			return {
-				cardCount: todoTexts.length,
-				cardTexts: todoValues.slice(0, 3),
-				targetFound: !!targetCard,
-				targetHasEdit,
-				targetCardText,
-				delegatedAuthState,
-				identityMode,
-				dbAddress,
-				dbName,
-				dbAccessType,
-				dbEntries,
-				actionEntries,
-				logMeta
-			};
-		}, { wantedText: targetText });
+			},
+			{ wantedText: targetText }
+		);
 	}
 
 	async function assertDelegatedStateAfterAction(page, delegatedAuthState) {
@@ -807,9 +815,7 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('🎉 Todo operations test completed successfully!');
 	});
 
-	test('should connect two browsers and see each other as connected peers', async ({
-		browser
-	}) => {
+	test('should connect two browsers and see each other as connected peers', async ({ browser }) => {
 		// Create two separate browser contexts (simulating two different browsers)
 		const context1 = await browser.newContext();
 		const context2 = await browser.newContext();
@@ -1145,13 +1151,19 @@ test.describe('Simple Todo P2P Application', () => {
 		await waitForTodoAfterDidSwitch(bob, aliceDid, originalTitle);
 		console.log('🔎 Bob diagnostics before edit:', await getTodoDiagnostics(bob, originalTitle));
 
-		const bobTodoTextForEdit = bob.locator('[data-testid="todo-text"]').filter({ hasText: originalTitle }).first();
+		const bobTodoTextForEdit = bob
+			.locator('[data-testid="todo-text"]')
+			.filter({ hasText: originalTitle })
+			.first();
 		if ((await bobTodoTextForEdit.count()) === 0) {
-			await expect(bob.locator('[data-testid="todo-text"]').first()).toBeVisible({ timeout: 60000 });
+			await expect(bob.locator('[data-testid="todo-text"]').first()).toBeVisible({
+				timeout: 60000
+			});
 		}
-		const effectiveTodoText = (await bobTodoTextForEdit.count()) > 0
-			? bobTodoTextForEdit
-			: bob.locator('[data-testid="todo-text"]').first();
+		const effectiveTodoText =
+			(await bobTodoTextForEdit.count()) > 0
+				? bobTodoTextForEdit
+				: bob.locator('[data-testid="todo-text"]').first();
 		const bobTodoRowForEdit = effectiveTodoText
 			.locator('xpath=ancestor::div[contains(@class,"rounded-md") and contains(@class,"border")]')
 			.first();
@@ -1170,7 +1182,10 @@ test.describe('Simple Todo P2P Application', () => {
 		await editFormInput.fill(updatedTitle);
 		await editFormContainer.locator('#add-todo-description').first().fill(updatedDescription);
 		const saveButton = editFormContainer.locator('[data-testid="add-todo-button"]').first();
-		console.log('🔎 Bob diagnostics before save click:', await getTodoDiagnostics(bob, originalTitle));
+		console.log(
+			'🔎 Bob diagnostics before save click:',
+			await getTodoDiagnostics(bob, originalTitle)
+		);
 		await saveButton.click();
 		const delegatedAuthState = bob.getByTestId('delegated-auth-state');
 		await assertDelegatedStateAfterAction(bob, delegatedAuthState);
@@ -1193,7 +1208,10 @@ test.describe('Simple Todo P2P Application', () => {
 		await expect(alice.locator('text=' + updatedDescription).first()).toBeVisible({
 			timeout: 60000
 		});
-		console.log('🔎 Alice diagnostics after replication:', await getTodoDiagnostics(alice, updatedTitle));
+		console.log(
+			'🔎 Alice diagnostics after replication:',
+			await getTodoDiagnostics(alice, updatedTitle)
+		);
 		console.log('🔎 Bob console errors:', bobConsoleErrors);
 		console.log('🔎 Bob page errors:', bobPageErrors);
 		console.log('🔎 Alice console errors:', aliceConsoleErrors);
