@@ -31,7 +31,6 @@ import {
 } from './identity/varsig-identity.js';
 import {
 	OrbitDBWebAuthnIdentityProviderFunction,
-	loadWebAuthnCredential,
 	loadWebAuthnVarsigCredential,
 	WebAuthnVarsigProvider
 } from '@le-space/orbitdb-identity-provider-webauthn-did';
@@ -808,7 +807,6 @@ export async function initializeP2P(preferences = {}) {
 		console.log('🛬 Creating OrbitDB instance...');
 
 		// Try to use WebAuthn identity if available and enabled
-		let webauthnCredential = null;
 		let varsigCredential = null;
 		let useVarsig = false;
 		const useWebAuthn = preferences.useWebAuthn !== false; // Default to true
@@ -818,32 +816,14 @@ export async function initializeP2P(preferences = {}) {
 
 		if (useWebAuthn && isWebAuthnAvailable() && hasExistingCredentials()) {
 			try {
-				if (preferHardware && WebAuthnVarsigProvider.isSupported()) {
+				if (WebAuthnVarsigProvider.isSupported()) {
 					console.log('🔐 Loading WebAuthn varsig credential...');
 					varsigCredential = loadWebAuthnVarsigCredential();
 					if (varsigCredential) {
 						useVarsig = true;
 						console.log('✅ WebAuthn varsig credential loaded successfully');
-						showToast('🔐 Using hardware-secured identity (varsig)', 'success', 3000);
-					}
-				}
-
-				if (!useVarsig) {
-					console.log('🔐 Loading WebAuthn keystore credential...');
-					webauthnCredential = loadWebAuthnCredential();
-					if (webauthnCredential) {
-						console.log('✅ WebAuthn credential loaded successfully');
-						showToast('🔐 Using WebAuthn-encrypted keystore', 'success', 3000);
-					}
-				}
-
-				if (!webauthnCredential && !useVarsig && WebAuthnVarsigProvider.isSupported()) {
-					console.log('🔐 Worker credential unavailable, falling back to hardware credential...');
-					varsigCredential = loadWebAuthnVarsigCredential();
-					if (varsigCredential) {
-						useVarsig = true;
-						console.log('✅ WebAuthn varsig credential loaded (fallback)');
-						showToast('🔐 Using hardware-secured identity (varsig)', 'success', 3000);
+						const authModeLabel = preferHardware ? 'hardware-secured' : 'worker';
+						showToast(`🔐 Using ${authModeLabel} identity (varsig)`, 'success', 3000);
 					}
 				}
 			} catch (error) {
@@ -992,10 +972,11 @@ export async function initializeP2P(preferences = {}) {
 
 				orbitdbCreated = true;
 				identityModeStore.set({
-					mode: 'hardware',
+					mode: preferHardware ? 'hardware' : 'worker',
 					algorithm: varsigCredential?.algorithm?.toLowerCase() === 'p-256' ? 'p-256' : 'ed25519'
 				});
-				showToast('✅ Authenticated with hardware-secured identity (varsig)', 'success', 3000);
+				const authModeLabel = preferHardware ? 'hardware-secured' : 'worker';
+				showToast(`✅ Authenticated with ${authModeLabel} identity (varsig)`, 'success', 3000);
 			} catch (error) {
 				console.error('❌ Failed to create OrbitDB with varsig identity:', error);
 				showToast(
@@ -1007,65 +988,7 @@ export async function initializeP2P(preferences = {}) {
 			}
 		}
 
-		// Create OrbitDB with WebAuthn keystore identity if available
-		if (!orbitdbCreated && !useVarsig && webauthnCredential) {
-			try {
-				// Register WebAuthn provider
-				useIdentityProvider(OrbitDBWebAuthnIdentityProviderFunction);
-
-				// Create identities instance with varsig verification support
-				const baseIdentities = await Identities({ ipfs: helia });
-				const identities = wrapWithVarsigVerification(baseIdentities, helia);
-
-				// Create WebAuthn identity
-				const identity = await identities.createIdentity({
-					provider: OrbitDBWebAuthnIdentityProviderFunction({
-						webauthnCredential,
-						useKeystoreDID: true,
-						keystore: identities.keystore,
-						keystoreKeyType: 'Ed25519',
-						encryptKeystore: true,
-						keystoreEncryptionMethod: 'prf'
-					})
-				});
-
-				console.log('🔍 Created WebAuthn identity:', {
-					id: identity.id,
-					type: identity.type,
-					hash: identity.hash
-				});
-
-				// Create OrbitDB with WebAuthn identity
-				orbitdb = await createOrbitDB({
-					ipfs: helia,
-					identities,
-					identity,
-					id: 'simple-todo-app',
-					directory: './orbitdb'
-				});
-
-				orbitdbCreated = true;
-				identityModeStore.set({ mode: 'worker', algorithm: 'ed25519' });
-				showToast('✅ Authenticated with WebAuthn-encrypted keystore', 'success', 3000);
-			} catch (error) {
-				console.error('❌ Failed to create OrbitDB with WebAuthn identity:', error);
-				showToast('⚠️ WebAuthn failed, using software identity', 'warning', 3000);
-
-				// Fall back to default identity with varsig verification support
-				const fallbackIdentities = wrapWithVarsigVerification(
-					await Identities({ ipfs: helia }),
-					helia
-				);
-				orbitdb = await createOrbitDB({
-					ipfs: helia,
-					identities: fallbackIdentities,
-					id: 'simple-todo-app',
-					directory: './orbitdb'
-				});
-				orbitdbCreated = true;
-				identityModeStore.set({ mode: 'software', algorithm: null });
-			}
-		} else if (!orbitdbCreated) {
+		if (!orbitdbCreated) {
 			// Create OrbitDB with default identity + varsig verification support
 			// This enables verifying entries from peers who use varsig identities
 			const defaultIdentities = wrapWithVarsigVerification(

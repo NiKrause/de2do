@@ -37,15 +37,17 @@ const SEED_NODES_DEV = import.meta.env.VITE_SEED_NODES_DEV || import.meta.env.VI
 const SEED_NODES_PROD = import.meta.env.VITE_SEED_NODES || '';
 
 const bootstrapSource = isDevelopment
-	? SEED_NODES_DEV
-		? 'VITE_SEED_NODES_DEV/VITE_SEED_NODES'
-		: 'VITE_RELAY_BOOTSTRAP_ADDR_DEV/default'
+	? import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_DEV
+		? 'VITE_RELAY_BOOTSTRAP_ADDR_DEV'
+		: SEED_NODES_DEV
+			? 'VITE_SEED_NODES_DEV/VITE_SEED_NODES'
+			: 'VITE_RELAY_BOOTSTRAP_ADDR_DEV/default'
 	: SEED_NODES_PROD
 		? 'VITE_SEED_NODES'
 		: 'VITE_RELAY_BOOTSTRAP_ADDR_PROD/default';
 
 const bootstrapRaw = isDevelopment
-	? SEED_NODES_DEV || RELAY_BOOTSTRAP_ADDR_DEV
+	? RELAY_BOOTSTRAP_ADDR_DEV || SEED_NODES_DEV
 	: SEED_NODES_PROD || RELAY_BOOTSTRAP_ADDR_PROD;
 
 console.log('isDevelopment', isDevelopment);

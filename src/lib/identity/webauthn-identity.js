@@ -1,9 +1,5 @@
 import {
 	WebAuthnDIDProvider,
-	OrbitDBWebAuthnIdentityProvider,
-	storeWebAuthnCredential,
-	loadWebAuthnCredential,
-	clearWebAuthnCredential as clearCredential,
 	WebAuthnVarsigProvider,
 	addPRFToCredentialOptions,
 	storeWebAuthnVarsigCredential,
@@ -56,18 +52,6 @@ function persistCredentialMetadata({ type, credentialId, userId }) {
 	} catch (error) {
 		console.warn('Failed to persist WebAuthn credential metadata:', error);
 	}
-}
-
-function shouldFallbackToKeystore(error) {
-	if (!error) return false;
-	const name = error.name || '';
-	const message = String(error.message || '');
-	return (
-		name === 'NotSupportedError' ||
-		message.includes('invalid domain') ||
-		message.includes('not supported') ||
-		message.includes('No supported credential')
-	);
 }
 
 export function getPreferredWebAuthnMode() {
@@ -243,8 +227,7 @@ function getBrowserName() {
 export function hasExistingCredentials() {
 	try {
 		const varsigCredential = loadWebAuthnVarsigCredential();
-		const webauthnCredential = loadWebAuthnCredential();
-		return Boolean(varsigCredential || webauthnCredential);
+		return Boolean(varsigCredential);
 	} catch (error) {
 		console.warn('Failed to check existing credentials:', error);
 		return false;
@@ -262,15 +245,6 @@ export function getStoredCredentialInfo() {
 			return {
 				credentialId: toBase64(varsigCredential.credentialId),
 				credentialType: 'webauthn-varsig',
-				userHandle: null
-			};
-		}
-
-		const webauthnCredential = loadWebAuthnCredential();
-		if (webauthnCredential) {
-			return {
-				credentialId: webauthnCredential.credentialId || '',
-				credentialType: 'webauthn-keystore',
 				userHandle: null
 			};
 		}
@@ -342,61 +316,10 @@ export async function createWebAuthnIdentity(userName = 'Simple Todo User', opti
 	try {
 		const userId = `simple-todo-user-${Date.now()}`;
 		const domain = window.location.hostname;
-
-		if (requestedMode === WEBAUTHN_AUTH_MODES.HARDWARE && WebAuthnVarsigProvider.isSupported()) {
-			return await createVarsigIdentityRecord({ userId, userName, domain });
+		if (!WebAuthnVarsigProvider.isSupported()) {
+			throw new Error('WebAuthn varsig provider is not supported on this device/browser.');
 		}
-
-		try {
-			showToast('🔐 Passkey required: create WebAuthn credential', 'default', 3000);
-			const credentialInfo = await WebAuthnDIDProvider.createCredential({
-				userId,
-				displayName: userName,
-				domain,
-				encryptKeystore: true,
-				keystoreEncryptionMethod: 'prf'
-			});
-
-			console.log('✅ WebAuthn credential created (keystore fallback):', {
-				credentialId: credentialInfo.credentialId,
-				userId: credentialInfo.userId
-			});
-
-			storeWebAuthnCredential(credentialInfo);
-			persistCredentialMetadata({
-				type: 'webauthn-keystore',
-				credentialId: credentialInfo.credentialId,
-				userId
-			});
-
-			const identity = await OrbitDBWebAuthnIdentityProvider.createIdentity({
-				webauthnCredential: credentialInfo
-			});
-
-			console.log('✅ OrbitDB identity created (keystore fallback):', {
-				id: identity.id,
-				type: identity.type
-			});
-
-			return {
-				identity,
-				credentialInfo,
-				type: 'webauthn-keystore'
-			};
-		} catch (keystoreError) {
-			if (
-				requestedMode !== WEBAUTHN_AUTH_MODES.WORKER ||
-				!shouldFallbackToKeystore(keystoreError) ||
-				!WebAuthnVarsigProvider.isSupported()
-			) {
-				throw keystoreError;
-			}
-			console.warn(
-				'⚠️ Worker mode unavailable, falling back to hardware-secured identity:',
-				keystoreError
-			);
-			return await createVarsigIdentityRecord({ userId, userName, domain });
-		}
+		return await createVarsigIdentityRecord({ userId, userName, domain });
 	} catch (error) {
 		console.error('❌ Failed to create WebAuthn identity:', error);
 
@@ -434,41 +357,9 @@ export async function authenticateWithWebAuthn() {
 			type: 'webauthn-varsig'
 		};
 	}
-
-	const storedCredential = loadWebAuthnCredential();
-	if (!storedCredential) {
-		throw new Error('No existing WebAuthn credentials found. Please create credentials first.');
-	}
-
-	console.log('🔐 Authenticating with WebAuthn (keystore fallback)...');
-
-	try {
-		const identity = await OrbitDBWebAuthnIdentityProvider.createIdentity({
-			webauthnCredential: storedCredential
-		});
-
-		console.log('✅ WebAuthn authentication successful:', {
-			id: identity.id,
-			type: identity.type
-		});
-
-		return {
-			identity,
-			credentialInfo: storedCredential,
-			type: 'webauthn-keystore'
-		};
-	} catch (error) {
-		console.error('❌ Failed to authenticate with WebAuthn:', error);
-
-		// Provide user-friendly error messages
-		if (error.name === 'NotAllowedError') {
-			throw new Error('Authentication was cancelled. Please try again.');
-		} else if (error.name === 'InvalidStateError') {
-			throw new Error('Invalid authentication state. Your credentials may be corrupted.');
-		}
-
-		throw error;
-	}
+	throw new Error(
+		'No supported WebAuthn varsig credential found. Please re-create your passkey in the current mode.'
+	);
 }
 
 /**
@@ -477,8 +368,6 @@ export async function authenticateWithWebAuthn() {
  */
 export function clearWebAuthnCredentials() {
 	try {
-		// Clear using the library function
-		clearCredential();
 		clearWebAuthnVarsigCredential();
 		clearCachedVarsigIdentity();
 
@@ -502,7 +391,7 @@ export async function getWebAuthnCapabilities() {
 	let browserName = 'Unknown';
 	let varsigSupported = false;
 	let hasVarsigCredentials = false;
-	let hasKeystoreCredentials = false;
+	const hasKeystoreCredentials = false;
 
 	if (available) {
 		platformAuthenticator = await isPlatformAuthenticatorAvailable();
@@ -510,7 +399,6 @@ export async function getWebAuthnCapabilities() {
 		varsigSupported = WebAuthnVarsigProvider.isSupported();
 		try {
 			hasVarsigCredentials = Boolean(loadWebAuthnVarsigCredential());
-			hasKeystoreCredentials = Boolean(loadWebAuthnCredential());
 		} catch (error) {
 			console.warn('Failed to read WebAuthn credential storage:', error);
 		}

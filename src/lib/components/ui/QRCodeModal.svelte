@@ -10,15 +10,30 @@
 	export let show = false;
 
 	let currentUrl = '';
+	let allowBackdropClose = false;
+	let backdropCloseTimer;
 
 	// Get current URL when component mounts and browser is available
 	$: if (browser && show) {
 		currentUrl = window.location.href;
+		allowBackdropClose = false;
+		clearTimeout(backdropCloseTimer);
+		backdropCloseTimer = window.setTimeout(() => {
+			allowBackdropClose = true;
+		}, 120);
+	} else if (!show) {
+		allowBackdropClose = false;
+		clearTimeout(backdropCloseTimer);
 	}
 
 	const closeModal = () => {
 		show = false;
 		dispatch('close');
+	};
+
+	const handleBackdropClick = () => {
+		if (!allowBackdropClose) return;
+		closeModal();
 	};
 
 	// Close on escape key
@@ -35,7 +50,7 @@
 	<!-- Backdrop -->
 	<div
 		class="fixed inset-0 z-[10001] bg-black/80 backdrop-blur-sm"
-		on:click={closeModal}
+		on:click={handleBackdropClick}
 		transition:fade={{ duration: 200 }}
 		role="button"
 		tabindex="0"
