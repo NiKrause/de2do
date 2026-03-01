@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/NiKrause/simple-todo/workflows/CI/badge.svg)](https://github.com/NiKrause/simple-todo/actions)
 [![Version](https://img.shields.io/badge/version-0.1.23-blue.svg)](https://github.com/NiKrause/simple-todo)
-[![IPFS](https://img.shields.io/badge/IPFS-bafybeieg3sxigt3rqlwmxr2vx67hlspg3ylv2nokpfatrspmeup6gsu4ge-brightgreen.svg)](https://bafybeidochwkt35vwpao5gaqafafk5qkhnr25huqoavdmpiizromujjjnq.ipfs.dweb.link)
+[![IPFS](https://img.shields.io/badge/IPFS-bafybeid7ecbasvrtfpmiwj5im7dk7spdkjgid7uxmpq34j3il7o2zhwzt4-brightgreen.svg)](https://bafybeid7ecbasvrtfpmiwj5im7dk7spdkjgid7uxmpq34j3il7o2zhwzt4.ipfs.dweb.link)
 [![License](https://img.shields.io/badge/license-Open%20Source-blue.svg)](./LICENSE)
 
 <div align="center" style="width: 100%;">
@@ -28,8 +28,8 @@ See `docs/WEBAUTHN_VARSIG_CHANGES.md` for the WebAuthn varsig/PRF flow details a
 ## 🚀 Live Demo
 
 - **HTTP**: https://simple-todo.le-space.de
-- **IPFS (dweb.link)**: https://bafybeieg3sxigt3rqlwmxr2vx67hlspg3ylv2nokpfatrspmeup6gsu4ge.ipfs.dweb.link
-- **IPFS (dweb.link, orbitdb demo)**: https://bafybeieg3sxigt3rqlwmxr2vx67hlspg3ylv2nokpfatrspmeup6gsu4ge.ipfs.dweb.link/#/orbitdb/zdpuAskw4Xes4nxR1YNV8TxK2qmrDgceAqEoGHDtTAUhQWvDP
+- **IPFS (dweb.link)**: https://bafybeid7ecbasvrtfpmiwj5im7dk7spdkjgid7uxmpq34j3il7o2zhwzt4.ipfs.dweb.link
+- **IPFS (dweb.link, orbitdb demo)**: https://bafybeid7ecbasvrtfpmiwj5im7dk7spdkjgid7uxmpq34j3il7o2zhwzt4.ipfs.dweb.link/#/orbitdb/zdpuAskw4Xes4nxR1YNV8TxK2qmrDgceAqEoGHDtTAUhQWvDP
 
 ### Key Features
 
