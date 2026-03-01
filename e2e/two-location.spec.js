@@ -92,6 +92,9 @@ test('two-location alice/bob replication via gossipsub orchestration', async ({ 
 			topicName: cfg.topicName
 		});
 
+		// Ensure at least one pubsub-capable peer connection (typically relay) before publishing.
+		await waitForPeerCount(page, 1, 90000);
+
 		await publishWithSeq(page, orch, 'ready', { topic: orch.topic });
 
 		if (cfg.role === 'alice') {
