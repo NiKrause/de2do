@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 import {
 	acceptConsentAndInitialize,
 	waitForP2PInitialization,
-	getCurrentDatabaseAddress
+	getCurrentDatabaseAddress,
+	waitForTodoText
 } from './helpers.js';
 
 /**
@@ -123,11 +124,8 @@ test('should not show password modal for unencrypted database opened via URL', a
 	// ============================================================================
 	console.log('\n🔍 STEP 4: Verifying todos are visible after sync...\n');
 
-	// Wait a bit more for sync to complete
-	await page2.waitForTimeout(3000);
-
-	// Verify the todo is visible
-	await expect(page2.locator(`text=${todoText}`).first()).toBeVisible({ timeout: 10000 });
+	// Wait for replicated data (sync can be slower in CI)
+	await waitForTodoText(page2, todoText, 60000, { browserName: test.info().project.name });
 	console.log(`  ✓ Todo visible: ${todoText}`);
 	console.log('  ✅ Database content accessible without password (correct)');
 
