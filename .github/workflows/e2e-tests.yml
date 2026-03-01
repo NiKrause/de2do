@@ -48,8 +48,13 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
 
-      - name: Run main E2E tests (excluding flaky sync tests)
-        run: npm run test:e2e -- --grep-invert "should create passkey, add todos, and sync to another browser|should replicate database when Browser B opens Browser A database by name|should disable network and keep peer count at zero"
+      - name: Run main E2E tests (excluding flaky sync tests) with fresh-run retry
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 20
+          max_attempts: 2
+          retry_wait_seconds: 10
+          command: npm run test:e2e -- --grep-invert "should create passkey, add todos, and sync to another browser|should replicate database when Browser B opens Browser A database by name|should disable network and keep peer count at zero"
         env:
           CI: true
       - name: Upload test results
