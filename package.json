@@ -16,6 +16,7 @@
 		"relay:verbose": "cd relay && node relay-enhanced.js --verbose",
 		"test": "npm run test:e2e",
 		"test:e2e": "playwright test",
+		"test:e2e:two-location": "playwright test -c playwright.two-location.config.js",
 		"test:e2e:debug": "playwright test --debug",
 		"test:e2e:headed": "playwright test --headed",
 		"test:orbitdb": "node test-orbitdb.js"
