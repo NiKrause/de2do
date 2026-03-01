@@ -8,6 +8,42 @@ ORCH_TOPIC_PREFIX="${ORCH_TOPIC_PREFIX:-orchestrator}"
 ORCH_TOPIC="${ORCH_TOPIC:-todo._peer-discovery._p2p._pubsub}"
 RUN_ID="${RUN_ID:-$(node -e "console.log(crypto.randomUUID())")}"
 RELAY_BOOTSTRAP_ADDR="${RELAY_BOOTSTRAP_ADDR:-}"
+RELAY_MULTIADDRS_URL="${RELAY_MULTIADDRS_URL:-http://le-space.de:9090/multiaddrs}"
+
+resolve_bootstrap_addr() {
+	if [[ -n "$RELAY_BOOTSTRAP_ADDR" ]]; then
+		echo "$RELAY_BOOTSTRAP_ADDR"
+		return 0
+	fi
+
+	local json
+	if ! json="$(curl -fsS "$RELAY_MULTIADDRS_URL")"; then
+		return 1
+	fi
+
+	local resolved
+	resolved="$(
+		node -e "
+const data = JSON.parse(process.argv[1]);
+const all = Array.isArray(data?.all) ? data.all : [];
+const bestWebrtc = data?.best?.webrtc || '';
+const firstWebrtc = all.find((a) => String(a).includes('/webrtc-direct/')) || '';
+const firstWss = data?.best?.websocket || '';
+const pick = bestWebrtc || firstWebrtc || firstWss || '';
+if (!pick) process.exit(1);
+process.stdout.write(pick);
+" "$json" 2>/dev/null
+	)" || return 1
+
+	echo "$resolved"
+}
+
+if RELAY_BOOTSTRAP_ADDR="$(resolve_bootstrap_addr)"; then
+	echo "Using relay bootstrap: $RELAY_BOOTSTRAP_ADDR"
+else
+	echo "Warning: failed to resolve relay bootstrap from $RELAY_MULTIADDRS_URL, continuing with app defaults"
+	RELAY_BOOTSTRAP_ADDR=""
+fi
 
 echo "RUN_ID=$RUN_ID"
 echo "Installing remote workspace on $REMOTE_HOST:$REMOTE_DIR ..."

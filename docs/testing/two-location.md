@@ -11,7 +11,8 @@ This setup runs `alice` and `bob` on different hosts and coordinates them via a 
 - `RUN_ID=<uuid>`
 - `PUBLIC_APP_URL=<app url>` (default: `https://simple-todo.le-space.de`)
 - `ORCH_TOPIC_PREFIX=<prefix>` (default: `orchestrator`)
-- optional `VITE_RELAY_BOOTSTRAP_ADDR_DEV=<multiaddr>`
+- optional `RELAY_MULTIADDRS_URL=<relay /multiaddrs url>` (default: `http://le-space.de:9090/multiaddrs`)
+- optional `RELAY_BOOTSTRAP_ADDR=<multiaddr>` (overrides auto-discovery)
 
 ## New test command
 
@@ -33,10 +34,14 @@ scripts/two-location/run-local-alice-remote-bob.sh
 ```
 
 This script:
+
 1. installs repo on `le-space.de:/tmp/simple-todo-two-location`
 2. starts remote `bob`
 3. runs local `alice`
 4. tails remote log from `/tmp/simple-todo-two-location-bob-<RUN_ID>.log`
+
+By default it resolves relay bootstrap from `/multiaddrs` and prefers `best.webrtc`
+(`webrtc-direct` with `certhash`) before websocket fallback.
 
 ## Artifacts
 
