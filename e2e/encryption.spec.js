@@ -96,21 +96,21 @@ test.describe('Encryption E2E Tests', () => {
 		await waitForP2PInitialization(pageBrowserB, 60000);
 		console.log('✅ Browser B: P2P initialized');
 
-			// Wait for database to be opened (check that todo input is available)
-			await pageBrowserB.waitForSelector('[data-testid="todo-input"]', { timeout: 30000 });
-			console.log('✅ Browser B: Database opened via URL');
+		// Wait for database to be opened (check that todo input is available)
+		await pageBrowserB.waitForSelector('[data-testid="todo-input"]', { timeout: 30000 });
+		console.log('✅ Browser B: Database opened via URL');
 
-			// Ensure network peer connectivity and force a deterministic todo refresh before assertion.
-			await waitForPeerCount(pageBrowserB, 1, 20000);
-			await pageBrowserB.evaluate(async () => {
-				if (typeof window.forceReloadTodos === 'function') {
-					await window.forceReloadTodos();
-				}
-			});
+		// Ensure network peer connectivity and force a deterministic todo refresh before assertion.
+		await waitForPeerCount(pageBrowserB, 1, 20000);
+		await pageBrowserB.evaluate(async () => {
+			if (typeof window.forceReloadTodos === 'function') {
+				await window.forceReloadTodos();
+			}
+		});
 
-			// Wait for todo to appear (this handles syncing from peers)
-			await waitForTodoText(pageBrowserB, testTodoText, 60000);
-			console.log(`✅ Browser B: Verified todo "${testTodoText}" is accessible`);
+		// Wait for todo to appear (this handles syncing from peers)
+		await waitForTodoText(pageBrowserB, testTodoText, 60000);
+		console.log(`✅ Browser B: Verified todo "${testTodoText}" is accessible`);
 
 		// Get browser B peer ID
 		const peerIdB = await getPeerId(pageBrowserB);
@@ -303,30 +303,30 @@ test.describe('Encryption E2E Tests', () => {
 					console.log('⚠️ Browser C: Loading check timeout, continuing anyway...');
 				});
 
+			await waitForPeerCount(pageBrowserC, 1, 20000);
+			await pageBrowserC.evaluate(async () => {
+				if (typeof window.forceReloadTodos === 'function') {
+					await window.forceReloadTodos();
+				}
+			});
+
+			// Verify todo appears in browser C using the helper function
+			try {
+				await waitForTodoText(pageBrowserC, testTodoText, 30000);
+				console.log(`✅ Browser C: Verified todo "${testTodoText}" is accessible`);
+			} catch {
+				console.warn(`⚠️ Browser C: Todo not visible yet, trying fallback to URL method...`);
+				// Fallback: use URL if user list doesn't work
+				await pageBrowserC.goto(`/?#/${dbAddressA}`);
 				await waitForPeerCount(pageBrowserC, 1, 20000);
 				await pageBrowserC.evaluate(async () => {
 					if (typeof window.forceReloadTodos === 'function') {
 						await window.forceReloadTodos();
 					}
 				});
-
-				// Verify todo appears in browser C using the helper function
-				try {
-					await waitForTodoText(pageBrowserC, testTodoText, 30000);
-					console.log(`✅ Browser C: Verified todo "${testTodoText}" is accessible`);
-				} catch {
-					console.warn(`⚠️ Browser C: Todo not visible yet, trying fallback to URL method...`);
-					// Fallback: use URL if user list doesn't work
-					await pageBrowserC.goto(`/?#/${dbAddressA}`);
-					await waitForPeerCount(pageBrowserC, 1, 20000);
-					await pageBrowserC.evaluate(async () => {
-						if (typeof window.forceReloadTodos === 'function') {
-							await window.forceReloadTodos();
-						}
-					});
-					await waitForTodoText(pageBrowserC, testTodoText, 30000);
-					console.log(`✅ Browser C: Verified todo via URL fallback`);
-				}
+				await waitForTodoText(pageBrowserC, testTodoText, 30000);
+				console.log(`✅ Browser C: Verified todo via URL fallback`);
+			}
 		} else {
 			console.warn(
 				'⚠️ Browser C: Could not find user input element - user list may not be implemented yet'
