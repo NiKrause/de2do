@@ -239,6 +239,18 @@ export async function loadTodos() {
 		console.log('todos', sortedTodos);
 		console.log('📋 Loaded todos:', sortedTodos.length);
 
+		// E2E sync hook: emit deterministic signal whenever todos are loaded/refreshed.
+		if (typeof window !== 'undefined') {
+			const syncEvent = {
+				at: new Date().toISOString(),
+				dbAddress: todoDB?.address || null,
+				todoCount: sortedTodos.length,
+				todoTexts: sortedTodos.map((todo) => todo?.text).filter(Boolean)
+			};
+			window.__lastTodoSyncEvent__ = syncEvent;
+			window.dispatchEvent(new CustomEvent('todo-sync-ready', { detail: syncEvent }));
+		}
+
 		// Show success toast with todo count
 		systemToasts.showTodosLoaded(sortedTodos.length);
 	} catch (error) {

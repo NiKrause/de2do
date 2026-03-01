@@ -543,6 +543,81 @@ export async function getIdentityId(page, timeout = 15000) {
 }
 
 /**
+ * Wait for a deterministic todo sync event emitted by the app.
+ *
+ * @param {import('@playwright/test').Page} page - Playwright page instance
+ * @param {Object} [options] - Additional options
+ * @param {string} [options.todoText] - Optional todo text that must be present in event payload
+ * @param {number} [options.minTodoCount=1] - Minimum todo count required in the event payload
+ * @param {number} [options.timeout=30000] - Timeout in milliseconds
+ */
+export async function waitForTodoSyncEvent(page, options = {}) {
+	const { todoText, minTodoCount = 1, timeout = 30000 } = options;
+	console.log(`⏳ Waiting for todo-sync-ready event${todoText ? ` (todo: "${todoText}")` : ''}...`);
+
+	const eventPayload = await page
+		.evaluate(
+			({ todoText, minTodoCount, timeout }) =>
+				new Promise((resolve, reject) => {
+					const matches = (eventDetail) => {
+						if (!eventDetail) return false;
+						const hasMinTodos = Number(eventDetail.todoCount || 0) >= minTodoCount;
+						if (!todoText) return hasMinTodos;
+						const texts = Array.isArray(eventDetail.todoTexts) ? eventDetail.todoTexts : [];
+						return hasMinTodos && texts.includes(todoText);
+					};
+
+					const lastEvent = window.__lastTodoSyncEvent__;
+					if (matches(lastEvent)) {
+						resolve(lastEvent);
+						return;
+					}
+
+					let timeoutId;
+					const onSyncReady = (event) => {
+						const detail = event?.detail;
+						if (!matches(detail)) return;
+						clearTimeout(timeoutId);
+						window.removeEventListener('todo-sync-ready', onSyncReady);
+						resolve(detail);
+					};
+
+					timeoutId = setTimeout(() => {
+						window.removeEventListener('todo-sync-ready', onSyncReady);
+						reject(
+							new Error(
+								`Timed out waiting for todo-sync-ready event after ${timeout}ms${
+									todoText ? ` (todo: "${todoText}")` : ''
+								}`
+							)
+						);
+					}, timeout);
+
+					window.addEventListener('todo-sync-ready', onSyncReady);
+				}),
+			{ todoText, minTodoCount, timeout }
+		)
+		.catch((error) => {
+			if (
+				error.message?.includes('Target page, context or browser has been closed') ||
+				error.message?.includes('Page closed') ||
+				error.message?.includes('Browser closed')
+			) {
+				throw new Error(
+					`Page was closed while waiting for todo-sync-ready event: ${error.message}`
+				);
+			}
+			throw error;
+		});
+
+	console.log(
+		`✅ Received todo-sync-ready event (todos: ${eventPayload?.todoCount ?? 0}, db: ${
+			eventPayload?.dbAddress || 'unknown'
+		})`
+	);
+}
+
+/**
  * Helper to wait for a todo with specific text to appear (robust across browsers)
  *
  * @param {import('@playwright/test').Page} page - Playwright page instance

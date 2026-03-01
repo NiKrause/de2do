@@ -4,7 +4,7 @@ import {
 	waitForP2PInitialization,
 	getCurrentDatabaseAddress,
 	waitForPeerCount,
-	waitForTodoText
+	waitForTodoSyncEvent
 } from './helpers.js';
 
 /**
@@ -133,8 +133,11 @@ test('should not show password modal for unencrypted database opened via URL', a
 		}
 	});
 
-	// Wait for replicated data.
-	await waitForTodoText(page2, todoText, 30000, { browserName: test.info().project.name });
+	// Wait for deterministic sync signal from the app, then assert the todo is rendered.
+	await waitForTodoSyncEvent(page2, { todoText, timeout: 30000 });
+	await expect(page2.locator(`[data-todo-text="${todoText}"]`).first()).toBeVisible({
+		timeout: 5000
+	});
 	console.log(`  ✓ Todo visible: ${todoText}`);
 	console.log('  ✅ Database content accessible without password (correct)');
 
