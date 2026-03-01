@@ -49,7 +49,7 @@ jobs:
         run: npx playwright install --with-deps
 
       - name: Run main E2E tests (excluding flaky sync tests)
-        run: npm run test:e2e -- --grep-invert "should share database between browsers|should replicate database when Browser B opens|should disable network and keep peer count at zero"
+        run: npm run test:e2e -- --grep-invert "should create passkey, add todos, and sync to another browser|should replicate database when Browser B opens Browser A database by name|should disable network and keep peer count at zero"
         env:
           CI: true
       - name: Upload test results
@@ -79,10 +79,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test:
-          - 'should share database between browsers'
-          - 'should replicate database when Browser B opens'
-          - 'should disable network and keep peer count at zero'
+        include:
+          - file: 'e2e/simple-todo.spec.js'
+            test: 'should create passkey, add todos, and sync to another browser'
+          - file: 'e2e/simple-todo.spec.js'
+            test: 'should replicate database when Browser B opens Browser A database by name'
+          - file: 'e2e/consent-screen.spec.js'
+            test: 'should disable network and keep peer count at zero'
 
     steps:
       - name: Checkout code
@@ -127,7 +130,7 @@ jobs:
           timeout_minutes: 10
           max_attempts: 3
           retry_wait_seconds: 5
-          command: npm run test:e2e -- simple-todo.spec.js -g "${{ matrix.test }}" --workers=1
+          command: npm run test:e2e -- ${{ matrix.file }} -g "${{ matrix.test }}" --workers=1
         env:
           CI: true
 
