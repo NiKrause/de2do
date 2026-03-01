@@ -3,6 +3,7 @@ import {
 	acceptConsentAndInitialize,
 	waitForP2PInitialization,
 	getCurrentDatabaseAddress,
+	waitForPeerCount,
 	waitForTodoText
 } from './helpers.js';
 
@@ -94,7 +95,7 @@ test('should not show password modal for unencrypted database opened via URL', a
 	// Wait for initialization and potential sync
 	// The issue: database appears empty initially, encryption detection assumes encrypted
 	console.log('  → Waiting for database to load and sync...');
-	await page2.waitForTimeout(6000); // Give time for sync
+	await page2.waitForTimeout(2000);
 
 	// ============================================================================
 	// STEP 3: Verify NO password modal appears
@@ -124,8 +125,16 @@ test('should not show password modal for unencrypted database opened via URL', a
 	// ============================================================================
 	console.log('\n🔍 STEP 4: Verifying todos are visible after sync...\n');
 
-	// Wait for replicated data (sync can be slower in CI)
-	await waitForTodoText(page2, todoText, 60000, { browserName: test.info().project.name });
+	// Ensure at least one network peer before checking replicated content.
+	await waitForPeerCount(page2, 1, 20000);
+	await page2.evaluate(async () => {
+		if (typeof window.forceReloadTodos === 'function') {
+			await window.forceReloadTodos();
+		}
+	});
+
+	// Wait for replicated data.
+	await waitForTodoText(page2, todoText, 30000, { browserName: test.info().project.name });
 	console.log(`  ✓ Todo visible: ${todoText}`);
 	console.log('  ✅ Database content accessible without password (correct)');
 

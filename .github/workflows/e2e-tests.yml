@@ -54,7 +54,7 @@ jobs:
           timeout_minutes: 20
           max_attempts: 2
           retry_wait_seconds: 10
-          command: npm run test:e2e -- --grep-invert "should create passkey, add todos, and sync to another browser|should replicate database when Browser B opens Browser A database by name|should disable network and keep peer count at zero"
+          command: bash -lc 'lsof -ti:4101,4102,4103,4106,3000,4174,9090 2>/dev/null | xargs kill -9 2>/dev/null || true; npm run test:e2e -- --grep-invert "should create passkey, add todos, and sync to another browser|should replicate database when Browser B opens Browser A database by name|should disable network and keep peer count at zero"'
         env:
           CI: true
       - name: Upload test results
