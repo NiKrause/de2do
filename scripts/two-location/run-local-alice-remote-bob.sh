@@ -20,10 +20,13 @@ fi
 REMOTE_BOB_CMD="$REMOTE_BOB_CMD nohup npm run test:e2e:two-location -- e2e/two-location.spec.js > /tmp/simple-todo-two-location-bob-$RUN_ID.log 2>&1 & echo \$! > /tmp/simple-todo-two-location-bob-$RUN_ID.pid"
 ssh "$REMOTE_HOST" "$REMOTE_BOB_CMD"
 
+cleanup() {
+	echo "Fetching remote bob log tail ..."
+	ssh "$REMOTE_HOST" "tail -n 160 /tmp/simple-todo-two-location-bob-$RUN_ID.log || true"
+}
+trap cleanup EXIT
+
 echo "Running local alice role ..."
 LOCAL_CMD=(npm run test:e2e:two-location -- e2e/two-location.spec.js)
 ROLE=alice RUN_ID="$RUN_ID" PUBLIC_APP_URL="$PUBLIC_APP_URL" ORCH_TOPIC_PREFIX="$ORCH_TOPIC_PREFIX" VITE_RELAY_BOOTSTRAP_ADDR_DEV="$RELAY_BOOTSTRAP_ADDR" "${LOCAL_CMD[@]}"
-
-echo "Fetching remote bob log tail ..."
-ssh "$REMOTE_HOST" "tail -n 120 /tmp/simple-todo-two-location-bob-$RUN_ID.log || true"
 echo "Done. Remote log file: /tmp/simple-todo-two-location-bob-$RUN_ID.log"
