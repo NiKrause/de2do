@@ -28,6 +28,7 @@ function roleConfig() {
 		role,
 		runId: requiredEnv('RUN_ID'),
 		topicPrefix: process.env.ORCH_TOPIC_PREFIX || 'orchestrator',
+		topicName: process.env.ORCH_TOPIC || '',
 		publicAppUrl: process.env.PUBLIC_APP_URL || '/'
 	};
 }
@@ -87,7 +88,8 @@ test('two-location alice/bob replication via gossipsub orchestration', async ({ 
 
 		orch.topic = await ensureOrchestrationChannel(page, {
 			runId: cfg.runId,
-			topicPrefix: cfg.topicPrefix
+			topicPrefix: cfg.topicPrefix,
+			topicName: cfg.topicName
 		});
 
 		await publishWithSeq(page, orch, 'ready', { topic: orch.topic });

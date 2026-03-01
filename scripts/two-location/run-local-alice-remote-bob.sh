@@ -5,6 +5,7 @@ REMOTE_HOST="${REMOTE_HOST:-root@le-space.de}"
 REMOTE_DIR="${REMOTE_DIR:-/tmp/simple-todo-two-location}"
 PUBLIC_APP_URL="${PUBLIC_APP_URL:-https://simple-todo.le-space.de}"
 ORCH_TOPIC_PREFIX="${ORCH_TOPIC_PREFIX:-orchestrator}"
+ORCH_TOPIC="${ORCH_TOPIC:-todo._peer-discovery._p2p._pubsub}"
 RUN_ID="${RUN_ID:-$(node -e "console.log(crypto.randomUUID())")}"
 RELAY_BOOTSTRAP_ADDR="${RELAY_BOOTSTRAP_ADDR:-}"
 
@@ -13,7 +14,7 @@ echo "Installing remote workspace on $REMOTE_HOST:$REMOTE_DIR ..."
 REMOTE_HOST="$REMOTE_HOST" REMOTE_DIR="$REMOTE_DIR" scripts/two-location/remote-install.sh
 
 echo "Starting remote bob role ..."
-REMOTE_BOB_CMD="set -euo pipefail; cd '$REMOTE_DIR'; ROLE='bob' RUN_ID='$RUN_ID' PUBLIC_APP_URL='$PUBLIC_APP_URL' ORCH_TOPIC_PREFIX='$ORCH_TOPIC_PREFIX'"
+REMOTE_BOB_CMD="set -euo pipefail; cd '$REMOTE_DIR'; ROLE='bob' RUN_ID='$RUN_ID' PUBLIC_APP_URL='$PUBLIC_APP_URL' ORCH_TOPIC_PREFIX='$ORCH_TOPIC_PREFIX' ORCH_TOPIC='$ORCH_TOPIC'"
 if [[ -n "$RELAY_BOOTSTRAP_ADDR" ]]; then
 	REMOTE_BOB_CMD="$REMOTE_BOB_CMD VITE_RELAY_BOOTSTRAP_ADDR_DEV='$RELAY_BOOTSTRAP_ADDR'"
 fi
@@ -28,5 +29,5 @@ trap cleanup EXIT
 
 echo "Running local alice role ..."
 LOCAL_CMD=(npm run test:e2e:two-location -- e2e/two-location.spec.js)
-ROLE=alice RUN_ID="$RUN_ID" PUBLIC_APP_URL="$PUBLIC_APP_URL" ORCH_TOPIC_PREFIX="$ORCH_TOPIC_PREFIX" VITE_RELAY_BOOTSTRAP_ADDR_DEV="$RELAY_BOOTSTRAP_ADDR" "${LOCAL_CMD[@]}"
+ROLE=alice RUN_ID="$RUN_ID" PUBLIC_APP_URL="$PUBLIC_APP_URL" ORCH_TOPIC_PREFIX="$ORCH_TOPIC_PREFIX" ORCH_TOPIC="$ORCH_TOPIC" VITE_RELAY_BOOTSTRAP_ADDR_DEV="$RELAY_BOOTSTRAP_ADDR" "${LOCAL_CMD[@]}"
 echo "Done. Remote log file: /tmp/simple-todo-two-location-bob-$RUN_ID.log"

@@ -1,7 +1,8 @@
 import { mkdir, writeFile } from 'fs/promises';
 import path from 'path';
 
-function getTopic(runId, prefix = 'orchestrator') {
+function getTopic(runId, prefix = 'orchestrator', explicitTopic = '') {
+	if (explicitTopic) return explicitTopic;
 	return `${prefix}/${runId}/v1`;
 }
 
@@ -15,8 +16,8 @@ function createMatcherScript() {
 	}`;
 }
 
-export async function ensureOrchestrationChannel(page, { runId, topicPrefix }) {
-	const topic = getTopic(runId, topicPrefix);
+export async function ensureOrchestrationChannel(page, { runId, topicPrefix, topicName }) {
+	const topic = getTopic(runId, topicPrefix, topicName);
 
 	await page.evaluate(async (t) => {
 		if (!window.__orch__) {
