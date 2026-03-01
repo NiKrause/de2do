@@ -46,6 +46,27 @@ async function publishWithSeq(page, ctx, state, meta = {}) {
 	await publishOrchestrationEvent(page, { topic: ctx.topic, event });
 }
 
+async function waitForEventWithRepublish(
+	page,
+	ctx,
+	{ criteria, timeout, republishState, republishMeta = {}, intervalMs = 5000 }
+) {
+	let interval;
+	if (republishState) {
+		interval = setInterval(() => {
+			publishWithSeq(page, ctx, republishState, { ...republishMeta, retry: true }).catch(() => {
+				// ignore transient publish errors during retries
+			});
+		}, intervalMs);
+	}
+
+	try {
+		return await waitForOrchestrationEvent(page, { topic: ctx.topic, criteria, timeout });
+	} finally {
+		if (interval) clearInterval(interval);
+	}
+}
+
 test('two-location alice/bob replication via gossipsub orchestration', async ({ browser }) => {
 	const cfg = roleConfig();
 	const timeline = [];
@@ -72,10 +93,11 @@ test('two-location alice/bob replication via gossipsub orchestration', async ({ 
 		await publishWithSeq(page, orch, 'ready', { topic: orch.topic });
 
 		if (cfg.role === 'alice') {
-			await waitForOrchestrationEvent(page, {
-				topic: orch.topic,
+			await waitForEventWithRepublish(page, orch, {
 				criteria: { runId: cfg.runId, role: 'bob', state: 'ready' },
-				timeout: 120000
+				timeout: 120000,
+				republishState: 'ready',
+				republishMeta: { topic: orch.topic }
 			});
 
 			await publishWithSeq(page, orch, 'start');
@@ -100,22 +122,24 @@ test('two-location alice/bob replication via gossipsub orchestration', async ({ 
 			expect(dbAddress).toBeTruthy();
 			await publishWithSeq(page, orch, 'db_published', { dbAddress, todoText });
 
-			await waitForOrchestrationEvent(page, {
-				topic: orch.topic,
+			await waitForEventWithRepublish(page, orch, {
 				criteria: { runId: cfg.runId, role: 'bob', state: 'verified' },
-				timeout: 180000
+				timeout: 180000,
+				republishState: 'start'
 			});
 		} else {
-			await waitForOrchestrationEvent(page, {
-				topic: orch.topic,
+			await waitForEventWithRepublish(page, orch, {
 				criteria: { runId: cfg.runId, role: 'alice', state: 'start' },
-				timeout: 120000
+				timeout: 120000,
+				republishState: 'ready',
+				republishMeta: { topic: orch.topic }
 			});
 
-			const dbPublished = await waitForOrchestrationEvent(page, {
-				topic: orch.topic,
+			const dbPublished = await waitForEventWithRepublish(page, orch, {
 				criteria: { runId: cfg.runId, role: 'alice', state: 'db_published' },
-				timeout: 180000
+				timeout: 180000,
+				republishState: 'ready',
+				republishMeta: { topic: orch.topic }
 			});
 			const dbAddress = dbPublished?.meta?.dbAddress;
 			const todoText = dbPublished?.meta?.todoText;
