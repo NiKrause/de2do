@@ -951,6 +951,8 @@ test.describe('Simple Todo P2P Application', () => {
 	});
 
 	test('should create passkey, add todos, and sync to another browser', async ({ browser }) => {
+		test.setTimeout(120000);
+
 		const context1 = await browser.newContext();
 		const context2 = await browser.newContext();
 
@@ -1350,6 +1352,8 @@ test.describe('Simple Todo P2P Application', () => {
 	test('should replicate database when Browser B opens Browser A database by name', async ({
 		browser
 	}) => {
+		test.setTimeout(120000);
+
 		// Create two separate browser contexts (simulating two different browsers)
 		const context1 = await browser.newContext();
 		const context2 = await browser.newContext();

@@ -306,11 +306,13 @@
 							? 'bg-blue-100'
 							: ''}"
 						role="option"
+						aria-label={userId}
 						aria-selected={$selectedUserIdStore === userId}
 					>
 						<button
 							type="button"
 							on:click={() => handleSelect(userId)}
+							aria-label={userId}
 							class="flex-1 px-4 py-2 text-left font-mono text-xs focus:bg-blue-50 focus:outline-none {$selectedUserIdStore ===
 							userId
 								? 'font-medium'

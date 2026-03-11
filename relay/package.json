@@ -60,7 +60,7 @@
 		"key-did-resolver": "^4.0.0",
 		"libp2p": "^2.9.0",
 		"multiformats": "^13.3.7",
-		"orbitdb-relay-pinner": "^0.1.1",
+		"orbitdb-relay-pinner": "^0.1.25",
 		"p-queue": "^8.1.0",
 		"uint8arrays": "^5.1.0"
 	},

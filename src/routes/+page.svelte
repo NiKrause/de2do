@@ -119,17 +119,17 @@
 		showWebAuthnSetup = true;
 	};
 
-	const handleWebAuthnSetupComplete = async (event) => {
-		showWebAuthnSetup = false;
+		const handleWebAuthnSetupComplete = async (event) => {
+			showWebAuthnSetup = false;
 
-		// If WebAuthn credential was created, store flag to use it
-		if (event?.detail?.identity) {
-			console.log('✅ WebAuthn credential created, will use for P2P initialization');
 			if (event?.detail?.authMode) {
 				preferences = { ...preferences, useWebAuthnMode: event.detail.authMode };
 			}
-			// The flag is already stored by the WebAuthn identity module
-		}
+
+			// If WebAuthn credential was created or recovered, the identity module already stored it locally.
+			if (event?.detail?.credentialInfo || event?.detail?.identity) {
+				console.log('✅ WebAuthn credential ready, will use for P2P initialization');
+			}
 
 		try {
 			// Pass the preferences to initializeP2P

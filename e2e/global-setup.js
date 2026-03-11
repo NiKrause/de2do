@@ -48,6 +48,34 @@ async function waitForHttpReady(url, { timeoutMs = 60000, intervalMs = 500 } = {
 	throw lastErr || new Error('Timed out waiting for ' + url);
 }
 
+async function waitForRelayPeerId(httpPort, { timeoutMs = 30000, intervalMs = 500 } = {}) {
+	const deadline = Date.now() + timeoutMs;
+	let lastErr = null;
+
+	while (Date.now() < deadline) {
+		try {
+			const res = await httpGet(`http://127.0.0.1:${httpPort}/multiaddrs`);
+			if (res.status === 200) {
+				const payload = JSON.parse(res.body || '{}');
+				const multiaddrs = Array.isArray(payload.all) ? payload.all : [];
+				const addrWithPeerId = multiaddrs.find(
+					(addr) => typeof addr === 'string' && addr.includes('/p2p/')
+				);
+				if (addrWithPeerId) {
+					return addrWithPeerId.split('/p2p/')[1] || null;
+				}
+			}
+			lastErr = new Error('Relay multiaddrs endpoint did not return a peer id yet');
+		} catch (error) {
+			lastErr = error;
+		}
+
+		await new Promise((resolve) => setTimeout(resolve, intervalMs));
+	}
+
+	throw lastErr || new Error('Timed out waiting for relay multiaddrs endpoint');
+}
+
 export default async function globalSetup() {
 	console.log('🚀 Setting up global test environment...');
 
@@ -107,24 +135,26 @@ export default async function globalSetup() {
 		relayProcess = usePackageRelay
 			? spawn('node', [relayCliPath, ...packageRelayArgs], {
 					cwd: testDatastorePath,
-					env: {
-						...process.env,
-						NODE_ENV: 'development',
+						env: {
+							...process.env,
+							NODE_ENV: 'development',
 						// Support either var name for convenience.
 						RELAY_PRIV_KEY: process.env.RELAY_PRIV_KEY,
 						TEST_PRIVATE_KEY: testPrivateKeyHex,
 						RELAY_TCP_PORT: TCP_PORT,
 						RELAY_WS_PORT: WS_PORT,
 						RELAY_WEBRTC_PORT: WEBRTC_PORT,
-						RELAY_WEBRTC_DIRECT_PORT: WEBRTC_DIRECT_PORT,
-						HTTP_PORT: HTTP_PORT,
-						DATASTORE_PATH: testDatastorePath,
-						PUBSUB_TOPICS: 'todo._peer-discovery._p2p._pubsub',
-						STRUCTURED_LOGS: 'false',
-						METRICS_PORT: '0'
-					},
-					stdio: ['ignore', 'pipe', 'pipe']
-				})
+							RELAY_WEBRTC_DIRECT_PORT: WEBRTC_DIRECT_PORT,
+							HTTP_PORT: HTTP_PORT,
+							METRICS_PORT: HTTP_PORT,
+							DATASTORE_PATH: testDatastorePath,
+							PUBSUB_TOPICS: 'todo._peer-discovery._p2p._pubsub',
+							RELAY_DISABLE_WEBRTC: 'true',
+							STRUCTURED_LOGS: 'false',
+							ENABLE_GENERAL_LOGS: 'true'
+						},
+						stdio: ['ignore', 'pipe', 'pipe']
+					})
 			: spawn('node', ['relay-enhanced.js'], {
 					cwd: path.join(process.cwd(), 'relay'),
 					env: {
@@ -148,6 +178,97 @@ export default async function globalSetup() {
 		let relayMultiaddr = null;
 		let resolved = false;
 
+		const finalizeRelayStart = (peerId) => {
+			if (!peerId || relayMultiaddr || resolved) return;
+			if (!peerId.startsWith('12D')) {
+				console.warn("⚠️  Extracted peerId doesn't start with 12D: " + peerId + ', skipping...');
+				return;
+			}
+			if (peerId.match(/^[0-9a-f]+$/i) && peerId.length > 50) {
+				console.warn(
+					'⚠️  Extracted peerId looks like hex (not base58): ' + peerId + ', skipping...'
+				);
+				return;
+			}
+
+			relayMultiaddr = '/ip4/127.0.0.1/tcp/' + WS_PORT + '/ws/p2p/' + peerId;
+
+			process.env.VITE_RELAY_BOOTSTRAP_ADDR_DEV = relayMultiaddr;
+			console.log('✅ Set VITE_RELAY_BOOTSTRAP_ADDR_DEV=' + relayMultiaddr);
+
+			const envContent =
+				'# Generated for e2e tests\n' +
+				'NODE_ENV=development\n' +
+				'VITE_NODE_ENV=development\n' +
+				'VITE_RELAY_BOOTSTRAP_ADDR_DEV=' +
+				relayMultiaddr +
+				'\n' +
+				'VITE_PUBSUB_TOPICS=todo._peer-discovery._p2p._pubsub\n';
+			writeFileSync('.env.development', envContent);
+			console.log('✅ Created .env.development with relay: ' + relayMultiaddr);
+
+			writeFileSync(
+				path.join(process.cwd(), 'e2e', 'relay-info.json'),
+				JSON.stringify({ multiaddr: relayMultiaddr, pid: relayProcess.pid }, null, 2)
+			);
+
+			resolved = true;
+			setTimeout(() => {
+				(async () => {
+					try {
+						console.log('✅ Relay server started successfully');
+						console.log('🚀 Starting web app dev server for e2e on http://127.0.0.1:4174 ...');
+						webProcess = spawn(
+							'npm',
+							['run', 'dev', '--', '--host', '127.0.0.1', '--port', '4174', '--strictPort'],
+							{
+								cwd: process.cwd(),
+								env: {
+									...process.env,
+									NODE_ENV: 'development',
+									VITE_NODE_ENV: 'development'
+								},
+								stdio: ['ignore', 'pipe', 'pipe']
+							}
+						);
+
+						webProcess.stdout.on('data', (data) => process.stdout.write(data.toString()));
+						webProcess.stderr.on('data', (data) => process.stderr.write(data.toString()));
+
+						await waitForHttpReady('http://127.0.0.1:4174/', {
+							timeoutMs: 120000,
+							intervalMs: 750
+						});
+						writeFileSync(
+							path.join(process.cwd(), 'e2e', 'web-info.json'),
+							JSON.stringify({ pid: webProcess.pid, url: 'http://127.0.0.1:4174' }, null, 2)
+						);
+						console.log('✅ Web app dev server ready (PID ' + webProcess.pid + ')');
+
+						resolve();
+					} catch (e) {
+						console.error('❌ Failed to start web app dev server:', e);
+						try {
+							webProcess?.kill('SIGTERM');
+						} catch {
+							// ignore
+						}
+						reject(e);
+					}
+				})();
+			}, 2000);
+		};
+
+		if (usePackageRelay) {
+			waitForRelayPeerId(HTTP_PORT)
+				.then((peerId) => finalizeRelayStart(peerId))
+				.catch((error) => {
+					if (!resolved) {
+						console.error('Failed to discover relay peer id via health endpoint:', error);
+					}
+				});
+		}
+
 		relayProcess.stdout.on('data', (data) => {
 			const text = data.toString();
 			output += text;
@@ -163,85 +284,7 @@ export default async function globalSetup() {
 				return null;
 			};
 			const peerId = extractPeerId(text) || extractPeerId(output);
-
-			if (peerId && !relayMultiaddr && !resolved) {
-				if (!peerId.startsWith('12D')) {
-					console.warn("⚠️  Extracted peerId doesn't start with 12D: " + peerId + ', skipping...');
-					return;
-				}
-				if (peerId.match(/^[0-9a-f]+$/i) && peerId.length > 50) {
-					console.warn(
-						'⚠️  Extracted peerId looks like hex (not base58): ' + peerId + ', skipping...'
-					);
-					return;
-				}
-				relayMultiaddr = '/ip4/127.0.0.1/tcp/' + WS_PORT + '/ws/p2p/' + peerId;
-
-				process.env.VITE_RELAY_BOOTSTRAP_ADDR_DEV = relayMultiaddr;
-				console.log('✅ Set VITE_RELAY_BOOTSTRAP_ADDR_DEV=' + relayMultiaddr);
-
-				const envContent =
-					'# Generated for e2e tests\n' +
-					'NODE_ENV=development\n' +
-					'VITE_NODE_ENV=development\n' +
-					'VITE_RELAY_BOOTSTRAP_ADDR_DEV=' +
-					relayMultiaddr +
-					'\n' +
-					'VITE_PUBSUB_TOPICS=todo._peer-discovery._p2p._pubsub\n';
-				writeFileSync('.env.development', envContent);
-				console.log('✅ Created .env.development with relay: ' + relayMultiaddr);
-
-				writeFileSync(
-					path.join(process.cwd(), 'e2e', 'relay-info.json'),
-					JSON.stringify({ multiaddr: relayMultiaddr, pid: relayProcess.pid }, null, 2)
-				);
-
-				resolved = true;
-				setTimeout(() => {
-					(async () => {
-						try {
-							console.log('✅ Relay server started successfully');
-							console.log('🚀 Starting web app dev server for e2e on http://127.0.0.1:4174 ...');
-							webProcess = spawn(
-								'npm',
-								['run', 'dev', '--', '--host', '127.0.0.1', '--port', '4174', '--strictPort'],
-								{
-									cwd: process.cwd(),
-									env: {
-										...process.env,
-										NODE_ENV: 'development',
-										VITE_NODE_ENV: 'development'
-									},
-									stdio: ['ignore', 'pipe', 'pipe']
-								}
-							);
-
-							webProcess.stdout.on('data', (data) => process.stdout.write(data.toString()));
-							webProcess.stderr.on('data', (data) => process.stderr.write(data.toString()));
-
-							await waitForHttpReady('http://127.0.0.1:4174/', {
-								timeoutMs: 120000,
-								intervalMs: 750
-							});
-							writeFileSync(
-								path.join(process.cwd(), 'e2e', 'web-info.json'),
-								JSON.stringify({ pid: webProcess.pid, url: 'http://127.0.0.1:4174' }, null, 2)
-							);
-							console.log('✅ Web app dev server ready (PID ' + webProcess.pid + ')');
-
-							resolve();
-						} catch (e) {
-							console.error('❌ Failed to start web app dev server:', e);
-							try {
-								webProcess?.kill('SIGTERM');
-							} catch {
-								// ignore
-							}
-							reject(e);
-						}
-					})();
-				}, 2000);
-			}
+			finalizeRelayStart(peerId);
 		});
 
 		relayProcess.stderr.on('data', (data) => {

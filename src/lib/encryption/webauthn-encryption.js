@@ -2,9 +2,9 @@ import {
 	WebAuthnDIDProvider,
 	generateSecretKey,
 	wrapSKWithPRF,
-	unwrapSKWithPRF,
-	loadWebAuthnVarsigCredential
+	unwrapSKWithPRF
 } from '@le-space/orbitdb-identity-provider-webauthn-did';
+import { getStoredWebAuthnCredential } from '$lib/identity/webauthn-identity.js';
 
 const STORAGE_PREFIX = 'simple-encryption-sk-v1:';
 
@@ -37,12 +37,16 @@ export async function getWebAuthnEncryptionKey({ allowCreate = true } = {}) {
 	if (typeof window === 'undefined') return null;
 	if (!WebAuthnDIDProvider.isSupported()) return null;
 
-	const varsigCredential = loadWebAuthnVarsigCredential();
-	if (!varsigCredential?.credentialId) {
+	const storedCredential = getStoredWebAuthnCredential();
+	const rawCredentialId =
+		storedCredential?.authMode === 'hardware'
+			? storedCredential.credentialInfo?.credentialId
+			: storedCredential?.credentialInfo?.rawCredentialId;
+	if (!rawCredentialId) {
 		return null;
 	}
 
-	const credential = { rawCredentialId: varsigCredential.credentialId };
+	const credential = { rawCredentialId };
 
 	const storageKey = toStorageKey(credential);
 	const rpId = window.location.hostname;
