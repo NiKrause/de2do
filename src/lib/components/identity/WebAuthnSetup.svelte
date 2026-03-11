@@ -58,10 +58,10 @@
 		error = '';
 		success = '';
 
-			try {
-				const result = await createWebAuthnIdentity(passkeyName.trim() || 'Simple Todo', {
-					mode: selectedMode
-				});
+		try {
+			const result = await createWebAuthnIdentity(passkeyName.trim() || 'Simple Todo', {
+				mode: selectedMode
+			});
 			setPreferredWebAuthnMode(selectedMode);
 			success =
 				selectedMode === 'hardware'
@@ -160,14 +160,17 @@
 					<div class="rounded-lg bg-yellow-50 p-4">
 						<h3 class="text-sm font-medium text-yellow-800">WebAuthn Not Available</h3>
 						<p class="mt-1 text-sm text-yellow-700">
-							Your browser does not support WebAuthn. The app will continue with a software identity.
+							Your browser does not support WebAuthn. The app will continue with a software
+							identity.
 						</p>
 					</div>
 				{:else}
-						<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
-							<h3 class="mb-3 text-sm font-semibold text-gray-900">Identity mode</h3>
-							<div class="space-y-2">
-							<label class="flex cursor-pointer items-start gap-2 rounded border border-gray-200 bg-white p-2">
+					<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+						<h3 class="mb-3 text-sm font-semibold text-gray-900">Identity mode</h3>
+						<div class="space-y-2">
+							<label
+								class="flex cursor-pointer items-start gap-2 rounded border border-gray-200 bg-white p-2"
+							>
 								<input
 									type="radio"
 									name="auth-mode"
@@ -176,10 +179,13 @@
 									data-testid="auth-mode-worker"
 								/>
 								<span class="text-sm text-gray-800">
-									<strong>Worker mode:</strong> Ed25519 worker/keystore identity unlocked by a WebAuthn passkey.
+									<strong>Worker mode:</strong> Ed25519 worker/keystore identity unlocked by a WebAuthn
+									passkey.
 								</span>
 							</label>
-							<label class="flex cursor-pointer items-start gap-2 rounded border border-gray-200 bg-white p-2">
+							<label
+								class="flex cursor-pointer items-start gap-2 rounded border border-gray-200 bg-white p-2"
+							>
 								<input
 									type="radio"
 									name="auth-mode"
@@ -191,37 +197,39 @@
 									<strong>Hardware mode:</strong> varsig identity signed directly by the authenticator.
 								</span>
 							</label>
-							</div>
 						</div>
+					</div>
 
-						<div class="rounded-lg border border-gray-200 bg-white p-4">
-							<label for="passkey-name" class="mb-2 block text-sm font-semibold text-gray-900">
-								Passkey name
-							</label>
-							<input
-								id="passkey-name"
-								bind:value={passkeyName}
-								type="text"
-								maxlength="64"
-								placeholder="Simple Todo"
-								data-testid="passkey-name-input"
-								class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-							/>
-							<p class="mt-2 text-xs text-gray-600">
-								New passkeys may show this name in Chrome or macOS passkey lists, depending on the platform UI.
-							</p>
-						</div>
+					<div class="rounded-lg border border-gray-200 bg-white p-4">
+						<label for="passkey-name" class="mb-2 block text-sm font-semibold text-gray-900">
+							Passkey name
+						</label>
+						<input
+							id="passkey-name"
+							bind:value={passkeyName}
+							type="text"
+							maxlength="64"
+							placeholder="Simple Todo"
+							data-testid="passkey-name-input"
+							class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						/>
+						<p class="mt-2 text-xs text-gray-600">
+							New passkeys may show this name in Chrome or macOS passkey lists, depending on the
+							platform UI.
+						</p>
+					</div>
 
-						{#if storedCredentials.length > 0}
+					{#if storedCredentials.length > 0}
 						<div class="rounded-lg bg-green-50 p-4">
 							<h3 class="text-sm font-medium text-green-800">Existing local WebAuthn metadata</h3>
 							<div class="mt-2 space-y-2">
-								{#each storedCredentials.map(getCredentialSummary) as credential}
+								{#each storedCredentials.map(getCredentialSummary) as credential (credential.authMode)}
 									<div class="rounded bg-green-100/60 p-2 text-xs text-green-900">
 										<p><span class="font-semibold">Mode:</span> {credential.modeLabel}</p>
 										{#if credential.did}
 											<p class="truncate" title={credential.did}>
-												<span class="font-semibold">DID:</span> {credential.did}
+												<span class="font-semibold">DID:</span>
+												{credential.did}
 											</p>
 										{/if}
 										{#if credential.shortId}
@@ -243,8 +251,8 @@
 					<div class="rounded-lg bg-blue-50 p-4">
 						<h3 class="text-sm font-medium text-blue-900">Use an existing passkey</h3>
 						<p class="mt-1 text-sm text-blue-800">
-							If this browser already has local metadata, it will be reused. Otherwise the app will try a
-							discoverable passkey recovery flow on this authenticator.
+							If this browser already has local metadata, it will be reused. Otherwise the app will
+							try a discoverable passkey recovery flow on this authenticator.
 						</p>
 						{#if capabilities.platformAuthenticator}
 							<p class="mt-2 text-xs text-blue-700">

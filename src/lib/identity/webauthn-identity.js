@@ -60,7 +60,9 @@ function normalizeMode(mode) {
 }
 
 function createPasskeyUserId(label) {
-	const normalized = String(label || 'Simple Todo').trim().slice(0, 64);
+	const normalized = String(label || 'Simple Todo')
+		.trim()
+		.slice(0, 64);
 	return normalized || 'Simple Todo';
 }
 
@@ -130,9 +132,7 @@ function getStoredCredentialRecords() {
 function pickStoredCredential(preferredMode = getPreferredWebAuthnMode()) {
 	const stored = getStoredCredentialRecords();
 	return (
-		stored.find((record) => record.authMode === normalizeMode(preferredMode)) ||
-		stored[0] ||
-		null
+		stored.find((record) => record.authMode === normalizeMode(preferredMode)) || stored[0] || null
 	);
 }
 

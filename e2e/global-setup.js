@@ -135,26 +135,26 @@ export default async function globalSetup() {
 		relayProcess = usePackageRelay
 			? spawn('node', [relayCliPath, ...packageRelayArgs], {
 					cwd: testDatastorePath,
-						env: {
-							...process.env,
-							NODE_ENV: 'development',
+					env: {
+						...process.env,
+						NODE_ENV: 'development',
 						// Support either var name for convenience.
 						RELAY_PRIV_KEY: process.env.RELAY_PRIV_KEY,
 						TEST_PRIVATE_KEY: testPrivateKeyHex,
 						RELAY_TCP_PORT: TCP_PORT,
 						RELAY_WS_PORT: WS_PORT,
 						RELAY_WEBRTC_PORT: WEBRTC_PORT,
-							RELAY_WEBRTC_DIRECT_PORT: WEBRTC_DIRECT_PORT,
-							HTTP_PORT: HTTP_PORT,
-							METRICS_PORT: HTTP_PORT,
-							DATASTORE_PATH: testDatastorePath,
-							PUBSUB_TOPICS: 'todo._peer-discovery._p2p._pubsub',
-							RELAY_DISABLE_WEBRTC: 'true',
-							STRUCTURED_LOGS: 'false',
-							ENABLE_GENERAL_LOGS: 'true'
-						},
-						stdio: ['ignore', 'pipe', 'pipe']
-					})
+						RELAY_WEBRTC_DIRECT_PORT: WEBRTC_DIRECT_PORT,
+						HTTP_PORT: HTTP_PORT,
+						METRICS_PORT: HTTP_PORT,
+						DATASTORE_PATH: testDatastorePath,
+						PUBSUB_TOPICS: 'todo._peer-discovery._p2p._pubsub',
+						RELAY_DISABLE_WEBRTC: 'true',
+						STRUCTURED_LOGS: 'false',
+						ENABLE_GENERAL_LOGS: 'true'
+					},
+					stdio: ['ignore', 'pipe', 'pipe']
+				})
 			: spawn('node', ['relay-enhanced.js'], {
 					cwd: path.join(process.cwd(), 'relay'),
 					env: {
