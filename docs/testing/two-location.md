@@ -13,7 +13,7 @@ This setup runs `alice` and `bob` on different hosts and coordinates them via a 
 - `ORCH_TOPIC_PREFIX=<prefix>` (default: `orchestrator`)
 - optional `RELAY_MULTIADDRS_URL=<relay /multiaddrs url>` (default: `http://le-space.de:9090/multiaddrs`)
 - optional `RELAY_BOOTSTRAP_ADDR=<multiaddr>` (overrides auto-discovery)
-- optional `USE_DEDICATED_REMOTE_RELAY=1|0` (default: `1` in one-command runner)
+- optional `USE_DEDICATED_REMOTE_RELAY=1|0` (default: `0`; uses production/public relay)
 - optional `REMOTE_RELAY_PUBLIC_HOST=<dns host>` (default: `le-space.de`)
 - optional `REMOTE_RELAY_IMPL=pinner|enhanced` (default: `pinner` in dedicated relay helper)
 
@@ -39,15 +39,15 @@ scripts/two-location/run-local-alice-remote-bob.sh
 This script:
 
 1. installs repo on `le-space.de:/tmp/simple-todo-two-location`
-2. starts a dedicated remote relay on separate ports/peerId (by default)
+2. optionally starts a dedicated remote relay on separate ports/peerId (only when `USE_DEDICATED_REMOTE_RELAY=1`)
 3. starts remote `bob`
 4. runs local `alice`
 5. tails remote log from `/tmp/simple-todo-two-location-bob-<RUN_ID>.log`
 
-By default it resolves relay bootstrap from `/multiaddrs` and prefers `best.webrtc`
+By default it resolves production relay bootstrap from `/multiaddrs` and prefers `best.webrtc`
 (`webrtc-direct` with `certhash`) before websocket fallback.
-For dedicated relay mode, local Alice uses a public DNS bootstrap address while
-remote Bob uses a local relay address on the same host.
+If dedicated relay mode is enabled, local Alice uses a public DNS bootstrap
+address while remote Bob uses a local relay address on the same host.
 
 ## Dedicated relay control
 
