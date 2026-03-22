@@ -26,6 +26,7 @@
     "test:e2e:passkey-escrow:skip-aa": "E2E_SKIP_LOCAL_AA_SETUP=1 playwright test -c playwright.passkey-escrow.config.js",
     "test:e2e:passkey-escrow:headed": "PW_HEADED=1 playwright test -c playwright.passkey-escrow.config.js",
     "test:e2e:passkey-escrow:skip-aa:headed": "E2E_SKIP_LOCAL_AA_SETUP=1 PW_HEADED=1 playwright test -c playwright.passkey-escrow.config.js",
+    "test:e2e:passkey-escrow:reuse-preview:skip-aa": "E2E_SKIP_LOCAL_AA_SETUP=1 PW_REUSE_PREVIEW=1 playwright test -c playwright.passkey-escrow.config.js",
     "test:e2e:passkey-escrow:reuse-preview:skip-aa:headed": "E2E_SKIP_LOCAL_AA_SETUP=1 PW_HEADED=1 PW_REUSE_PREVIEW=1 playwright test -c playwright.passkey-escrow.config.js",
     "test:e2e:passkey-escrow:skip-aa:debug": "E2E_SKIP_LOCAL_AA_SETUP=1 playwright test -c playwright.passkey-escrow.config.js e2e/passkey-wallet-escrow.spec.js --debug",
     "test:e2e:passkey-escrow:reuse-preview:skip-aa:debug": "E2E_SKIP_LOCAL_AA_SETUP=1 PW_REUSE_PREVIEW=1 playwright test -c playwright.passkey-escrow.config.js e2e/passkey-wallet-escrow.spec.js --debug",
