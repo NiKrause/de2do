@@ -1,5 +1,8 @@
 <script>
 	import '../app.css';
+	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
+	import { getEscrowAddress, getRpcUrl } from '$lib/chain/config.js';
 	// import favicon from '$lib/assets/favicon.svg';
 
 	// Register service worker for PWA offline support
@@ -24,6 +27,16 @@
 	}
 
 	let { children } = $props();
+
+	// Passkey E2E: Node-side `eth_*` must use the same addresses as this bundle (not only `.env.test` on disk).
+	onMount(() => {
+		if (!browser || import.meta.env.MODE !== 'test') return;
+		window.__PASSKEY_E2E_CHAIN__ = {
+			escrowAddress: getEscrowAddress(),
+			rpcUrl: getRpcUrl(),
+			chainId: import.meta.env.VITE_CHAIN_ID != null ? String(import.meta.env.VITE_CHAIN_ID) : null
+		};
+	});
 </script>
 
 <svelte:head>

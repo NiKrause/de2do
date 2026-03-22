@@ -6,7 +6,7 @@ import {
 	peerIdStore,
 	delegatedWriteAuthStore
 } from './stores.js';
-import { authenticateWithWebAuthn, hasExistingCredentials } from './identity/webauthn-identity.js';
+import { authenticateWithWebAuthn, hasExistingCredentials } from '@le-space/orbitdb-ui';
 
 // Store for OrbitDB instances
 export const orbitdbStore = writable(null);
@@ -353,6 +353,7 @@ export async function addTodo(
 	}
 
 	const delegateDid = delegationOptions?.delegateDid || null;
+	const delegateWalletAddress = delegationOptions?.delegateWalletAddress || null;
 	if (typeof delegateDid === 'string' && delegateDid.trim()) {
 		const accessType = getCurrentAccessControllerType();
 		if (accessType !== 'todo-delegation') {
@@ -374,6 +375,7 @@ export async function addTodo(
 						grantedBy: currentIdentity?.id || null,
 						grantedAt: new Date().toISOString(),
 						expiresAt: expiresAt || null,
+						delegateWalletAddress: delegateWalletAddress ? delegateWalletAddress.trim() : null,
 						revokedAt: null
 					}
 				: null;

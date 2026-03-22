@@ -3,8 +3,8 @@
 	import { fade, fly } from 'svelte/transition';
 	import { initializeP2P, initializationStore } from '$lib/p2p.js';
 	import { todosStore, todoDBStore, orbitdbStore } from '$lib/db-actions.js';
-	import ConsentModal from '$lib/components/ui/ConsentModal.svelte';
-	import WebAuthnSetup from '$lib/components/identity/WebAuthnSetup.svelte';
+	import { ConsentModal, WebAuthnSetup, setOnPasskeyPrompt } from '@le-space/orbitdb-ui';
+	import WalletProfile from '$lib/components/identity/WalletProfile.svelte';
 	import SystemToast from '$lib/components/ui/SystemToast.svelte';
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
 	import ErrorAlert from '$lib/components/ui/ErrorAlert.svelte';
@@ -19,6 +19,7 @@
 	import ManagedPasswordModal from '$lib/components/ui/ManagedPasswordModal.svelte';
 	import AppHeader from '$lib/components/layout/AppHeader.svelte';
 	import EncryptionSettings from '$lib/components/encryption/EncryptionSettings.svelte';
+	import { consolidatePasskeyCredentials } from '$lib/wallet/passkey-wallet.js';
 	import { setupDatabaseDebug } from '$lib/debug/database-debug.js';
 	import { createTodoHandlers } from '$lib/handlers/todo-handlers.js';
 	import { setupHashRouter } from '$lib/routing/hash-router.js';
@@ -29,6 +30,10 @@
 		availableTodoListsStore
 	} from '$lib/todo-list-manager.js';
 	import { get } from 'svelte/store';
+	import { showToast } from '$lib/toast-store.js';
+
+	// Wire passkey prompts to toast (used by varsig identity)
+	setOnPasskeyPrompt((msg) => showToast(msg, 'default', 3000));
 	// import { Cloud } from 'lucide-svelte'; // Unused for now
 	import { browser } from '$app/environment';
 	import { replaceState } from '$app/navigation';
@@ -129,6 +134,7 @@
 		// If WebAuthn credential was created or recovered, the identity module already stored it locally.
 		if (event?.detail?.credentialInfo || event?.detail?.identity) {
 			console.log('✅ WebAuthn credential ready, will use for P2P initialization');
+			await consolidatePasskeyCredentials();
 		}
 
 		try {
@@ -327,7 +333,10 @@
 		bind:rememberDecision
 		rememberLabel="Don't show this again on this device"
 		proceedButtonText="Accept & Continue"
-		on:proceed={handleModalClose}
+		appName="Simple Todo"
+		logoUrl="/favicon.svg"
+		versionString={`${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'} [${typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev'}]`}
+		onproceed={(detail) => handleModalClose({ detail })}
 	/>
 {/if}
 
@@ -336,8 +345,11 @@
 	<WebAuthnSetup
 		bind:show={showWebAuthnSetup}
 		optional={true}
-		on:created={handleWebAuthnSetupComplete}
-		on:skip={handleWebAuthnSetupComplete}
+		modeConfig="choice"
+		defaultMode="worker"
+		appName="Simple Todo"
+		oncreated={(detail) => handleWebAuthnSetupComplete({ detail })}
+		onskip={() => handleWebAuthnSetupComplete({})}
 	/>
 {/if}
 
@@ -421,6 +433,8 @@
 				}}
 			/>
 		</div>
+
+		<WalletProfile />
 
 		<!-- Add TODO Form -->
 		<AddTodoForm

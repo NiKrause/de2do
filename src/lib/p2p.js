@@ -22,14 +22,12 @@ import {
 	isWebAuthnAvailable,
 	getPreferredWebAuthnMode,
 	getStoredWebAuthnCredential,
-	WEBAUTHN_AUTH_MODES
-} from './identity/webauthn-identity.js';
-import {
+	WEBAUTHN_AUTH_MODES,
 	getOrCreateVarsigIdentity,
 	createWebAuthnVarsigIdentities,
 	createIpfsIdentityStorage,
 	wrapWithVarsigVerification
-} from './identity/varsig-identity.js';
+} from '@le-space/orbitdb-ui';
 import { OrbitDBWebAuthnIdentityProviderFunction } from '@le-space/orbitdb-identity-provider-webauthn-did';
 import DelegatedTodoAccessController from './access/delegated-todo-access-controller.js';
 useAccessController(DelegatedTodoAccessController);
@@ -654,25 +652,40 @@ export async function initializeP2P(preferences = {}) {
 		// Auto-dial discovered peers
 		libp2p.addEventListener('peer:discovery', (event) => {
 			const { id: peerId, multiaddrs } = event.detail || {};
-			if (!peerId || !multiaddrs) return;
+			if (!peerId) return;
+			if (peerId.toString() === libp2p.peerId.toString()) return;
 
-			// Filter for dialable addresses (webrtc, webtransport, websocket)
-			const dialableAddrs = multiaddrs.filter((addr) => {
+			// Some libp2p / pubsub-discovery versions emit discovery before multiaddrs exist, or only
+			// advertise relay/circuit paths that don't contain the substrings below. Previously we
+			// returned early when none matched — then we never called dial(peerId), so browsers
+			// stayed at "1 peer" (relay only) instead of also connecting to each other.
+			const addrList = Array.isArray(multiaddrs) ? multiaddrs : [];
+
+			// Filter for addresses that look dialable with our transports (plus circuit — relay path)
+			const dialableAddrs = addrList.filter((addr) => {
 				const addrStr = addr.toString();
 				return (
 					addrStr.includes('/webrtc') ||
 					addrStr.includes('/webtransport') ||
-					addrStr.includes('/ws')
+					addrStr.includes('/ws') ||
+					addrStr.includes('/p2p-circuit')
 				);
 			});
 
-			if (dialableAddrs.length === 0) return;
-
 			const peerIdShort = peerId.toString().slice(0, 12) + '...';
-			console.log('🔍 Peer discovered with dialable addresses:', {
-				peerId: peerIdShort,
-				addresses: dialableAddrs.map((a) => a.toString())
-			});
+			if (dialableAddrs.length > 0) {
+				console.log('🔍 Peer discovered with dialable addresses:', {
+					peerId: peerIdShort,
+					addresses: dialableAddrs.map((a) => a.toString())
+				});
+			} else if (addrList.length > 0) {
+				console.log('🔍 Peer discovered (no webrtc/ws/circuit substring match); will still dial by peerId:', {
+					peerId: peerIdShort,
+					addresses: addrList.map((a) => a.toString())
+				});
+			} else {
+				console.log('🔍 Peer discovered with empty multiaddrs; dialing by peerId:', peerIdShort);
+			}
 
 			// Check if we already have a direct connection
 			const existingConnections = libp2p.getConnections(peerId);

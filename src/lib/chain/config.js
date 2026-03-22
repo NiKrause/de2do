@@ -1,0 +1,105 @@
+import { baseSepolia, foundry, mainnet, polygon, sepolia } from 'viem/chains';
+
+const ENV = {
+  VITE_CHAIN_ID: import.meta.env.VITE_CHAIN_ID,
+  VITE_RPC_URL: import.meta.env.VITE_RPC_URL,
+  VITE_BUNDLER_URL: import.meta.env.VITE_BUNDLER_URL,
+  VITE_ESCROW_CONTRACT: import.meta.env.VITE_ESCROW_CONTRACT,
+  VITE_USDT_ADDRESS: import.meta.env.VITE_USDT_ADDRESS,
+  VITE_ENTRY_POINT_ADDRESS: import.meta.env.VITE_ENTRY_POINT_ADDRESS,
+  VITE_IMPLEMENTATION_CONTRACT: import.meta.env.VITE_IMPLEMENTATION_CONTRACT,
+  VITE_ENABLE_PAYMASTER: import.meta.env.VITE_ENABLE_PAYMASTER,
+  VITE_PAYMASTER_URL: import.meta.env.VITE_PAYMASTER_URL,
+  VITE_LOCAL_DEV_FUNDER_PRIVATE_KEY: import.meta.env.VITE_LOCAL_DEV_FUNDER_PRIVATE_KEY
+};
+
+function maybeProxyLocalDevUrl(value, proxyBasePath, defaultPort) {
+  if (!value) return null;
+
+  const normalized = String(value).trim();
+  const isBrowserDev = import.meta.env.DEV && typeof window !== 'undefined';
+  if (!isBrowserDev) return normalized;
+
+  try {
+    const url = new URL(normalized);
+    const isLocalHost = ['127.0.0.1', 'localhost'].includes(url.hostname);
+    if (!isLocalHost || url.port !== String(defaultPort)) return normalized;
+
+    const proxiedPath = `${proxyBasePath}${url.pathname === '/' ? '' : url.pathname}${url.search}`;
+    return proxiedPath || proxyBasePath;
+  } catch {
+    return normalized;
+  }
+}
+
+export function getEnvValue(key) {
+  const value = ENV[key] ?? import.meta?.env?.[key];
+  return value && String(value).trim() ? String(value).trim() : null;
+}
+
+export function getChainId() {
+  const value = getEnvValue('VITE_CHAIN_ID');
+  if (!value) throw new Error('VITE_CHAIN_ID is not defined');
+  return Number(value);
+}
+
+export function chainIdToChain(chainId) {
+  switch (String(chainId)) {
+    case '31337':
+      return foundry;
+    case '1':
+      return mainnet;
+    case '11155111':
+      return sepolia;
+    case '137':
+      return polygon;
+    case '84532':
+      return baseSepolia;
+    default:
+      throw new Error(`Unsupported chain ID: ${chainId}`);
+  }
+}
+
+export function getAppChain() {
+  return chainIdToChain(getChainId());
+}
+
+export function getRpcUrl() {
+  return getEnvValue('VITE_RPC_URL');
+}
+
+export function getBundlerUrl() {
+  return maybeProxyLocalDevUrl(getEnvValue('VITE_BUNDLER_URL'), '/__bundler', 4337);
+}
+
+export function getEscrowAddress() {
+  return getEnvValue('VITE_ESCROW_CONTRACT');
+}
+
+export function getUsdtAddress() {
+  return getEnvValue('VITE_USDT_ADDRESS');
+}
+
+export function getEntryPointAddress() {
+  return getEnvValue('VITE_ENTRY_POINT_ADDRESS');
+}
+
+export function getImplementationAddress() {
+  return getEnvValue('VITE_IMPLEMENTATION_CONTRACT');
+}
+
+export function isPaymasterEnabled() {
+  const value = getEnvValue('VITE_ENABLE_PAYMASTER');
+  if (!value) return true;
+  const normalized = value.toLowerCase();
+  return !['false', '0', 'no', 'off'].includes(normalized);
+}
+
+export function getPaymasterUrl() {
+  if (!isPaymasterEnabled()) return null;
+  return maybeProxyLocalDevUrl(getEnvValue('VITE_PAYMASTER_URL'), '/__paymaster', 3000);
+}
+
+export function getLocalDevFunderPrivateKey() {
+  return getEnvValue('VITE_LOCAL_DEV_FUNDER_PRIVATE_KEY');
+}

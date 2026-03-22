@@ -3,6 +3,7 @@
 	import { formatPeerId } from '../utils.js';
 	import { FolderPlus, Edit2, Save, X } from 'lucide-svelte';
 	import { updateTodo } from '../db-actions.js';
+	import { formatEthNumberFullDecimals } from '$lib/wallet/format-eth-display.js';
 
 	export let text;
 	export let description = '';
@@ -245,7 +246,7 @@
 						{#if estimatedCosts.usd}
 							<span>💰 ${estimatedCosts.usd.toFixed(2)} USD</span>
 						{:else if estimatedCosts.eth}
-							<span>💰 {estimatedCosts.eth.toFixed(4)} ETH</span>
+							<span>💰 {formatEthNumberFullDecimals(estimatedCosts.eth)} ETH</span>
 						{:else if estimatedCosts.btc}
 							<span>💰 {estimatedCosts.btc.toFixed(8)} BTC</span>
 						{/if}

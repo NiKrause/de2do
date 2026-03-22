@@ -2,6 +2,12 @@
 	import { createEventDispatcher } from 'svelte';
 	import { formatPeerId } from '../../utils.js';
 	import { FolderPlus, Edit2, X } from 'lucide-svelte';
+	import { lockEscrowForTodo, releaseEscrowForTodo, refundEscrowForTodo } from '$lib/escrow/escrowClient.js';
+	import { getIdentityProfile } from '$lib/identity/profile.js';
+	import { showToast } from '$lib/toast-store.js';
+	import { hasPasskeyWalletCredential } from '$lib/wallet/passkey-wallet.js';
+	import { getBundlerUrl, getEntryPointAddress, getEscrowAddress, getRpcUrl } from '$lib/chain/config.js';
+	import { formatEthNumberFullDecimals } from '$lib/wallet/format-eth-display.js';
 	import AddTodoForm from './AddTodoForm.svelte';
 	import { updateTodo } from '../../db-actions.js';
 	import { currentIdentityStore } from '../../stores.js';
@@ -17,6 +23,7 @@
 	export let todoKey;
 	export let estimatedTime = null;
 	export let estimatedCosts = {};
+	export let escrow = null;
 	export let allowEdit = true;
 	export let delegationEnabled = true;
 
@@ -66,6 +73,7 @@
 			estimatedTime: nextEstimatedTime,
 			estimatedCosts: nextEstimatedCosts,
 			delegateDid,
+			delegateWalletAddress,
 			delegationExpiresAt
 		} = event.detail || {};
 		if (!nextText || !nextText.trim()) {
@@ -92,6 +100,9 @@
 					grantedBy: currentIdentityId || createdByIdentity || createdBy || null,
 					grantedAt,
 					expiresAt: delegationExpiresAt ? new Date(delegationExpiresAt).toISOString() : null,
+					delegateWalletAddress: delegateWalletAddress
+						? delegateWalletAddress.trim()
+						: delegation?.delegateWalletAddress || null,
 					revokedAt: null
 				};
 			}
@@ -101,6 +112,93 @@
 		if (success) {
 			isEditing = false;
 			// Props will be updated automatically when loadTodos() refreshes the data
+		}
+	}
+
+	async function handleLockEscrow() {
+		try {
+			if (!delegation?.delegateWalletAddress) {
+				showToast('Set a delegate wallet address before locking funds', 'warning', 2500);
+				return;
+			}
+			const profile = await getIdentityProfile();
+			const creatorAddress = profile?.walletAddress;
+			if (!creatorAddress) {
+				showToast('Save your wallet address in the Passkey Wallet Profile first', 'warning', 3000);
+				return;
+			}
+			const deadlineSeconds = delegation?.expiresAt
+				? Math.floor(Date.parse(delegation.expiresAt) / 1000)
+				: 0;
+			const result = await lockEscrowForTodo({
+				todoKey,
+				estimatedCosts,
+				beneficiary: delegation.delegateWalletAddress,
+				creatorAddress,
+				deadline: deadlineSeconds
+			});
+			await updateTodo(todoKey, {
+				escrow: {
+					status: 'locked',
+					todoId: result.todoId,
+					txHash: result.txHash,
+					token: result.payout.token,
+					amount: result.payout.amount.toString(),
+					currency: result.payout.currency,
+					beneficiary: delegation.delegateWalletAddress,
+					deadline: result.deadline ? result.deadline.toString() : null
+				}
+			});
+			showToast('✅ Escrow locked', 'success', 2000);
+		} catch (error) {
+			console.error(error);
+			showToast('❌ Failed to lock escrow: ' + error.message, 'error', 3500);
+		}
+	}
+
+	async function handleReleaseEscrow() {
+		try {
+			const profile = await getIdentityProfile();
+			const creatorAddress = profile?.walletAddress;
+			if (!creatorAddress) {
+				showToast('Save your wallet address in the Passkey Wallet Profile first', 'warning', 3000);
+				return;
+			}
+			const result = await releaseEscrowForTodo({ todoKey, creatorAddress });
+			await updateTodo(todoKey, {
+				escrow: {
+					...(escrow || {}),
+					status: 'released',
+					releaseTxHash: result.txHash
+				}
+			});
+			showToast('✅ Escrow released', 'success', 2000);
+		} catch (error) {
+			console.error(error);
+			showToast('❌ Failed to release escrow: ' + error.message, 'error', 3500);
+		}
+	}
+
+	async function handleRefundEscrow() {
+		try {
+			const profile = await getIdentityProfile();
+			const creatorAddress = profile?.walletAddress;
+			if (!creatorAddress) {
+				showToast('Save your wallet address in the Passkey Wallet Profile first', 'warning', 3000);
+				return;
+			}
+			const result = await refundEscrowForTodo({ todoKey, creatorAddress });
+			await updateTodo(todoKey, {
+				escrow: {
+					...(escrow || {}),
+					status: 'refunded',
+					refundTxHash: result.txHash
+				}
+			});
+			showToast('✅ Escrow refunded', 'success', 2000);
+		} catch (error) {
+			console.error(error);
+			showToast('❌ Failed to refund escrow: ' + error.message, 'error', 3500);
 		}
 	}
 
@@ -118,6 +216,23 @@
 		return delegation.delegateDid === identityId;
 	}
 
+	$: payoutConfigured = Boolean(estimatedCosts?.usd || estimatedCosts?.eth);
+	$: escrowStatus = escrow?.status || null;
+	$: escrowDeadline = escrow?.deadline ? Number(escrow.deadline) : 0;
+	$: deadlinePassed = escrowDeadline > 0 && Date.now() / 1000 > escrowDeadline;
+	$: escrowConfigOk = Boolean(getRpcUrl() && getBundlerUrl() && getEntryPointAddress() && getEscrowAddress());
+	$: hasPasskeyCredential = hasPasskeyWalletCredential();
+	$: lockEnabled =
+		isOwner &&
+		payoutConfigured &&
+		delegation?.delegateWalletAddress &&
+		!escrowStatus &&
+		escrowConfigOk &&
+		hasPasskeyCredential;
+	$: releaseEnabled =
+		isOwner && payoutConfigured && completed && escrowStatus === 'locked' && escrowConfigOk && hasPasskeyCredential;
+	$: refundEnabled =
+		isOwner && escrowStatus === 'locked' && deadlinePassed && escrowConfigOk && hasPasskeyCredential;
 	$: currentIdentityId = $currentIdentityStore?.id || null;
 	$: isOwner = Boolean(
 		currentIdentityId && createdByIdentity && currentIdentityId === createdByIdentity
@@ -126,9 +241,21 @@
 		allowEdit && (isOwner || hasActiveDelegationFor(currentIdentityId) || !createdByIdentity);
 	$: delegationIsActive = Boolean(hasActiveDelegationFor(delegation?.delegateDid || null));
 	$: canEditDelegation = Boolean(isOwner && delegationEnabled);
+	/** After payout or refund, revoking delegation is misleading; match post-release UI (no Revoke). */
+	$: canRevokeDelegationUi =
+		isOwner &&
+		delegation?.delegateDid &&
+		!delegation.revokedAt &&
+		escrowStatus !== 'released' &&
+		escrowStatus !== 'refunded';
 </script>
 
-<div class="rounded-md border border-gray-200 p-4 transition-colors hover:bg-gray-50">
+<div
+	class="rounded-md border border-gray-200 p-4 transition-colors hover:bg-gray-50"
+	data-testid="todo-item"
+	data-todo-key={todoKey}
+	data-escrow-todo-id={escrow?.todoId || ''}
+>
 	{#if isEditing}
 		<!-- Edit Mode -->
 		<div>
@@ -143,6 +270,7 @@
 				initialEstimatedCosts={estimatedCosts || {}}
 				initialDelegateDid={delegation?.delegateDid || ''}
 				initialDelegationExpiresAt={toDateTimeLocal(delegation?.expiresAt)}
+				initialDelegateWalletAddress={delegation?.delegateWalletAddress || ""}
 				delegationEnabled={canEditDelegation}
 				on:save={saveEdit}
 			/>
@@ -161,6 +289,7 @@
 		<div class="flex items-start gap-3">
 			<input
 				type="checkbox"
+				data-testid="todo-complete-checkbox"
 				checked={completed}
 				on:change={handleToggleComplete}
 				disabled={!canToggleComplete}
@@ -184,7 +313,6 @@
 							{priority}
 						</span>
 					{/if}
-				</div>
 				{#if description}
 					<p class="mt-1 mb-2 text-sm text-gray-600">{description}</p>
 				{/if}
@@ -196,7 +324,7 @@
 						{#if estimatedCosts.usd}
 							<span>💰 ${estimatedCosts.usd.toFixed(2)} USD</span>
 						{:else if estimatedCosts.eth}
-							<span>💰 {estimatedCosts.eth.toFixed(4)} ETH</span>
+							<span>💰 {formatEthNumberFullDecimals(estimatedCosts.eth)} ETH</span>
 						{:else if estimatedCosts.btc}
 							<span>💰 {estimatedCosts.btc.toFixed(8)} BTC</span>
 						{/if}
@@ -227,6 +355,35 @@
 							{/if}
 						</span>
 					{/if}
+				{#if delegation?.delegateWalletAddress}
+					<span>
+						Wallet: <code class="rounded bg-green-100 px-1">{delegation.delegateWalletAddress}</code>
+					</span>
+				{/if}
+				{#if escrowStatus}
+					<span class="text-indigo-600">Escrow: {escrowStatus}</span>
+				{/if}
+				{#if escrowStatus === 'locked' && escrow?.txHash}
+					<span class="block w-full min-w-0 text-xs text-slate-600">
+						Lock tx:
+						<code data-testid="todo-lock-tx-hash" class="break-all font-mono text-[10px] text-slate-800"
+							>{escrow.txHash}</code
+						>
+					</span>
+				{/if}
+				{#if escrowStatus === 'released' && escrow?.releaseTxHash}
+					<span class="block w-full min-w-0 text-xs text-slate-600">
+						Release tx:
+						<code data-testid="todo-release-tx-hash" class="break-all font-mono text-[10px] text-slate-800"
+							>{escrow.releaseTxHash}</code
+						>
+					</span>
+				{/if}
+				{#if escrowDeadline}
+					<span class={deadlinePassed ? 'text-red-600' : 'text-gray-500'}>
+						Escrow deadline: {new Date(escrowDeadline * 1000).toLocaleString()}
+					</span>
+				{/if}
 				</div>
 			</div>
 			<div class="flex gap-2">
@@ -255,7 +412,39 @@
 					>
 						Delete
 					</button>
-					{#if isOwner && delegation?.delegateDid && !delegation.revokedAt}
+					{#if isOwner && payoutConfigured && delegation?.delegateWalletAddress && !escrowStatus}
+						<button
+							data-testid="todo-lock-funds"
+							on:click={handleLockEscrow}
+							disabled={!lockEnabled}
+							title={lockEnabled ? 'Lock funds in escrow' : 'Missing escrow config or passkey credential'}
+							class="min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-md px-3 py-2 text-emerald-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 active:bg-emerald-100"
+						>
+							Lock Funds
+						</button>
+					{/if}
+					{#if isOwner && payoutConfigured && completed && escrowStatus === "locked"}
+						<button
+							data-testid="todo-confirm-pay"
+							on:click={handleReleaseEscrow}
+							disabled={!releaseEnabled}
+							title={releaseEnabled ? 'Release payout to delegate' : 'Missing escrow config or passkey credential'}
+							class="min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-md px-3 py-2 text-indigo-700 transition-colors hover:bg-indigo-50 hover:text-indigo-800 active:bg-indigo-100"
+						>
+							Confirm & Pay
+						</button>
+					{/if}
+					{#if isOwner && escrowStatus === "locked" && deadlinePassed}
+						<button
+							on:click={handleRefundEscrow}
+							disabled={!refundEnabled}
+							title={refundEnabled ? 'Refund escrow to creator' : 'Missing escrow config or passkey credential'}
+							class="min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-md px-3 py-2 text-orange-700 transition-colors hover:bg-orange-50 hover:text-orange-800 active:bg-orange-100"
+						>
+							Refund
+						</button>
+					{/if}
+					{#if canRevokeDelegationUi}
 						<button
 							on:click={handleRevokeDelegation}
 							class="min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-md px-3 py-2 text-amber-700 transition-colors hover:bg-amber-50 hover:text-amber-800 active:bg-amber-100"
@@ -265,6 +454,7 @@
 					{/if}
 				{/if}
 			</div>
+		</div>
 		</div>
 	{/if}
 </div>

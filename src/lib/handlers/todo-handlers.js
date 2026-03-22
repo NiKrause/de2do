@@ -43,6 +43,7 @@ export function createTodoHandlers(options = {}) {
 				estimatedTime,
 				estimatedCosts,
 				delegateDid,
+				delegateWalletAddress,
 				delegationExpiresAt
 			} = event.detail;
 
@@ -67,6 +68,7 @@ export function createTodoHandlers(options = {}) {
 					estimatedCosts,
 					{
 						delegateDid,
+						delegateWalletAddress,
 						expiresAt: delegationExpiresAt
 					}
 				);

@@ -34,7 +34,7 @@
 	{/if}
 	{#if todos.length > 0}
 		<div class="space-y-3">
-			{#each todos as { id, text, description, priority, completed, assignee, createdBy, createdByIdentity, delegation, key, estimatedTime, estimatedCosts } (id)}
+			{#each todos as { id, text, description, priority, completed, assignee, createdBy, createdByIdentity, delegation, escrow, key, estimatedTime, estimatedCosts } (id)}
 				<TodoItem
 					{id}
 					{text}
@@ -45,6 +45,7 @@
 					{createdBy}
 					{createdByIdentity}
 					{delegation}
+					{escrow}
 					todoKey={key}
 					estimatedTime={estimatedTime || null}
 					estimatedCosts={estimatedCosts || {}}

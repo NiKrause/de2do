@@ -32,7 +32,12 @@ const PUBSUB_TOPICS = (import.meta.env.VITE_PUBSUB_TOPICS || 'todo._peer-discove
 	.map((t) => t.trim());
 
 // Determine which relay address to use based on environment
-const isDevelopment = import.meta.env.DEV || import.meta.env.VITE_NODE_ENV === 'development';
+// `vite build --mode test` (E2E / .env.test) sets DEV=false; without this, we'd use PROD bootstrap
+// (public relays) and ignore VITE_RELAY_BOOTSTRAP_ADDR_DEV from .env.test.
+const isDevelopment =
+	import.meta.env.DEV ||
+	import.meta.env.VITE_NODE_ENV === 'development' ||
+	import.meta.env.MODE === 'test';
 const SEED_NODES_DEV = import.meta.env.VITE_SEED_NODES_DEV || import.meta.env.VITE_SEED_NODES || '';
 const SEED_NODES_PROD = import.meta.env.VITE_SEED_NODES || '';
 

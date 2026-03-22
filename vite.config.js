@@ -18,7 +18,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 // Create build date
 const buildDate = new Date().toISOString().split('T')[0] + ' ' + new Date().toLocaleTimeString(); // YYYY-MM-DD HH:MM:SS format
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
 	plugins: [
 		// Plugin to exclude .d.ts files from processing
 		{
@@ -64,100 +64,103 @@ export default defineConfig({
 			},
 			protocolImports: true
 		}),
-		VitePWA({
-			// PWA configuration optimized for offline-first operation
-			registerType: 'autoUpdate',
-			injectRegister: 'auto',
-			workbox: {
-				// Increase the maximum file size limit to 5MB to handle large P2P libraries
-				maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
-				// Precache all build assets (HTML, JS, CSS) for true offline support
-				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
-				// Exclude OrbitDB and large files from precaching
-				globIgnores: ['**/orbitdb/**', '**/ipfs/**', '**/node_modules/**'],
-				// Manually add index.html to precache (SvelteKit fallback)
-				additionalManifestEntries: [
-					{ url: 'index.html', revision: null },
-					{ url: '/', revision: null }
-				],
-				// Runtime caching strategies for dynamic content
-				runtimeCaching: [
-					{
-						// For navigation requests, use cache first for instant offline loading
-						urlPattern: ({ request }) => {
-							// Only cache navigation requests, avoid OrbitDB/IPFS requests
-							return (
-								request.mode === 'navigate' &&
-								!request.url.includes('/ipfs/') &&
-								!request.url.includes('/orbitdb/')
-							);
+		// Omit PWA in `--mode test`: Workbox CacheFirst + new chunk hashes → 404 on /_app/immutable/*.js (white screen).
+		...(mode === 'test'
+			? []
+			: [
+					VitePWA({
+						registerType: 'autoUpdate',
+						injectRegister: 'auto',
+						workbox: {
+							maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+							globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
+							globIgnores: ['**/orbitdb/**', '**/ipfs/**', '**/node_modules/**'],
+							additionalManifestEntries: [
+								{ url: 'index.html', revision: null },
+								{ url: '/', revision: null }
+							],
+							runtimeCaching: [
+								{
+									urlPattern: ({ request }) => {
+										return (
+											request.mode === 'navigate' &&
+											!request.url.includes('/ipfs/') &&
+											!request.url.includes('/orbitdb/')
+										);
+									},
+									handler: 'CacheFirst',
+									options: {
+										cacheName: 'navigation-cache',
+										expiration: {
+											maxEntries: 50,
+											maxAgeSeconds: 30 * 24 * 60 * 60
+										},
+										cacheableResponse: {
+											statuses: [0, 200]
+										}
+									}
+								},
+								{
+									urlPattern: ({ request }) => {
+										return (
+											request.destination === 'style' ||
+											request.destination === 'script' ||
+											request.destination === 'font'
+										);
+									},
+									handler: 'CacheFirst',
+									options: {
+										cacheName: 'assets-cache',
+										expiration: {
+											maxEntries: 100,
+											maxAgeSeconds: 30 * 24 * 60 * 60
+										}
+									}
+								},
+								{
+									urlPattern: ({ request }) => {
+										return request.destination === 'image';
+									},
+									handler: 'CacheFirst',
+									options: {
+										cacheName: 'images-cache',
+										expiration: {
+											maxEntries: 60,
+											maxAgeSeconds: 60 * 24 * 60 * 60
+										}
+									}
+								}
+							],
+							skipWaiting: true,
+							clientsClaim: true,
+							cleanupOutdatedCaches: true
 						},
-						handler: 'CacheFirst',
-						options: {
-							cacheName: 'navigation-cache',
-							expiration: {
-								maxEntries: 50,
-								maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
-							},
-							cacheableResponse: {
-								statuses: [0, 200]
-							}
+						manifest: false,
+						devOptions: {
+							enabled: process.env.PWA_DEV_ENABLED === 'true',
+							type: 'module'
 						}
-					},
-					{
-						// For static assets, use cache first with background updates
-						urlPattern: ({ request }) => {
-							return (
-								request.destination === 'style' ||
-								request.destination === 'script' ||
-								request.destination === 'font'
-							);
-						},
-						handler: 'CacheFirst',
-						options: {
-							cacheName: 'assets-cache',
-							expiration: {
-								maxEntries: 100,
-								maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
-							}
-						}
-					},
-					{
-						// For images, use cache first with longer expiration
-						urlPattern: ({ request }) => {
-							return request.destination === 'image';
-						},
-						handler: 'CacheFirst',
-						options: {
-							cacheName: 'images-cache',
-							expiration: {
-								maxEntries: 60,
-								maxAgeSeconds: 60 * 24 * 60 * 60 // 60 days
-							}
-						}
-					}
-				],
-				// Skip waiting for immediate activation
-				skipWaiting: true,
-				clientsClaim: true,
-				// Clean old caches on activation
-				cleanupOutdatedCaches: true
-			},
-			// Use existing manifest.json
-			manifest: false, // We'll use our custom manifest.json
-			// Development options:
-			// disabled by default to avoid noisy generateSW warnings and /index.html 404s in e2e/dev.
-			// Enable explicitly with PWA_DEV_ENABLED=true when you want to test SW behavior in dev.
-			devOptions: {
-				enabled: process.env.PWA_DEV_ENABLED === 'true',
-				type: 'module'
-			}
-		})
+					})
+				])
 	],
 	define: {
 		__APP_VERSION__: JSON.stringify(pkg.version),
 		__BUILD_DATE__: JSON.stringify(buildDate),
 		__PWA_DEV_ENABLED__: JSON.stringify(process.env.PWA_DEV_ENABLED === 'true')
+	},
+	server: {
+		proxy: {
+			'/__bundler': {
+				target: 'http://127.0.0.1:4337',
+				changeOrigin: true,
+				rewrite: (path) => path.replace(/^\/__bundler/, '') || '/'
+			},
+			'/__paymaster': {
+				target: 'http://127.0.0.1:3000',
+				changeOrigin: true,
+				rewrite: (path) => path.replace(/^\/__paymaster/, '') || '/'
+			}
+		}
 	},
 	optimizeDeps: {
 		// Exclude problematic packages that include .d.ts files in their bin
@@ -180,7 +183,13 @@ export default defineConfig({
 			fs: resolve(__dirname, 'src/lib/browser-stubs/fs.js'),
 			// Normalize @le-space aliases to top-level npm aliased installs.
 			'@le-space/iso-did': resolve(__dirname, 'node_modules/iso-did'),
-			'@le-space/iso-passkeys': resolve(__dirname, 'node_modules/iso-passkeys')
+			'@le-space/iso-passkeys': resolve(__dirname, 'node_modules/iso-passkeys'),
+			// PWA plugin is omitted in `mode === 'test'`; +layout.svelte still imports virtual:pwa-register.
+			...(mode === 'test'
+				? {
+						'virtual:pwa-register': resolve(__dirname, 'src/lib/browser-stubs/pwa-register.js')
+					}
+				: {})
 		}
 	},
 	// Handle CommonJS modules that don't have default exports
@@ -190,4 +199,4 @@ export default defineConfig({
 			transformMixedEsModules: true
 		}
 	}
-});
+}));

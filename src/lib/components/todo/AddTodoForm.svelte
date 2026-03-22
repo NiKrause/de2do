@@ -15,6 +15,7 @@
 	export let initialEstimatedTime = '';
 	export let initialEstimatedCosts = {};
 	export let initialDelegateDid = '';
+	export let initialDelegateWalletAddress = '';
 	export let initialDelegationExpiresAt = '';
 
 	let inputText = initialText || '';
@@ -24,6 +25,7 @@
 	let estimatedCost = '';
 	let estimatedCostCurrency = 'usd';
 	let delegateDid = initialDelegateDid || '';
+	let delegateWalletAddress = initialDelegateWalletAddress || '';
 	let delegationExpiresAt = initialDelegationExpiresAt || '';
 	let showAdvanced = mode === 'edit';
 
@@ -61,7 +63,8 @@
 			estimatedTime: estimatedTime ? parseFloat(estimatedTime) : null,
 			estimatedCosts: Object.keys(estimatedCosts).length > 0 ? estimatedCosts : {},
 			delegateDid: delegationEnabled ? delegateDid.trim() || null : null,
-			delegationExpiresAt: delegationEnabled ? delegationExpiresAt || null : null
+			delegationExpiresAt: delegationEnabled ? delegationExpiresAt || null : null,
+			delegateWalletAddress: delegationEnabled ? delegateWalletAddress.trim() || null : null
 		};
 		dispatch(mode === 'edit' ? 'save' : 'add', payload);
 		dispatch('submit', payload);
@@ -75,6 +78,7 @@
 			estimatedCost = '';
 			estimatedCostCurrency = 'usd';
 			delegateDid = '';
+			delegateWalletAddress = '';
 			delegationExpiresAt = '';
 			showAdvanced = false;
 		}
@@ -203,6 +207,20 @@
 							bind:value={delegateDid}
 							disabled={disabled || !delegationEnabled}
 							placeholder="did:key:..."
+							class="w-full rounded-md border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+						/>
+					</div>
+
+					<div>
+						<label for="add-todo-delegate-wallet" class="mb-1 block text-sm font-medium text-gray-700">
+							Delegate Wallet (0x...)
+						</label>
+						<input
+							id="add-todo-delegate-wallet"
+							type="text"
+							bind:value={delegateWalletAddress}
+							disabled={disabled || !delegationEnabled}
+							placeholder="0x..."
 							class="w-full rounded-md border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
 						/>
 					</div>

@@ -1083,7 +1083,7 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('🎉 Passkey + database sharing test completed!');
 	});
 
-	test.skip('should allow delegated user to edit and complete todo via UsersList DID flow', async ({
+	test('should allow delegated user to edit and complete todo via UsersList DID flow', async ({
 		browser
 	}) => {
 		test.setTimeout(300000);

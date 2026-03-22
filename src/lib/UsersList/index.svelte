@@ -311,6 +311,8 @@
 					>
 						<button
 							type="button"
+							data-testid="users-list-select-did"
+							data-user-did={userId}
 							on:click={() => handleSelect(userId)}
 							aria-label={userId}
 							class="flex-1 px-4 py-2 text-left font-mono text-xs focus:bg-blue-50 focus:outline-none {$selectedUserIdStore ===

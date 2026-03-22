@@ -47,11 +47,13 @@ STRUCTURED_LOGS=true
 
 The relay provides several HTTP API endpoints for monitoring and management:
 
+> **Package note:** The **`orbitdb-relay-pinner`** npm build used by this repo exposes **`GET /health`**, **`GET /multiaddrs`**, and **`GET /metrics`** on `HTTP_PORT` / `METRICS_PORT` (see `dist/services/metrics.js`). It does **not** mount **`/pinning/*`** or **`/peers`** on that HTTP server. OrbitDB pinning/sync still runs over **libp2p**; older or custom relay images may add the REST routes below.
+
 - `GET /health` - Health check and system status
 - `GET /multiaddrs` - Get relay multiaddresses for peer connection
-- `GET /peers` - List connected peers
+- `GET /peers` - List connected peers *(not on npm metrics server)*
 - `GET /metrics` - Prometheus metrics (public endpoint)
-- `POST /test-pubsub` - Test pubsub messaging
-- `GET /pinning/stats` - OrbitDB pinning statistics
+- `POST /test-pubsub` - Test pubsub messaging *(not on npm metrics server)*
+- `GET /pinning/stats` - OrbitDB pinning statistics *(optional / fork-specific HTTP)*
 - `GET /pinning/databases` - List pinned databases
 - `POST /pinning/sync` - Manually sync a database

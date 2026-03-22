@@ -12,9 +12,7 @@ export default defineConfig({
 			? 'npm run build && npm run preview -- --host 127.0.0.1 --port 4174'
 			: 'npm run preview -- --host 127.0.0.1 --port 4174',
 		port: 4174,
-		// Use the test environment file and set development mode
 		env: {
-			// VITE_ENV_FILE: '.env.development',
 			VITE_NODE_ENV: 'development'
 		},
 		// Wait for server to be ready (increased for build time)

@@ -129,7 +129,18 @@ export async function detectDatabaseEncryption(db, options = {}) {
 			// Check peer count to determine wait time
 			const peerCount = db.peers?.length || 0;
 			const hasPeers = peerCount > 0;
-			const waitTime = hasPeers ? 15000 : 5000; // Wait longer if peers are connected
+			// With no peers connected there is nothing to sync from, so skip artificial wait.
+			if (!hasPeers) {
+				console.log('   → No peers connected; skipping sync wait');
+				const isEncrypted = await isDatabaseEncrypted(db);
+				if (isEncrypted) {
+					console.log('🔐 Database is encrypted (confirmed by isDatabaseEncrypted)');
+				} else {
+					console.log('✅ Database is not encrypted (empty local state)');
+				}
+				return isEncrypted;
+			}
+			const waitTime = 15000; // Wait longer only when peers are connected
 
 			console.log(`   → Peers connected: ${peerCount}, wait time: ${waitTime}ms`);
 

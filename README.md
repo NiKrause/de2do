@@ -18,6 +18,8 @@ A basic decentralized, local-first, peer-to-peer todo application built with `li
 
 See `docs/WEBAUTHN_VARSIG_CHANGES.md` for the WebAuthn varsig/PRF flow details and sequence diagrams.
 
+**Passkey wallet + local Anvil / EntryPoint v0.8:** `docs/HOWTO_PASSKEY_ESCROW.md` · **Roadmap (E2E, env):** `docs/PLAN_LOCAL_AA_AND_E2E.md` · **One-shot local AA + contracts:** `pnpm run setup:local-aa` (with `anvil` running — see HOWTO §F)
+
 > **Unstoppable** - This application demonstrates technology that continues operating even when cloud providers fail, governments attempt censorship, or software vendors shut down their services. Your data and functionality remain under your control, distributed across a resilient peer-to-peer network or self-hosted signaling or relay nodes. Imagine traditional software which was sold on a compact disc in the past - once installed it could never be stopped. A USP which should convince every client around the globe.
 
 ---
