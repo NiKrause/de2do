@@ -1,6 +1,8 @@
 # Testing Guide
 
-This document explains how to run the Playwright tests for the Simple Todo consent screen functionality both locally and on BrowserStack.
+> **CI:** Core E2E runs in **`.github/workflows/e2e-tests.yml`**. Passkey + escrow (Anvil, Docker Alto) runs in **`.github/workflows/e2e-passkey-escrow.yml`**. There is **no** `browserstack-tests.yml` in this repo anymore; BrowserStack below is **optional / manual** unless you add a workflow.
+
+This document covers **Playwright** (including consent screen tests) **locally** and optional **BrowserStack** setup.
 
 ## Overview
 
@@ -17,9 +19,8 @@ The test suite includes comprehensive cross-browser testing for the consent scre
 ### Files
 
 - `e2e/consent-screen.spec.js` - Main consent screen test suite
-- `playwright.config.js` - Configuration for local and BrowserStack testing
-- `scripts/browserstack-local.js` - BrowserStack Local tunnel management
-- `.github/workflows/browserstack-tests.yml` - CI/CD automation
+- `playwright.config.js` - Local Playwright config
+- `scripts/browserstack-local.js` - BrowserStack Local tunnel helper (if you use BrowserStack)
 
 ### Test Cases
 
@@ -54,7 +55,8 @@ pnpm run test:e2e
 Run only consent screen tests:
 
 ```bash
-pnpm run test:consent
+pnpm exec playwright test e2e/consent-screen.spec.js
+# or: npm run test:e2e -- e2e/consent-screen.spec.js
 ```
 
 Run with UI mode for debugging:
@@ -83,24 +85,9 @@ Test on BrowserStack while running the app locally:
 pnpm run test:consent:browserstack
 ```
 
-### GitHub Actions Integration
+### GitHub Actions (BrowserStack)
 
-The project includes automated BrowserStack testing via GitHub Actions.
-
-#### Secrets Required
-
-Add these secrets to your GitHub repository:
-
-- `BROWSERSTACK_USERNAME` - Your BrowserStack username
-- `BROWSERSTACK_ACCESS_KEY` - Your BrowserStack access key
-
-#### Workflow Triggers
-
-The workflow runs on:
-
-- Push to `main` or `develop` branches
-- Pull requests to `main`
-- Manual trigger via GitHub UI
+There is **no** checked-in BrowserStack workflow in this repository. To run BrowserStack in CI, add your own workflow and secrets (`BROWSERSTACK_USERNAME`, `BROWSERSTACK_ACCESS_KEY`), or run tests locally with the tunnel (above).
 
 ## Supported Browsers & Platforms
 
@@ -175,7 +162,7 @@ The tests use these BrowserStack-specific configurations:
 Enable debug mode for detailed logs:
 
 ```bash
-DEBUG=playwright:* pnpm run test:consent
+DEBUG=playwright:* pnpm exec playwright test e2e/consent-screen.spec.js
 ```
 
 ### Local Development

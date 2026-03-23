@@ -15,7 +15,7 @@ This setup runs `alice` and `bob` on different hosts and coordinates them via a 
 - optional `RELAY_BOOTSTRAP_ADDR=<multiaddr>` (overrides auto-discovery)
 - optional `USE_DEDICATED_REMOTE_RELAY=1|0` (default: `0`; uses production/public relay)
 - optional `REMOTE_RELAY_PUBLIC_HOST=<dns host>` (default: `le-space.de`)
-- optional `REMOTE_RELAY_IMPL=pinner|enhanced` (default: `pinner` in dedicated relay helper)
+- optional `REMOTE_RELAY_IMPL=pinner` (only supported value; legacy `enhanced` / `relay/relay-enhanced.js` was removed)
 
 ## New test command
 

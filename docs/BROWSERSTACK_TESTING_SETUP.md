@@ -20,10 +20,10 @@ This document provides a complete setup for running Playwright tests on BrowserS
 
 ### 3. CI/CD Pipeline
 
-- **GitHub Actions workflow** with automated testing on push/PR
-- **Batched execution** to optimize BrowserStack usage and avoid rate limits
+> **Note:** This repository does **not** currently ship a `browserstack-tests.yml` workflow. Core E2E is in **`e2e-tests.yml`**. Add your own BrowserStack workflow if you need cloud browsers in CI.
+
+- Optional: **GitHub Actions** + BrowserStack secrets
 - **Artifact collection** for test results, reports, and screenshots
-- **Comprehensive reporting** with test result summaries
 
 ## 📁 File Structure
 
@@ -34,13 +34,13 @@ simple-todo/
 ├── scripts/
 │   └── browserstack-local.js               # BrowserStack Local tunnel management
 ├── docs/
-│   ├── TESTING.md                          # Comprehensive testing guide
+│   ├── TESTING.md                          # Testing guide
 │   └── BROWSERSTACK_TESTING_SETUP.md       # This file
 ├── .github/workflows/
-│   └── browserstack-tests.yml              # CI/CD pipeline
-├── .env.browserstack.example               # Environment template
+│   └── e2e-tests.yml                       # Local Playwright CI (not BrowserStack)
+├── .env.browserstack.example               # Environment template (if used)
 ├── playwright.config.js                   # Playwright configuration
-└── package.json                           # Updated with test scripts
+└── package.json
 ```
 
 ## 🚀 Quick Start

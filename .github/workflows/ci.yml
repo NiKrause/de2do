@@ -28,41 +28,20 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential python3
+          sudo apt-get install -y build-essential python3 cmake pkg-config libssl-dev
 
       - name: Install dependencies
         run: npm install --no-audit
 
-      - name: Install relay dependencies
+      # Relay is `orbitdb-relay-pinner` from package.json (no `relay/` subfolder).
+      - name: Rebuild native modules if needed (libp2p / datachannel)
         run: |
-          cd relay
-          npm install
-
-      - name: Rebuild native modules if needed
-        run: |
-          cd relay
-          # Check if native modules need rebuilding
           if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
-            echo "Native module not found, rebuilding..."
-            # Clean any existing builds
+            echo "node-datachannel native module missing; rebuilding..."
             rm -rf node_modules/@ipshipyard/node-datachannel/build || true
-            rm -rf node_modules/classic-level/build || true
-            
-            # Use npm to rebuild these specific packages
-            npm rebuild @ipshipyard/node-datachannel || echo "npm rebuild node-datachannel failed"
-            npm rebuild classic-level || echo "npm rebuild classic-level failed"
-            
-            # Alternative: try installing with npm directly if still not working
-            if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
-              echo "Installing node-datachannel with npm as fallback"
-              npm install @ipshipyard/node-datachannel --no-save || echo "npm install failed"
-            fi
-            
-            # Verify the build worked
-            echo "Checking for .node files:"
-            find node_modules -name "*.node" -type f 2>/dev/null || echo "No .node files found"
+            npm rebuild @ipshipyard/node-datachannel || true
           else
-            echo "Native modules already compiled correctly"
+            echo "node-datachannel native module present"
           fi
 
       - name: Lint code
@@ -74,14 +53,7 @@ jobs:
         run: echo "✅ Build completed successfully"
 
       # Docker compose checks
-      - name: Docker Compose - dev environment
-        run: |
-          docker compose up --build -d
-          sleep 20
-          docker compose ps
-          docker compose down
-      - name: Docker Compose - relay-only environment
-        working-directory: relay
+      - name: Docker Compose - app + relay (orbitdb-relay-pinner image)
         run: |
           docker compose up --build -d
           sleep 20

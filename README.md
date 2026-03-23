@@ -1,7 +1,7 @@
 # Simple Todo - A Local-First Peer-to-Peer Demo App (in Svelte)
 
 [![CI](https://github.com/NiKrause/simple-todo/workflows/CI/badge.svg)](https://github.com/NiKrause/simple-todo/actions)
-[![Version](https://img.shields.io/badge/version-0.1.23-blue.svg)](https://github.com/NiKrause/simple-todo)
+[![Version](https://img.shields.io/badge/version-0.4.12-blue.svg)](https://github.com/NiKrause/simple-todo)
 [![IPFS](https://img.shields.io/badge/IPFS-bafybeid7ecbasvrtfpmiwj5im7dk7spdkjgid7uxmpq34j3il7o2zhwzt4-brightgreen.svg)](https://bafybeid7ecbasvrtfpmiwj5im7dk7spdkjgid7uxmpq34j3il7o2zhwzt4.ipfs.dweb.link)
 [![License](https://img.shields.io/badge/license-Open%20Source-blue.svg)](./LICENSE)
 
@@ -41,7 +41,7 @@ See `docs/WEBAUTHN_VARSIG_CHANGES.md` for the WebAuthn varsig/PRF flow details a
 - ✅ **Real-time Synchronization** - Changes appear instantly across all peers
 - ✅ **Encryption** - Todo-List is by default unencrypted and publicly stored on IPFS so it can be embedded easily into public websites. It is possible to encrypt your todo-list with a password.
 
-This project includes an enhanced P2P relay server that facilitates peer discovery and connectivity for the simple-todo application. For details about the relay server features, see **[Relay Configuration Documentation](./docs/RELAY_CONFIG.md)**.
+This project uses the **`orbitdb-relay-pinner`** npm package for local/dev relay (see **`npm run relay`**). For ports, HTTP routes, and env vars, see **[Relay configuration](./docs/RELAY_CONFIG.md)** and **[Local relay / fork builds](./docs/LOCAL_RELAY.md)**.
 
 ### Quick Start
 
@@ -53,25 +53,19 @@ npm install
 npm run dev
 ```
 
-Run a local relay like so:
+Run a **local relay** (second terminal):
 
 ```bash
-# open a second terminal and do
-cd relay
 npm install
+npm run relay
+# or: npm run relay:verbose
 
-# Start the relay server
-npm start
-
-# Or with verbose logging
-npm run start:verbose
-
-
-# Then copy the resulting websocket multiaddress from the relay console and put it into .env (make sure it contains a /ws/p2p)
-# For example like so:
-VITE_RELAY_BOOTSTRAP_ADDR_DEV=/ip4/127.0.0.1/tcp/4002/ws/p2p/12D3KooWE69FHwkL63Hf9bLDZP244HgyGwmmLj3vfFeyFWCkfeqS
-
+# Copy a /ws/p2p/… or /webrtc-direct/… multiaddr from the relay logs (or curl http://127.0.0.1:3000/multiaddrs if HTTP_PORT=3000)
+# into .env, e.g.:
+# VITE_RELAY_BOOTSTRAP_ADDR_DEV=/ip4/127.0.0.1/tcp/4102/ws/p2p/<peerId>
 ```
+
+There is **no `relay/` subfolder** in this repo; the relay CLI comes from **`node_modules/orbitdb-relay-pinner`**.
 
 ### Configuration
 
@@ -86,27 +80,9 @@ For detailed relay server configuration options and HTTP API endpoints, see **[R
 5. **Copy URL from browser A to browser B** - If both browsers open the same todo-list they can see each other's todos (only A has write permission at the moment)
 6. **Add Todos** - Create todos in one browser and watch them appear in the other
 
-**[Tutorial](./docs/TUTORIAL.md)**
+**Docs:** [Passkey + escrow (local Anvil)](./docs/HOWTO_PASSKEY_ESCROW.md) · [Testing / Playwright](./docs/TESTING.md) · [WebAuthn varsig notes](./docs/WEBAUTHN_VARSIG_CHANGES.md)
 
-The tutorial covers:
-
-- Step-by-Step implementation guide
-- Architecture overview
-- Testing procedures
-- Troubleshooting guide
-- Security considerations
-
-## 🛠️ Quick Start
-
-```bash
-# Clone repository
-git clone https://github.com/NiKrause/simple-todo.git
-# checkout /simplified-tutorial branch
-git checkout simplified-tutorial
-
-# run (like this you don't need to cut and paste anything)
-./tutorial-01.js
-```
+> A legacy `docs/TUTORIAL.md` / `tutorial-01.js` quick-start is **not** in this tree; use the HOWTO and `npm run dev` / `npm run test:e2e` instead.
 
 ## 📄 License
 

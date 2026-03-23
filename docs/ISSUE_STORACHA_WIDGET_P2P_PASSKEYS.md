@@ -1,16 +1,23 @@
-Title: Add “P2P Passkeys” to Storacha OrbitDB Backup/Restore Widget (new shared repo)
+# Issue concept: “P2P Passkeys” in Storacha OrbitDB backup/restore widget (shared repo)
 
-Summary
+> Moved from repo root for clarity. Unrelated to passkey **escrow** (`docs/ISSUE_PASSKEY_ESCROW_CONCEPT.md`).
+
+**Title:** Add “P2P Passkeys” to Storacha OrbitDB Backup/Restore Widget (new shared repo)
+
+## Summary
+
 Add a new “P2P Passkeys” feature to the Storacha backup/restore widget that enables passkey-based DID identities to sync and recover across devices via an OrbitDB registry database. This work should be implemented in a NEW, shared repository that can be reused by simple-todo and other OrbitDB projects, and then consumed by simple-todo.
 
-Background / References
+## Background / References
+
 - WebAuthn DID provider: orbitdb-identity-provider-webauthn-did (branch pr-15)
-- UCAN signing, verification, delegation flows: /Users/nandi/ucan-upload-wall (worker ed25519 + varsig ed25519 and p-256)
+- UCAN signing, verification, delegation flows: see your UCAN upload / worker projects
 - Storacha OrbitDB bridge: https://github.com/NiKrause/orbitdb-storacha-bridge/
 - This repo already has libp2p + Helia/IPFS configuration and OrbitDB integration
 - Current widget uses Storacha backup/restore for OrbitDB data
 
-Goals
+## Goals
+
 1. Add a “P2P Passkeys” section to the widget that enables creating and syncing passkey-based DID identities.
 2. Use WebAuthn in worker mode for the first step (this is the only required flow for initial release).
 3. Store WebAuthn credential data in the OrbitDB registry DB, not in localStorage.
@@ -20,12 +27,14 @@ Goals
 7. Store UCAN delegations (proofs) in the registry DB and ensure they can be restored and reused.
 8. Implement this as a new shared repo/module that can be used by simple-todo and other OrbitDB projects.
 
-Non-Goals (for first iteration)
+## Non-Goals (for first iteration)
+
 - Varsig WebAuthn paths (Ed25519, P-545) — planned for a follow-up milestone
 - Any ngrok bootstrap or external bootstrap config
 - UI redesign of the entire widget
 
-Requirements
+## Requirements
+
 - Use the WebAuthn DID provider with worker mode only for v1.
 - Reuse this repo’s existing libp2p + Helia/IPFS configuration.
 - No passkey credential data in localStorage.
@@ -41,14 +50,16 @@ Requirements
 - Default UCAN exchange should be over libp2p, while still supporting copy/paste and IPFS CAR/CID import/export.
 - Keep the widget UI minimal; show advanced flows in modals only.
 
-Suggested UX
+## Suggested UX
+
 - A compact “P2P Passkeys” card in the widget with a single primary action.
 - Tiny icon button to copy peerId or multiaddress JSON to clipboard.
 - Tiny icon button or input to paste a peer ID/multiaddr to link another device.
 - A minimal status line: Connected / Syncing / Error.
 - Modal-only flows for UCAN creation, delegation import/export, and advanced recovery steps.
 
-Implementation Notes
+## Implementation Notes
+
 - Import and configure the WebAuthn DID provider from the branch logic in pr-15.
 - Replace ngrok bootstrap with this repo’s existing libp2p bootstrap/relay config.
 - Use worker-mode WebAuthn ed25519 DID keys for UCAN signing, verification, and delegation handling.
@@ -57,12 +68,14 @@ Implementation Notes
 - Recover IPNS seed using WebAuthn+PRF and restore registry DBs before DID re-creation.
 - Package this as a new shared repo/module and consume it from simple-todo.
 
-Milestones
+## Milestones
+
 1. v1 (Worker mode only): P2P passkeys, UCAN proof-only flow, registry DB storage, copy/paste link flow, and recovery via WebAuthn+PRF.
 2. v2 (Varsig): Add WebAuthn varsig Ed25519 and P-545 paths; expose selection only in modal UI.
 3. v3 (UCAN UX): Add libp2p UCAN exchange plus copy/paste and CAR/CID import/export in modal UI.
 
-Acceptance Criteria
+## Acceptance Criteria
+
 - Passkey credential data never lands in localStorage.
 - Widget accepts only UCAN proofs by default for Storacha access.
 - UCAN proofs are stored in the registry DB and restored after recovery.

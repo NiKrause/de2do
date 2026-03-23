@@ -22,6 +22,11 @@ REMOTE_RELAY_LOG_FILE="${REMOTE_RELAY_LOG_FILE:-/tmp/simple-todo-two-location-re
 REMOTE_RELAY_START_TIMEOUT_SEC="${REMOTE_RELAY_START_TIMEOUT_SEC:-40}"
 
 start_relay() {
+	if [[ "$REMOTE_RELAY_IMPL" != "pinner" ]]; then
+		echo "REMOTE_RELAY_IMPL='$REMOTE_RELAY_IMPL' is not supported (removed relay/ tree). Use REMOTE_RELAY_IMPL=pinner (default)."
+		exit 1
+	fi
+
 	ssh "$REMOTE_HOST" "set -euo pipefail;
 cd '$REMOTE_DIR';
 if [[ -f '$REMOTE_RELAY_PID_FILE' ]] && kill -0 \"\$(cat '$REMOTE_RELAY_PID_FILE')\" 2>/dev/null; then
@@ -36,22 +41,19 @@ nohup env \
   RELAY_WEBRTC_DIRECT_PORT='$REMOTE_RELAY_WEBRTC_DIRECT_PORT' \
   HTTP_PORT='$REMOTE_RELAY_HTTP_PORT' \
   DATASTORE_PATH='$REMOTE_RELAY_DATASTORE_PATH' \
-  $(if [[ "$REMOTE_RELAY_IMPL" == "enhanced" ]]; then echo "node relay/relay-enhanced.js"; else echo "./node_modules/.bin/orbitdb-relay-pinner --test"; fi) \
+  ./node_modules/.bin/orbitdb-relay-pinner --test \
   > '$REMOTE_RELAY_LOG_FILE' 2>&1 &
 echo \$! > '$REMOTE_RELAY_PID_FILE'"
 
 	local i
 	for ((i = 0; i < REMOTE_RELAY_START_TIMEOUT_SEC; i++)); do
-		if [[ "$REMOTE_RELAY_IMPL" == "enhanced" ]]; then
-			if ssh "$REMOTE_HOST" "curl -fsS 'http://127.0.0.1:$REMOTE_RELAY_HTTP_PORT/health' >/dev/null"; then
-				echo "Dedicated remote relay is healthy on $REMOTE_HOST (impl=$REMOTE_RELAY_IMPL, http:$REMOTE_RELAY_HTTP_PORT, pid $(ssh "$REMOTE_HOST" "cat '$REMOTE_RELAY_PID_FILE'"))"
-				return 0
-			fi
-		else
-			if ssh "$REMOTE_HOST" "test -f '$REMOTE_RELAY_PID_FILE' && kill -0 \$(cat '$REMOTE_RELAY_PID_FILE') 2>/dev/null && grep -q \"p2p addr:\" '$REMOTE_RELAY_LOG_FILE'"; then
-				echo "Dedicated remote relay is healthy on $REMOTE_HOST (impl=$REMOTE_RELAY_IMPL, pid $(ssh "$REMOTE_HOST" "cat '$REMOTE_RELAY_PID_FILE'"))"
-				return 0
-			fi
+		if ssh "$REMOTE_HOST" "curl -fsS 'http://127.0.0.1:$REMOTE_RELAY_HTTP_PORT/multiaddrs' >/dev/null 2>&1"; then
+			echo "Dedicated remote relay is healthy on $REMOTE_HOST (orbitdb-relay-pinner, http:$REMOTE_RELAY_HTTP_PORT, pid $(ssh "$REMOTE_HOST" "cat '$REMOTE_RELAY_PID_FILE'"))"
+			return 0
+		fi
+		if ssh "$REMOTE_HOST" "test -f '$REMOTE_RELAY_PID_FILE' && kill -0 \$(cat '$REMOTE_RELAY_PID_FILE') 2>/dev/null && grep -q \"p2p addr:\" '$REMOTE_RELAY_LOG_FILE'"; then
+			echo "Dedicated remote relay is healthy on $REMOTE_HOST (log shows p2p addr, pid $(ssh "$REMOTE_HOST" "cat '$REMOTE_RELAY_PID_FILE'"))"
+			return 0
 		fi
 		sleep 1
 	done
@@ -83,12 +85,12 @@ fi"
 }
 
 multiaddrs_relay() {
-	if [[ "$REMOTE_RELAY_IMPL" == "enhanced" ]]; then
-		ssh "$REMOTE_HOST" "curl -fsS 'http://127.0.0.1:$REMOTE_RELAY_HTTP_PORT/multiaddrs'"
+	if out="$(ssh "$REMOTE_HOST" "curl -fsS 'http://127.0.0.1:$REMOTE_RELAY_HTTP_PORT/multiaddrs' 2>/dev/null")" && [[ -n "$out" ]]; then
+		echo "$out"
 		return 0
 	fi
 
-	# orbitdb-relay-pinner in --test mode prints addresses in logs but may not expose HTTP API.
+	# Fallback: parse addresses from relay logs if HTTP is not up yet.
 	local lines
 	lines="$(
 		ssh "$REMOTE_HOST" "tail -n 220 '$REMOTE_RELAY_LOG_FILE' | grep -Eo \"'/[^']+'\" | tr -d \"'\""

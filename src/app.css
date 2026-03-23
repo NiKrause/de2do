@@ -1,4 +1,8 @@
 @import 'tailwindcss';
+
+/* Generate utilities for class names shipped inside @le-space/orbitdb-ui (Tailwind v4 skips node_modules by default). */
+@source '../node_modules/@le-space/orbitdb-ui/dist/index.js';
+
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
 

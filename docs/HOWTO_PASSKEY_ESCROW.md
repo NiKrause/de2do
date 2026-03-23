@@ -248,21 +248,17 @@ Open the dev URL shown in the terminal.
 
 ### Relay for local development
 
-The preferred relay path is now the npm package relay:
+Use the **`orbitdb-relay-pinner`** package (installed with the app):
 
 ```bash
 cd /Users/nandi/Documents/projekte/DecentraSol/simple-todo
 npm run relay
+# alias: npm run relay:local  →  same as npm run relay (no separate relay/ folder)
 ```
 
-Temporary fallback to the old in-repo relay is still available:
+To work off a **local fork** of the relay, see **`docs/LOCAL_RELAY.md`**.
 
-```bash
-cd /Users/nandi/Documents/projekte/DecentraSol/simple-todo
-npm run relay:local
-```
-
-The package relay reads these port env vars from your shell / env files:
+The relay reads these port env vars from your shell / env files:
 
 ```bash
 RELAY_TCP_PORT=4101

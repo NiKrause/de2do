@@ -1,18 +1,34 @@
-# Local `orbitdb-relay-pinner`
+# Local / pinned `orbitdb-relay-pinner`
 
-`package.json` may point `orbitdb-relay-pinner` at a **local directory** (e.g. `file:../../../../orbitdb-relay-pinner`) so you can run `pnpm relay` against an unpublished relay build.
+## Default (this repo)
 
-- Adjust the relative path if your relay clone lives elsewhere (e.g. `~/orbitdb-relay-pinner` vs this repo under `Documents/projekte/...`).
-- After publishing **orbitdb-relay-pinner** to npm, switch to a semver range (e.g. `^0.1.27`) and run `pnpm install`.
-
-## Tarball in `vendor/`
-
-To avoid a sibling path, pack into this repo:
+`package.json` depends on **`orbitdb-relay-pinner`** from the **npm registry** (semver, e.g. `^0.1.25`). Use:
 
 ```bash
-cd /path/to/orbitdb-relay-pinner && npm run build && npm pack --pack-destination /path/to/simple-todo/vendor
+npm install
+npm run relay
 ```
 
-Then set `"orbitdb-relay-pinner": "file:./vendor/orbitdb-relay-pinner-0.1.27.tgz"` in `package.json` and run `pnpm install`.
+Docker uses the same package — see root **`Dockerfile.relay`** and **`docker-compose.yml`**.
 
-A generated `vendor/orbitdb-relay-pinner-0.1.27.tgz` is optional to commit (portable for CI until the version is on npm).
+## Developing a fork of the relay
+
+If you need an unpublished relay build:
+
+1. **Sibling clone** — temporarily set in `package.json`:
+   - `"orbitdb-relay-pinner": "file:../orbitdb-relay-pinner"`
+   - then `npm install` / `pnpm install`.
+
+2. **Vendor tarball** (portable, optional commit):
+
+   ```bash
+   cd /path/to/orbitdb-relay-pinner && npm run build && npm pack --pack-destination /path/to/simple-todo/vendor
+   ```
+
+   Then set `"orbitdb-relay-pinner": "file:./vendor/orbitdb-relay-pinner-<version>.tgz"` and reinstall.
+
+3. Switch back to a published version when done (`^0.1.x`) so CI and other clones stay reproducible.
+
+## Removed in-repo relay tree
+
+The old **`relay/`** directory (`relay-enhanced.js`, separate `package.json`) is **gone**. E2E and `RELAY_IMPL=local` fallbacks in code only apply if you restore that layout yourself; **CI and Docker assume the npm package only.**
