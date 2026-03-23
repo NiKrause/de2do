@@ -7,3 +7,9 @@ bun.lockb
 
 # Miscellaneous
 /static/
+
+# Foundry / submodule / chain artifacts (not ours to reformat)
+lib/forge-std/
+broadcast/
+cache/
+out/

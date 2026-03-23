@@ -2,11 +2,20 @@
 	import { createEventDispatcher } from 'svelte';
 	import { formatPeerId } from '../../utils.js';
 	import { FolderPlus, Edit2, X } from 'lucide-svelte';
-	import { lockEscrowForTodo, releaseEscrowForTodo, refundEscrowForTodo } from '$lib/escrow/escrowClient.js';
+	import {
+		lockEscrowForTodo,
+		releaseEscrowForTodo,
+		refundEscrowForTodo
+	} from '$lib/escrow/escrowClient.js';
 	import { getIdentityProfile } from '$lib/identity/profile.js';
 	import { showToast } from '$lib/toast-store.js';
 	import { hasPasskeyWalletCredential } from '$lib/wallet/passkey-wallet.js';
-	import { getBundlerUrl, getEntryPointAddress, getEscrowAddress, getRpcUrl } from '$lib/chain/config.js';
+	import {
+		getBundlerUrl,
+		getEntryPointAddress,
+		getEscrowAddress,
+		getRpcUrl
+	} from '$lib/chain/config.js';
 	import { formatEthNumberFullDecimals } from '$lib/wallet/format-eth-display.js';
 	import AddTodoForm from './AddTodoForm.svelte';
 	import { updateTodo } from '../../db-actions.js';
@@ -220,8 +229,11 @@
 	$: escrowStatus = escrow?.status || null;
 	$: escrowDeadline = escrow?.deadline ? Number(escrow.deadline) : 0;
 	$: deadlinePassed = escrowDeadline > 0 && Date.now() / 1000 > escrowDeadline;
-	$: escrowConfigOk = Boolean(getRpcUrl() && getBundlerUrl() && getEntryPointAddress() && getEscrowAddress());
-	$: hasPasskeyCredential = hasPasskeyWalletCredential();
+	// Re-run when identity changes (config getters read env; comma ties to reactive store)
+	$: escrowConfigOk =
+		($currentIdentityStore,
+		Boolean(getRpcUrl() && getBundlerUrl() && getEntryPointAddress() && getEscrowAddress()));
+	$: hasPasskeyCredential = ($currentIdentityStore, hasPasskeyWalletCredential());
 	$: lockEnabled =
 		isOwner &&
 		payoutConfigured &&
@@ -230,9 +242,18 @@
 		escrowConfigOk &&
 		hasPasskeyCredential;
 	$: releaseEnabled =
-		isOwner && payoutConfigured && completed && escrowStatus === 'locked' && escrowConfigOk && hasPasskeyCredential;
+		isOwner &&
+		payoutConfigured &&
+		completed &&
+		escrowStatus === 'locked' &&
+		escrowConfigOk &&
+		hasPasskeyCredential;
 	$: refundEnabled =
-		isOwner && escrowStatus === 'locked' && deadlinePassed && escrowConfigOk && hasPasskeyCredential;
+		isOwner &&
+		escrowStatus === 'locked' &&
+		deadlinePassed &&
+		escrowConfigOk &&
+		hasPasskeyCredential;
 	$: currentIdentityId = $currentIdentityStore?.id || null;
 	$: isOwner = Boolean(
 		currentIdentityId && createdByIdentity && currentIdentityId === createdByIdentity
@@ -270,7 +291,7 @@
 				initialEstimatedCosts={estimatedCosts || {}}
 				initialDelegateDid={delegation?.delegateDid || ''}
 				initialDelegationExpiresAt={toDateTimeLocal(delegation?.expiresAt)}
-				initialDelegateWalletAddress={delegation?.delegateWalletAddress || ""}
+				initialDelegateWalletAddress={delegation?.delegateWalletAddress || ''}
 				delegationEnabled={canEditDelegation}
 				on:save={saveEdit}
 			/>
@@ -313,148 +334,159 @@
 							{priority}
 						</span>
 					{/if}
-				{#if description}
-					<p class="mt-1 mb-2 text-sm text-gray-600">{description}</p>
-				{/if}
-				<div class="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
-					{#if estimatedTime}
-						<span>⏱️ {estimatedTime}h</span>
+					{#if description}
+						<p class="mt-1 mb-2 text-sm text-gray-600">{description}</p>
 					{/if}
-					{#if estimatedCosts}
-						{#if estimatedCosts.usd}
-							<span>💰 ${estimatedCosts.usd.toFixed(2)} USD</span>
-						{:else if estimatedCosts.eth}
-							<span>💰 {formatEthNumberFullDecimals(estimatedCosts.eth)} ETH</span>
-						{:else if estimatedCosts.btc}
-							<span>💰 {estimatedCosts.btc.toFixed(8)} BTC</span>
+					<div class="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
+						{#if estimatedTime}
+							<span>⏱️ {estimatedTime}h</span>
 						{/if}
-					{/if}
-					{#if assignee}
+						{#if estimatedCosts}
+							{#if estimatedCosts.usd}
+								<span>💰 ${estimatedCosts.usd.toFixed(2)} USD</span>
+							{:else if estimatedCosts.eth}
+								<span>💰 {formatEthNumberFullDecimals(estimatedCosts.eth)} ETH</span>
+							{:else if estimatedCosts.btc}
+								<span>💰 {estimatedCosts.btc.toFixed(8)} BTC</span>
+							{/if}
+						{/if}
+						{#if assignee}
+							<span
+								>Assigned to: <code class="rounded bg-gray-100 px-1">{formatPeerId(assignee)}</code
+								></span
+							>
+						{:else}
+							<span class="text-orange-600">Unassigned</span>
+						{/if}
 						<span
-							>Assigned to: <code class="rounded bg-gray-100 px-1">{formatPeerId(assignee)}</code
+							>Created by: <code class="rounded bg-gray-100 px-1">{formatPeerId(createdBy)}</code
 							></span
 						>
-					{:else}
-						<span class="text-orange-600">Unassigned</span>
+						{#if delegation?.delegateDid}
+							<span>
+								Delegated to:
+								<code class="rounded bg-blue-100 px-1">{delegation.delegateDid}</code>
+								{#if delegation.expiresAt}
+									(until {new Date(delegation.expiresAt).toLocaleString()})
+								{/if}
+								{#if delegation.revokedAt}
+									<span class="text-red-600"> revoked</span>
+								{:else if delegationIsActive}
+									<span class="text-green-600"> active</span>
+								{/if}
+							</span>
+						{/if}
+						{#if delegation?.delegateWalletAddress}
+							<span>
+								Wallet: <code class="rounded bg-green-100 px-1"
+									>{delegation.delegateWalletAddress}</code
+								>
+							</span>
+						{/if}
+						{#if escrowStatus}
+							<span class="text-indigo-600">Escrow: {escrowStatus}</span>
+						{/if}
+						{#if escrowStatus === 'locked' && escrow?.txHash}
+							<span class="block w-full min-w-0 text-xs text-slate-600">
+								Lock tx:
+								<code
+									data-testid="todo-lock-tx-hash"
+									class="font-mono text-[10px] break-all text-slate-800">{escrow.txHash}</code
+								>
+							</span>
+						{/if}
+						{#if escrowStatus === 'released' && escrow?.releaseTxHash}
+							<span class="block w-full min-w-0 text-xs text-slate-600">
+								Release tx:
+								<code
+									data-testid="todo-release-tx-hash"
+									class="font-mono text-[10px] break-all text-slate-800"
+									>{escrow.releaseTxHash}</code
+								>
+							</span>
+						{/if}
+						{#if escrowDeadline}
+							<span class={deadlinePassed ? 'text-red-600' : 'text-gray-500'}>
+								Escrow deadline: {new Date(escrowDeadline * 1000).toLocaleString()}
+							</span>
+						{/if}
+					</div>
+				</div>
+				<div class="flex gap-2">
+					{#if allowEdit}
+						<button
+							on:click={startEdit}
+							class="flex min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation items-center gap-1 rounded-md px-3 py-2 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 active:bg-blue-100"
+							title="Edit todo"
+						>
+							<Edit2 class="h-4 w-4" />
+							<span class="hidden sm:inline">Edit</span>
+						</button>
 					{/if}
-					<span
-						>Created by: <code class="rounded bg-gray-100 px-1">{formatPeerId(createdBy)}</code
-						></span
+					<button
+						on:click={handleCreateSubList}
+						class="flex min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation items-center gap-1 rounded-md px-3 py-2 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 active:bg-blue-100"
+						title="Create sub-list from this todo"
 					>
-					{#if delegation?.delegateDid}
-						<span>
-							Delegated to:
-							<code class="rounded bg-blue-100 px-1">{delegation.delegateDid}</code>
-							{#if delegation.expiresAt}
-								(until {new Date(delegation.expiresAt).toLocaleString()})
-							{/if}
-							{#if delegation.revokedAt}
-								<span class="text-red-600"> revoked</span>
-							{:else if delegationIsActive}
-								<span class="text-green-600"> active</span>
-							{/if}
-						</span>
+						<FolderPlus class="h-4 w-4" />
+						<span class="hidden sm:inline">Sub-list</span>
+					</button>
+					{#if allowEdit}
+						<button
+							on:click={handleDelete}
+							class="min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-md px-3 py-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-700 active:bg-red-100"
+						>
+							Delete
+						</button>
+						{#if isOwner && payoutConfigured && delegation?.delegateWalletAddress && !escrowStatus}
+							<button
+								data-testid="todo-lock-funds"
+								on:click={handleLockEscrow}
+								disabled={!lockEnabled}
+								title={lockEnabled
+									? 'Lock funds in escrow'
+									: 'Missing escrow config or passkey credential'}
+								class="min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-md px-3 py-2 text-emerald-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 active:bg-emerald-100"
+							>
+								Lock Funds
+							</button>
+						{/if}
+						{#if isOwner && payoutConfigured && completed && escrowStatus === 'locked'}
+							<button
+								data-testid="todo-confirm-pay"
+								on:click={handleReleaseEscrow}
+								disabled={!releaseEnabled}
+								title={releaseEnabled
+									? 'Release payout to delegate'
+									: 'Missing escrow config or passkey credential'}
+								class="min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-md px-3 py-2 text-indigo-700 transition-colors hover:bg-indigo-50 hover:text-indigo-800 active:bg-indigo-100"
+							>
+								Confirm & Pay
+							</button>
+						{/if}
+						{#if isOwner && escrowStatus === 'locked' && deadlinePassed}
+							<button
+								on:click={handleRefundEscrow}
+								disabled={!refundEnabled}
+								title={refundEnabled
+									? 'Refund escrow to creator'
+									: 'Missing escrow config or passkey credential'}
+								class="min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-md px-3 py-2 text-orange-700 transition-colors hover:bg-orange-50 hover:text-orange-800 active:bg-orange-100"
+							>
+								Refund
+							</button>
+						{/if}
+						{#if canRevokeDelegationUi}
+							<button
+								on:click={handleRevokeDelegation}
+								class="min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-md px-3 py-2 text-amber-700 transition-colors hover:bg-amber-50 hover:text-amber-800 active:bg-amber-100"
+							>
+								Revoke
+							</button>
+						{/if}
 					{/if}
-				{#if delegation?.delegateWalletAddress}
-					<span>
-						Wallet: <code class="rounded bg-green-100 px-1">{delegation.delegateWalletAddress}</code>
-					</span>
-				{/if}
-				{#if escrowStatus}
-					<span class="text-indigo-600">Escrow: {escrowStatus}</span>
-				{/if}
-				{#if escrowStatus === 'locked' && escrow?.txHash}
-					<span class="block w-full min-w-0 text-xs text-slate-600">
-						Lock tx:
-						<code data-testid="todo-lock-tx-hash" class="break-all font-mono text-[10px] text-slate-800"
-							>{escrow.txHash}</code
-						>
-					</span>
-				{/if}
-				{#if escrowStatus === 'released' && escrow?.releaseTxHash}
-					<span class="block w-full min-w-0 text-xs text-slate-600">
-						Release tx:
-						<code data-testid="todo-release-tx-hash" class="break-all font-mono text-[10px] text-slate-800"
-							>{escrow.releaseTxHash}</code
-						>
-					</span>
-				{/if}
-				{#if escrowDeadline}
-					<span class={deadlinePassed ? 'text-red-600' : 'text-gray-500'}>
-						Escrow deadline: {new Date(escrowDeadline * 1000).toLocaleString()}
-					</span>
-				{/if}
 				</div>
 			</div>
-			<div class="flex gap-2">
-				{#if allowEdit}
-					<button
-						on:click={startEdit}
-						class="flex min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation items-center gap-1 rounded-md px-3 py-2 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 active:bg-blue-100"
-						title="Edit todo"
-					>
-						<Edit2 class="h-4 w-4" />
-						<span class="hidden sm:inline">Edit</span>
-					</button>
-				{/if}
-				<button
-					on:click={handleCreateSubList}
-					class="flex min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation items-center gap-1 rounded-md px-3 py-2 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 active:bg-blue-100"
-					title="Create sub-list from this todo"
-				>
-					<FolderPlus class="h-4 w-4" />
-					<span class="hidden sm:inline">Sub-list</span>
-				</button>
-				{#if allowEdit}
-					<button
-						on:click={handleDelete}
-						class="min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-md px-3 py-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-700 active:bg-red-100"
-					>
-						Delete
-					</button>
-					{#if isOwner && payoutConfigured && delegation?.delegateWalletAddress && !escrowStatus}
-						<button
-							data-testid="todo-lock-funds"
-							on:click={handleLockEscrow}
-							disabled={!lockEnabled}
-							title={lockEnabled ? 'Lock funds in escrow' : 'Missing escrow config or passkey credential'}
-							class="min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-md px-3 py-2 text-emerald-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 active:bg-emerald-100"
-						>
-							Lock Funds
-						</button>
-					{/if}
-					{#if isOwner && payoutConfigured && completed && escrowStatus === "locked"}
-						<button
-							data-testid="todo-confirm-pay"
-							on:click={handleReleaseEscrow}
-							disabled={!releaseEnabled}
-							title={releaseEnabled ? 'Release payout to delegate' : 'Missing escrow config or passkey credential'}
-							class="min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-md px-3 py-2 text-indigo-700 transition-colors hover:bg-indigo-50 hover:text-indigo-800 active:bg-indigo-100"
-						>
-							Confirm & Pay
-						</button>
-					{/if}
-					{#if isOwner && escrowStatus === "locked" && deadlinePassed}
-						<button
-							on:click={handleRefundEscrow}
-							disabled={!refundEnabled}
-							title={refundEnabled ? 'Refund escrow to creator' : 'Missing escrow config or passkey credential'}
-							class="min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-md px-3 py-2 text-orange-700 transition-colors hover:bg-orange-50 hover:text-orange-800 active:bg-orange-100"
-						>
-							Refund
-						</button>
-					{/if}
-					{#if canRevokeDelegationUi}
-						<button
-							on:click={handleRevokeDelegation}
-							class="min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation rounded-md px-3 py-2 text-amber-700 transition-colors hover:bg-amber-50 hover:text-amber-800 active:bg-amber-100"
-						>
-							Revoke
-						</button>
-					{/if}
-				{/if}
-			</div>
-		</div>
 		</div>
 	{/if}
 </div>
