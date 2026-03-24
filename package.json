@@ -61,7 +61,8 @@
 		"tailwindcss": "^4.1.13",
 		"typescript": "^5.9.2",
 		"vite": "^7.1.12",
-		"vite-plugin-pwa": "^1.0.3"
+		"vite-plugin-pwa": "^1.0.3",
+		"workbox-window": "^7.4.0"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
