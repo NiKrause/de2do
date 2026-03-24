@@ -4,12 +4,12 @@ This document is the **implementation roadmap** for a reproducible local dev/tes
 
 ## Canonical choices (locked for this repo)
 
-| Topic | Choice |
-|--------|--------|
-| EntryPoint | **v0.8** `0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108` |
-| Bundler | **Pimlico Alto** via `docker-compose.aa-local.yml` |
-| Chain (local) | **Anvil** `31337` on host `8545` |
-| App env (dev) | `.env.development` (template: **`.env.development.example`**) |
+| Topic                 | Choice                                                                                                                                                                                                    |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| EntryPoint            | **v0.8** `0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108`                                                                                                                                                     |
+| Bundler               | **Pimlico Alto** via `docker-compose.aa-local.yml`                                                                                                                                                        |
+| Chain (local)         | **Anvil** `31337` on host `8545`                                                                                                                                                                          |
+| App env (dev)         | `.env.development` (template: **`.env.development.example`**)                                                                                                                                             |
 | App env (E2E preview) | `.env.test` + `pnpm run build:test` then **`pnpm run preview:test`** (static **`sirv build`** on `127.0.0.1:4174`; avoid `vite preview` after adapter-static when `.svelte-kit/output/client` is missing) |
 
 `alto-config.json` may list multiple entrypoints; the **app and Foundry deploy** must use **v0.8** only.
@@ -50,13 +50,13 @@ This document is the **implementation roadmap** for a reproducible local dev/tes
 
 **Goal:** two browser contexts, virtual WebAuthn (Chromium), shared Anvil, relay for P2P completion.
 
-| Step | Scope |
-|------|--------|
-| 3a | Single context: virtual authenticator + create smart account + assert UI address |
-| 3b | Fund account (funder key or `cast` in setup) + assert balance in UI |
-| 3c | Second context as Bob: separate storage, passkey, DID + wallet field |
-| 3d | Alice: delegated todo + lock escrow; Bob: mark complete (P2P); Alice: confirm pay |
-| 3e | Assert USDT/ETH balances (UI or RPC from test) |
+| Step | Scope                                                                             |
+| ---- | --------------------------------------------------------------------------------- |
+| 3a   | Single context: virtual authenticator + create smart account + assert UI address  |
+| 3b   | Fund account (funder key or `cast` in setup) + assert balance in UI               |
+| 3c   | Second context as Bob: separate storage, passkey, DID + wallet field              |
+| 3d   | Alice: delegated todo + lock escrow; Bob: mark complete (P2P); Alice: confirm pay |
+| 3e   | Assert USDT/ETH balances (UI or RPC from test)                                    |
 
 **Implemented (passkey + ETH path):** `e2e/passkey-wallet-escrow.spec.js` — order: **Lock → Bob completes → Confirm & Pay**; Bob beneficiary fixed Anvil EOA `0x3C44…93BC`; balance assert via `eth_getBalance`.
 

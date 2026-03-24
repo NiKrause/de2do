@@ -242,10 +242,11 @@ async function main() {
 		};
 		const runForge = (script) => {
 			log('$ forge script', script);
-			execSync(
-				`forge script ${script} --rpc-url ${rpcUrl} --broadcast`,
-				{ stdio: 'inherit', cwd: ROOT, env }
-			);
+			execSync(`forge script ${script} --rpc-url ${rpcUrl} --broadcast`, {
+				stdio: 'inherit',
+				cwd: ROOT,
+				env
+			});
 		};
 		runForge('contracts/script/DeployMockOpenfort7702Implementation.s.sol');
 		runForge('contracts/script/DeployEscrow.s.sol');

@@ -212,7 +212,10 @@
 					</div>
 
 					<div>
-						<label for="add-todo-delegate-wallet" class="mb-1 block text-sm font-medium text-gray-700">
+						<label
+							for="add-todo-delegate-wallet"
+							class="mb-1 block text-sm font-medium text-gray-700"
+						>
 							Delegate Wallet (0x...)
 						</label>
 						<input

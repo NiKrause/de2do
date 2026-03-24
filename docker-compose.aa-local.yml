@@ -4,25 +4,25 @@ services:
     environment:
       - ANVIL_RPC=http://anvil:8545
     extra_hosts:
-      - "anvil:host-gateway"
+      - 'anvil:host-gateway'
 
   alto:
     image: ghcr.io/pimlicolabs/alto:latest
     ports:
-      - "4337:4337"
-    entrypoint: ["node", "src/lib/cli/alto.js", "run", "--config", "/app/alto-config.json"]
+      - '4337:4337'
+    entrypoint: ['node', 'src/lib/cli/alto.js', 'run', '--config', '/app/alto-config.json']
     volumes:
       - ./alto-config.json:/app/alto-config.json
     depends_on:
       contract-deployer:
         condition: service_completed_successfully
     extra_hosts:
-      - "anvil:host-gateway"
+      - 'anvil:host-gateway'
 
   mock-paymaster:
     image: ghcr.io/pimlicolabs/mock-verifying-paymaster:main
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - ALTO_RPC=http://alto:4337
       - ANVIL_RPC=http://anvil:8545
@@ -32,4 +32,4 @@ services:
       alto:
         condition: service_started
     extra_hosts:
-      - "anvil:host-gateway"
+      - 'anvil:host-gateway'

@@ -231,9 +231,9 @@ function normalizeEscrowRowDecoded(decoded) {
 
 	if (amount !== undefined) {
 		return {
-			creator: String(at(0) ?? (/** @type {Record<string, unknown>} */ (o).creator ?? '')),
-			beneficiary: String(at(1) ?? (/** @type {Record<string, unknown>} */ (o).beneficiary ?? '')),
-			token: String(at(2) ?? (/** @type {Record<string, unknown>} */ (o).token ?? '')),
+			creator: String(at(0) ?? /** @type {Record<string, unknown>} */ (o).creator ?? ''),
+			beneficiary: String(at(1) ?? /** @type {Record<string, unknown>} */ (o).beneficiary ?? ''),
+			token: String(at(2) ?? /** @type {Record<string, unknown>} */ (o).token ?? ''),
 			amount,
 			released: Boolean(at(4) ?? /** @type {Record<string, unknown>} */ (o).released),
 			refunded: Boolean(at(5) ?? /** @type {Record<string, unknown>} */ (o).refunded),
@@ -242,7 +242,13 @@ function normalizeEscrowRowDecoded(decoded) {
 	}
 
 	throw new Error(
-		`normalizeEscrowRowDecoded: unexpected decode shape (keys=${typeof decoded === 'object' && decoded ? Object.keys(/** @type {object} */ (decoded)).slice(0, 20).join(',') : 'n/a'})`
+		`normalizeEscrowRowDecoded: unexpected decode shape (keys=${
+			typeof decoded === 'object' && decoded
+				? Object.keys(/** @type {object} */ (decoded))
+						.slice(0, 20)
+						.join(',')
+				: 'n/a'
+		})`
 	);
 }
 
@@ -343,12 +349,18 @@ async function postRelayJson(pathname, payload, timeoutMs = 30000) {
 async function getRelayPinningStatsOrThrow() {
 	const result = await fetchRelayJson('/pinning/stats');
 	if (!result.ok || !result.body) {
-		throw new Error(`Relay /pinning/stats unavailable (port ${RELAY_HTTP_PORT}, status=${result.status})`);
+		throw new Error(
+			`Relay /pinning/stats unavailable (port ${RELAY_HTTP_PORT}, status=${result.status})`
+		);
 	}
 	return result.body;
 }
 
-async function waitForRelayPinnedDatabaseOrThrow(dbAddress, failedSyncsBefore = 0, timeout = 60000) {
+async function waitForRelayPinnedDatabaseOrThrow(
+	dbAddress,
+	failedSyncsBefore = 0,
+	timeout = 60000
+) {
 	const startedAt = Date.now();
 	while (Date.now() - startedAt < timeout) {
 		const statsResult = await fetchRelayJson('/pinning/stats');
@@ -449,7 +461,9 @@ function logEscrowLockedFromAnyAddressInReceipt(receipt) {
 		}
 	}
 	if (!any) {
-		console.warn('[passkey-e2e] No EscrowLocked in any log — lock tx did not run TodoEscrow.lockEth/lockToken in this receipt.');
+		console.warn(
+			'[passkey-e2e] No EscrowLocked in any log — lock tx did not run TodoEscrow.lockEth/lockToken in this receipt.'
+		);
 	}
 }
 
@@ -556,12 +570,7 @@ async function assertSuccessfulTxReceipt(txHash, label) {
 		throw new Error(`${label}: eth_getTransactionReceipt missing result: ${JSON.stringify(j)}`);
 	}
 	const st = j.result.status;
-	const ok =
-		st === '0x1' ||
-		st === '0x01' ||
-		st === 1 ||
-		st === '1' ||
-		st === true;
+	const ok = st === '0x1' || st === '0x01' || st === 1 || st === '1' || st === true;
 	expect(ok, `${label}: receipt status not success for ${txHash} (got ${String(st)})`).toBe(true);
 	logPasskeyStep(
 		'run',
@@ -619,7 +628,10 @@ function logPasskeyStep(role, step) {
  */
 async function selectUserDidInCombobox(page, label, did) {
 	if (!did || typeof did !== 'string') return;
-	logPasskeyStep(label, `Users combobox: select current DID (${did.slice(0, 28)}…) for app context`);
+	logPasskeyStep(
+		label,
+		`Users combobox: select current DID (${did.slice(0, 28)}…) for app context`
+	);
 	const input = page.locator('#users-list');
 	await expect(input).toBeVisible({ timeout: 20000 });
 	await expect(input).toBeEnabled({ timeout: 20000 });
@@ -661,7 +673,10 @@ async function setupPasskeyWallet(page, label, did) {
 		await expect(page.getByTestId('wallet-fund-anvil')).toBeVisible({ timeout: 300000 });
 	} catch (e) {
 		await page
-			.screenshot({ path: `test-results/passkey-escrow/${label.toLowerCase()}-no-fund-button.png`, fullPage: true })
+			.screenshot({
+				path: `test-results/passkey-escrow/${label.toLowerCase()}-no-fund-button.png`,
+				fullPage: true
+			})
 			.catch(() => {});
 		throw new Error(
 			`${e?.message || String(e)} — If "Fund 2 ETH" never appears: rebuild with .env.test that sets VITE_LOCAL_DEV_FUNDER_PRIVATE_KEY (global setup merges it) or check Wallet Profile for "Local fund button is disabled".`
@@ -715,11 +730,18 @@ async function logTodoUiSnapshot(page, who) {
 	let heading = '';
 	try {
 		heading =
-			(await page.getByRole('heading', { name: /TODO Items/ }).first().textContent())?.trim() || '';
+			(
+				await page
+					.getByRole('heading', { name: /TODO Items/ })
+					.first()
+					.textContent()
+			)?.trim() || '';
 	} catch {
 		heading = '(heading not found)';
 	}
-	console.log(`[passkey-e2e:${who}] TODO UI snapshot: ${heading} → data-todo-item count=${itemCount}`);
+	console.log(
+		`[passkey-e2e:${who}] TODO UI snapshot: ${heading} → data-todo-item count=${itemCount}`
+	);
 	return itemCount;
 }
 
@@ -816,7 +838,9 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 		async function assertDelegatedStateAfterAction(page, delegatedAuthState) {
 			const state = await delegatedAuthState.getAttribute('data-state');
 			if (state === 'awaiting' || state === 'success') {
-				await expect(delegatedAuthState).toHaveAttribute('data-state', 'success', { timeout: 20000 });
+				await expect(delegatedAuthState).toHaveAttribute('data-state', 'success', {
+					timeout: 20000
+				});
 				return;
 			}
 			await expect(delegatedAuthState).toHaveAttribute('data-state', 'idle');
@@ -848,11 +872,17 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 
 			await setupPasskeyWallet(bob, 'Bob', bobDid);
 			const bobPayoutAddress = await readVisibleSmartAccountAddress(bob);
-			logPasskeyStep('run', `Bob payout (smart account) address for delegation: ${bobPayoutAddress}`);
+			logPasskeyStep(
+				'run',
+				`Bob payout (smart account) address for delegation: ${bobPayoutAddress}`
+			);
 
 			await setupPasskeyWallet(alice, 'Alice', aliceDid);
 			const aliceSmartAccountAddress = await readVisibleSmartAccountAddress(alice);
-			logPasskeyStep('run', `Alice smart account (lock + release payer): ${aliceSmartAccountAddress}`);
+			logPasskeyStep(
+				'run',
+				`Alice smart account (lock + release payer): ${aliceSmartAccountAddress}`
+			);
 			await resolvePasskeyE2EChainFromApp(alice);
 
 			await logTodoUiSnapshot(alice, 'Alice');
@@ -868,7 +898,9 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 
 			await alice.locator('#add-todo-delegate-did').fill(bobDid);
 			await alice.locator('#add-todo-delegate-wallet').fill(bobPayoutAddress);
-			const delegateWalletFilled = (await alice.locator('#add-todo-delegate-wallet').inputValue()).trim();
+			const delegateWalletFilled = (
+				await alice.locator('#add-todo-delegate-wallet').inputValue()
+			).trim();
 			expect(delegateWalletFilled.toLowerCase()).toBe(bobPayoutAddress.toLowerCase());
 			await alice.getByTestId('add-todo-button').click();
 			await waitForTodoText(alice, todoTitle, 60000, { browserName: 'chromium' });
@@ -910,7 +942,10 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 				.first();
 
 			const aliceBalanceBeforeLock = await ethGetBalance(aliceSmartAccountAddress);
-			logPasskeyStep('run', `Alice balance before lock (wei): ${aliceBalanceBeforeLock.toString()}`);
+			logPasskeyStep(
+				'run',
+				`Alice balance before lock (wei): ${aliceBalanceBeforeLock.toString()}`
+			);
 
 			await expect(aliceRow.getByTestId('todo-lock-funds')).toBeEnabled({ timeout: 180000 });
 			await aliceRow.getByTestId('todo-lock-funds').click();
@@ -927,14 +962,17 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 				);
 			}
 
-			const { escrowAddress: escrowAddrForChain } = /** @type {{ rpcUrl: string, escrowAddress: string }} */ (
-				passkeyE2EChainResolved
-			);
-			expect(escrowAddrForChain, 'TodoEscrow address from app bundle (__PASSKEY_E2E_CHAIN__)').toMatch(
-				/^0x[a-fA-F0-9]{40}$/i
-			);
+			const { escrowAddress: escrowAddrForChain } =
+				/** @type {{ rpcUrl: string, escrowAddress: string }} */ (passkeyE2EChainResolved);
+			expect(
+				escrowAddrForChain,
+				'TodoEscrow address from app bundle (__PASSKEY_E2E_CHAIN__)'
+			).toMatch(/^0x[a-fA-F0-9]{40}$/i);
 			const todoKeyForChain = await aliceRow.getAttribute('data-todo-key');
-			expect(todoKeyForChain, 'todo row must expose data-todo-key for on-chain escrows(bytes32)').toBeTruthy();
+			expect(
+				todoKeyForChain,
+				'todo row must expose data-todo-key for on-chain escrows(bytes32)'
+			).toBeTruthy();
 
 			await expect(aliceRow.getByTestId('todo-lock-tx-hash')).toBeVisible({ timeout: 120000 });
 			const lockTxHash = (await aliceRow.getByTestId('todo-lock-tx-hash').textContent())?.trim();
@@ -1018,7 +1056,10 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 				.locator('div.rounded-md.border', { has: bob.locator(`[data-todo-text="${todoTitle}"]`) })
 				.first();
 			const delegatedAuthState = bob.getByTestId('delegated-auth-state');
-			logPasskeyStep('run', 'Bob: mark delegated todo complete (checkbox) so Alice can Confirm & Pay');
+			logPasskeyStep(
+				'run',
+				'Bob: mark delegated todo complete (checkbox) so Alice can Confirm & Pay'
+			);
 			const bobComplete = bobRow.getByTestId('todo-complete-checkbox');
 			await expect(bobComplete).toBeEnabled({ timeout: 120000 });
 			await expect(bobComplete).not.toBeChecked();
@@ -1044,10 +1085,13 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 			await expect(aliceRow.getByText(/Escrow: released/i)).toBeVisible({ timeout: 300000 });
 
 			await expect(aliceRow.getByTestId('todo-release-tx-hash')).toBeVisible({ timeout: 120000 });
-			const releaseTxHash = (await aliceRow.getByTestId('todo-release-tx-hash').textContent())?.trim();
-			expect(releaseTxHash, 'Confirm & Pay should persist a real release tx hash on the todo').toMatch(
-				/^0x[a-fA-F0-9]{64}$/
-			);
+			const releaseTxHash = (
+				await aliceRow.getByTestId('todo-release-tx-hash').textContent()
+			)?.trim();
+			expect(
+				releaseTxHash,
+				'Confirm & Pay should persist a real release tx hash on the todo'
+			).toMatch(/^0x[a-fA-F0-9]{64}$/);
 			await assertSuccessfulTxReceipt(releaseTxHash, 'Release (Confirm & Pay)');
 
 			// UI only updates after `releaseEscrowForTodo` returns; still verify Anvil state matches Bob’s payout
@@ -1175,30 +1219,45 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 				.poll(async () => alice.getByTestId('wallet-recent-tx-row').count(), { timeout: 90000 })
 				.toBeGreaterThan(0);
 			await expect(
-				alice.getByTestId('wallet-recent-tx-row').filter({ hasText: /outgoing/i }).first()
+				alice
+					.getByTestId('wallet-recent-tx-row')
+					.filter({ hasText: /outgoing/i })
+					.first()
 			).toBeVisible({ timeout: 15000 });
 
 			if (process.env.PW_HEADED === '1') {
 				await bob.bringToFront();
 			}
 			await refreshWalletBalanceAndTxs(bob, 'Bob', bobDid);
-			await expect(bob.getByTestId('wallet-smart-account-summary')).toContainText(bobPayoutAddress, {
-				timeout: 15000
-			});
+			await expect(bob.getByTestId('wallet-smart-account-summary')).toContainText(
+				bobPayoutAddress,
+				{
+					timeout: 15000
+				}
+			);
 			await expect
 				.poll(async () => bob.getByTestId('wallet-recent-tx-row').count(), { timeout: 90000 })
 				.toBeGreaterThan(0);
 			// Direct ETH sends show as "incoming"; escrow payout is internal to the outer tx — insights merge
 			// `EscrowReleased` logs as "incoming (escrow ETH)" with the released amount in Value.
 			await expect(
-				bob.getByTestId('wallet-recent-tx-row').filter({ hasText: /incoming/i }).first()
+				bob
+					.getByTestId('wallet-recent-tx-row')
+					.filter({ hasText: /incoming/i })
+					.first()
 			).toBeVisible({ timeout: 15000 });
 			await expect(
-				bob.getByTestId('wallet-recent-tx-row').filter({ hasText: /escrow ETH/i }).first()
+				bob
+					.getByTestId('wallet-recent-tx-row')
+					.filter({ hasText: /escrow ETH/i })
+					.first()
 			).toBeVisible({
 				timeout: 30000
 			});
-			const bobEscrowRow = bob.getByTestId('wallet-recent-tx-row').filter({ hasText: /escrow ETH/i }).first();
+			const bobEscrowRow = bob
+				.getByTestId('wallet-recent-tx-row')
+				.filter({ hasText: /escrow ETH/i })
+				.first();
 			const bobEscrowRowText = (await bobEscrowRow.textContent()) || '';
 			const expectedValueSnippet = `Value: ${lockEthDisplayForUiAssert()}`;
 			expect(

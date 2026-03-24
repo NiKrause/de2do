@@ -71,8 +71,7 @@ export function assertStaticBuildAssets() {
 
 	if (missing.length > 0) {
 		const lines = missing.slice(0, 25).map((p) => `  - ${p}`);
-		const more =
-			missing.length > 25 ? `\n  … and ${missing.length - 25} more` : '';
+		const more = missing.length > 25 ? `\n  … and ${missing.length - 25} more` : '';
 		throw new Error(
 			`assert-static-build-assets: ${missing.length} file(s) referenced in HTML but missing under build/. ` +
 				`Stale .svelte-kit/ or partial build.\n` +
@@ -81,12 +80,13 @@ export function assertStaticBuildAssets() {
 		);
 	}
 
-	console.log(`[assert-static-build-assets] OK (${allRefs.size} /_app/immutable refs across ${htmlFiles.length} html file(s))`);
+	console.log(
+		`[assert-static-build-assets] OK (${allRefs.size} /_app/immutable refs across ${htmlFiles.length} html file(s))`
+	);
 }
 
 const invokedDirectly =
-	process.argv[1] &&
-	import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+	process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 if (invokedDirectly) {
 	assertStaticBuildAssets();
 }

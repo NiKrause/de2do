@@ -25,7 +25,8 @@ const DEFAULT_RELAY_TEST_PRIVATE_KEY =
 function resolveRelayCliPath(root) {
 	const distCli = path.join(root, 'node_modules', 'orbitdb-relay-pinner', 'dist', 'cli.js');
 	if (fs.existsSync(distCli)) return distCli;
-	const binName = process.platform === 'win32' ? 'orbitdb-relay-pinner.cmd' : 'orbitdb-relay-pinner';
+	const binName =
+		process.platform === 'win32' ? 'orbitdb-relay-pinner.cmd' : 'orbitdb-relay-pinner';
 	const binPath = path.join(root, 'node_modules', '.bin', binName);
 	if (fs.existsSync(binPath)) return binPath;
 	return null;
@@ -55,7 +56,9 @@ async function httpGetText(url, { timeoutMs = 8000 } = {}) {
  */
 export async function isRelayPinningHttpAvailable(httpPort) {
 	try {
-		const res = await httpGetText(`http://127.0.0.1:${httpPort}/pinning/stats`, { timeoutMs: 6000 });
+		const res = await httpGetText(`http://127.0.0.1:${httpPort}/pinning/stats`, {
+			timeoutMs: 6000
+		});
 		if (res.status !== 200 || !res.body?.trim()) return false;
 		const parsed = JSON.parse(res.body);
 		return typeof parsed === 'object' && parsed !== null;
@@ -101,7 +104,9 @@ export async function ensureRelayHealthyAfterStart(relay, { settleMs = 2800 } = 
 				`Free those ports or run with default port cleanup; see e2e/start-passkey-escrow-relay.mjs.`
 		);
 	}
-	const res = await httpGetText(`http://127.0.0.1:${relay.httpPort}/multiaddrs`, { timeoutMs: 8000 });
+	const res = await httpGetText(`http://127.0.0.1:${relay.httpPort}/multiaddrs`, {
+		timeoutMs: 8000
+	});
 	if (res.status !== 200) {
 		throw new Error(
 			`[passkey-e2e] Relay HTTP :${relay.httpPort} not OK after start (status ${res.status}). Relay may have crashed during libp2p listen.`

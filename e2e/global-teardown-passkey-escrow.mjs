@@ -48,7 +48,10 @@ export default async function globalTeardown() {
 				stdio: 'inherit'
 			});
 		} catch (e) {
-			console.warn('⚠️ docker compose down failed (may be OK if stack was not started):', e?.message || e);
+			console.warn(
+				'⚠️ docker compose down failed (may be OK if stack was not started):',
+				e?.message || e
+			);
 		}
 
 		const pidPath = path.join(ROOT, 'e2e', '.anvil-passkey.pid');

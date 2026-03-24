@@ -679,10 +679,13 @@ export async function initializeP2P(preferences = {}) {
 					addresses: dialableAddrs.map((a) => a.toString())
 				});
 			} else if (addrList.length > 0) {
-				console.log('🔍 Peer discovered (no webrtc/ws/circuit substring match); will still dial by peerId:', {
-					peerId: peerIdShort,
-					addresses: addrList.map((a) => a.toString())
-				});
+				console.log(
+					'🔍 Peer discovered (no webrtc/ws/circuit substring match); will still dial by peerId:',
+					{
+						peerId: peerIdShort,
+						addresses: addrList.map((a) => a.toString())
+					}
+				);
 			} else {
 				console.log('🔍 Peer discovered with empty multiaddrs; dialing by peerId:', peerIdShort);
 			}

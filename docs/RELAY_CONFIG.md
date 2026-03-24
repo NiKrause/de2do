@@ -51,9 +51,9 @@ The relay provides several HTTP API endpoints for monitoring and management:
 
 - `GET /health` - Health check and system status
 - `GET /multiaddrs` - Get relay multiaddresses for peer connection
-- `GET /peers` - List connected peers *(not on npm metrics server)*
+- `GET /peers` - List connected peers _(not on npm metrics server)_
 - `GET /metrics` - Prometheus metrics (public endpoint)
-- `POST /test-pubsub` - Test pubsub messaging *(not on npm metrics server)*
-- `GET /pinning/stats` - OrbitDB pinning statistics *(optional / fork-specific HTTP)*
+- `POST /test-pubsub` - Test pubsub messaging _(not on npm metrics server)_
+- `GET /pinning/stats` - OrbitDB pinning statistics _(optional / fork-specific HTTP)_
 - `GET /pinning/databases` - List pinned databases
 - `POST /pinning/sync` - Manually sync a database

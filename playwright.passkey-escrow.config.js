@@ -9,8 +9,7 @@ const passkeyChromeCacheDir = fs.mkdtempSync(path.join(tmpdir(), 'pw-passkey-chr
 
 const configDir = path.dirname(fileURLToPath(import.meta.url));
 const preferPnpm =
-	fs.existsSync(path.join(configDir, 'pnpm-lock.yaml')) &&
-	process.env.PW_WEBSERVER_USE_NPM !== '1';
+	fs.existsSync(path.join(configDir, 'pnpm-lock.yaml')) && process.env.PW_WEBSERVER_USE_NPM !== '1';
 /** `pnpm` avoids npm warnings when pnpm env vars are inherited; override with PW_WEBSERVER_USE_NPM=1 or CI. */
 const pm =
 	process.env.CI === 'true' && process.env.PW_WEBSERVER_USE_NPM !== '0'
@@ -44,13 +43,20 @@ export default defineConfig({
 		timeout: 120_000,
 		env: {
 			...process.env,
-			NODE_OPTIONS: [process.env.NODE_OPTIONS, '--max-old-space-size=4096'].filter(Boolean).join(' ').trim()
+			NODE_OPTIONS: [process.env.NODE_OPTIONS, '--max-old-space-size=4096']
+				.filter(Boolean)
+				.join(' ')
+				.trim()
 		},
 		// Only reuse when explicitly set; avoids false "server up" and skipped preview after globalSetup.
 		reuseExistingServer: process.env.PW_REUSE_PREVIEW === '1'
 	},
 
-	reporter: [['html'], ['list'], ['junit', { outputFile: 'test-results/junit-passkey-escrow.xml' }]],
+	reporter: [
+		['html'],
+		['list'],
+		['junit', { outputFile: 'test-results/junit-passkey-escrow.xml' }]
+	],
 	outputDir: 'test-results/passkey-escrow',
 
 	projects: [
@@ -62,7 +68,9 @@ export default defineConfig({
 					...chromiumDevice.launchOptions,
 					// PW_HEADED=1 — visible browser (debug hangs after virtual authenticator / goto).
 					...(process.env.PW_HEADED === '1' ? { headless: false } : {}),
-					...(process.env.PW_SLOW_MO ? { slowMo: Math.max(0, Number(process.env.PW_SLOW_MO) || 0) } : {}),
+					...(process.env.PW_SLOW_MO
+						? { slowMo: Math.max(0, Number(process.env.PW_SLOW_MO) || 0) }
+						: {}),
 					args: [
 						...(chromiumDevice.launchOptions?.args ?? []),
 						`--disk-cache-dir=${passkeyChromeCacheDir}`,

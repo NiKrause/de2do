@@ -58,7 +58,9 @@ function ensureEnvTest() {
 	const example = path.join(ROOT, '.env.test.example');
 	if (!fs.existsSync(envTest)) {
 		if (!fs.existsSync(example)) {
-			throw new Error('Missing .env.test and .env.test.example — add .env.test.example to the repo');
+			throw new Error(
+				'Missing .env.test and .env.test.example — add .env.test.example to the repo'
+			);
 		}
 		fs.copyFileSync(example, envTest);
 		console.log('[global-setup-passkey-escrow] Created .env.test from .env.test.example');
@@ -77,7 +79,9 @@ export default async function globalSetup() {
 	console.log('🚀 passkey-escrow global setup…');
 
 	if (process.env.E2E_KILL_STALE_PORTS === '1') {
-		console.log('[global-setup-passkey-escrow] E2E_KILL_STALE_PORTS=1 — killing PIDs on relay/preview ports…');
+		console.log(
+			'[global-setup-passkey-escrow] E2E_KILL_STALE_PORTS=1 — killing PIDs on relay/preview ports…'
+		);
 		try {
 			await execAsync(
 				'lsof -ti:4101,4102,4103,4106,3001,4174 2>/dev/null | xargs kill -9 2>/dev/null || true'
@@ -96,14 +100,20 @@ export default async function globalSetup() {
 		console.log(
 			'[global-setup-passkey-escrow] Running setup-local-aa (Docker + Anvil + forge) — needs several GB free RAM; if `zsh: killed`, start stack separately then E2E_SKIP_LOCAL_AA_SETUP=1'
 		);
-		execSync('node scripts/setup-local-aa.mjs --env-file .env.test --start-anvil --write-anvil-pid', {
-			cwd: ROOT,
-			stdio: 'inherit',
-			env: {
-				...process.env,
-				NODE_OPTIONS: [process.env.NODE_OPTIONS, '--max-old-space-size=4096'].filter(Boolean).join(' ').trim()
+		execSync(
+			'node scripts/setup-local-aa.mjs --env-file .env.test --start-anvil --write-anvil-pid',
+			{
+				cwd: ROOT,
+				stdio: 'inherit',
+				env: {
+					...process.env,
+					NODE_OPTIONS: [process.env.NODE_OPTIONS, '--max-old-space-size=4096']
+						.filter(Boolean)
+						.join(' ')
+						.trim()
+				}
 			}
-		});
+		);
 	}
 
 	const envTestPath = path.join(ROOT, '.env.test');
@@ -115,7 +125,9 @@ export default async function globalSetup() {
 	await ensureRelayHealthyAfterStart(relay);
 	const pinningHttpApi = await isRelayPinningHttpAvailable(relay.httpPort);
 	if (pinningHttpApi) {
-		console.log('[global-setup-passkey-escrow] Relay exposes GET /pinning/stats — passkey E2E will use relay pin steps.');
+		console.log(
+			'[global-setup-passkey-escrow] Relay exposes GET /pinning/stats — passkey E2E will use relay pin steps.'
+		);
 	} else {
 		console.warn(
 			'[global-setup-passkey-escrow] Relay has no pinning HTTP API (expected for current orbitdb-relay-pinner). Passkey E2E skips /pinning/* and relies on P2P sync.'
@@ -146,7 +158,9 @@ export default async function globalSetup() {
 		const buildDir = path.join(ROOT, 'build');
 		const svelteKitDir = path.join(ROOT, '.svelte-kit');
 		if (fs.existsSync(buildDir)) {
-			console.log('[global-setup-passkey-escrow] rm -rf build/ (avoid index.html vs chunk hash mismatch → 404)');
+			console.log(
+				'[global-setup-passkey-escrow] rm -rf build/ (avoid index.html vs chunk hash mismatch → 404)'
+			);
 			fs.rmSync(buildDir, { recursive: true, force: true });
 		}
 		if (fs.existsSync(svelteKitDir)) {
@@ -156,11 +170,16 @@ export default async function globalSetup() {
 			fs.rmSync(svelteKitDir, { recursive: true, force: true });
 		}
 		const pm = getPackageManager();
-		const nodeOpts = [process.env.NODE_OPTIONS, '--max-old-space-size=8192'].filter(Boolean).join(' ').trim();
+		const nodeOpts = [process.env.NODE_OPTIONS, '--max-old-space-size=8192']
+			.filter(Boolean)
+			.join(' ')
+			.trim();
 		const envWithNode = { ...process.env, NODE_OPTIONS: nodeOpts };
 		console.log(`[global-setup-passkey-escrow] ${pm} exec svelte-kit sync (after clean)…`);
 		execSync(`${pm} exec svelte-kit sync`, { cwd: ROOT, stdio: 'inherit', env: envWithNode });
-		console.log(`[global-setup-passkey-escrow] Running ${pm} run build:test (frees RAM before preview)…`);
+		console.log(
+			`[global-setup-passkey-escrow] Running ${pm} run build:test (frees RAM before preview)…`
+		);
 		execSync(`${pm} run build:test`, {
 			cwd: ROOT,
 			stdio: 'inherit',

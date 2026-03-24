@@ -1,6 +1,7 @@
 # Passkey Escrow How-To (Sepolia + Mainnet)
 
 This guide covers:
+
 - Local testing with Anvil (Foundry)
 - Sepolia testing
 - Mainnet deployment
@@ -8,6 +9,7 @@ This guide covers:
 - Running the escrow flow end-to-end
 
 ## Prerequisites
+
 - Node.js 18+ (for the Svelte app)
 - A bundler + entry point for passkey smart accounts
 - A WebAuthn-capable browser (Chrome/Safari/Edge)
@@ -21,17 +23,18 @@ This guide covers:
 
 **This repo standardizes on ERC-4337 EntryPoint v0.8** for local passkey / 7702 smart accounts (see `src/lib/wallet/openfort/const.js`: `ENTRY_POINT_VERSION = '0.8'`).
 
-| Item | Value |
-|------|--------|
+| Item                            | Value                                        |
+| ------------------------------- | -------------------------------------------- |
 | **EntryPoint v0.8 (canonical)** | `0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108` |
-| Anvil (host) | `http://127.0.0.1:8545` |
-| Alto bundler (Docker) | `http://127.0.0.1:4337` |
+| Anvil (host)                    | `http://127.0.0.1:8545`                      |
+| Alto bundler (Docker)           | `http://127.0.0.1:4337`                      |
 
 `alto-config.json` may list additional entrypoints for tooling compatibility; **`VITE_ENTRY_POINT_ADDRESS` and `ENTRY_POINT_ADDRESS` for Foundry must still be the v0.8 address above.**
 
 Phased roadmap (dev smoke → E2E Alice/Bob): see **`docs/PLAN_LOCAL_AA_AND_E2E.md`**.
 
 ### A) Fresh start order (prevents nonce drift)
+
 ```bash
 cd /Users/nandi/Documents/projekte/DecentraSol/simple-todo
 docker compose -f docker-compose.aa-local.yml down
@@ -44,6 +47,7 @@ docker compose -f docker-compose.aa-local.yml up -d
 ```
 
 ### B) Verify bundler EntryPoint support
+
 ```bash
 curl -s http://127.0.0.1:4337 \
   -H 'content-type: application/json' \
@@ -51,11 +55,13 @@ curl -s http://127.0.0.1:4337 \
 ```
 
 Expected (checksum casing may vary):
+
 - Response **includes** `0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108` (EntryPoint **v0.8**).
 - You may also see older entrypoints (e.g. v0.6) if `alto-config.json` lists them—that is OK; the app must still use **v0.8** in `VITE_ENTRY_POINT_ADDRESS`.
 - If **v0.8** is missing, fix `alto-config.json` / redeploy via `docker-compose.aa-local.yml` (`contract-deployer` + `alto` logs) before debugging the UI.
 
 ### C) Verify required on-chain bytecode
+
 ```bash
 cast code 0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108 --rpc-url http://127.0.0.1:8545   # EntryPoint v0.8
 cast code <IMPLEMENTATION_ADDRESS> --rpc-url http://127.0.0.1:8545                   # MockOpenfort7702Implementation
@@ -64,10 +70,12 @@ cast code <USDT_ADDRESS> --rpc-url http://127.0.0.1:8545                        
 ```
 
 Expected:
+
 - Non-`0x` output means contract code exists
 - `0x` means not deployed on this Anvil instance
 
 ### D) Local env expectations
+
 Copy **`.env.development.example`** (repo root) to `.env.development` and fill in deployed contract addresses, or set at least:
 
 ```bash
@@ -82,6 +90,7 @@ VITE_ENABLE_PAYMASTER=false
 ```
 
 Important:
+
 - `VITE_IMPLEMENTATION_CONTRACT` must be deployed with **`ENTRY_POINT_ADDRESS` = v0.8** (same address as `VITE_ENTRY_POINT_ADDRESS`) and must **not** equal the EntryPoint address as a mistaken copy-paste.
 - Restart `npm run dev` after env changes.
 - Deploy implementation with `contracts/script/DeployMockOpenfort7702Implementation.s.sol` and copy the address from `broadcast/.../run-latest.json`.
@@ -89,6 +98,7 @@ Important:
 **Playwright:** copy **`.env.test.example` → `.env.test`**, then run tests. `playwright.config.js` runs **`pnpm run build:test && pnpm run preview:test`** so **`VITE_*` from `.env.test` are embedded at build time** (`vite build --mode test`), not only at preview.
 
 ### E) Optional one-shot health check flow
+
 ```bash
 cd /Users/nandi/Documents/projekte/DecentraSol/simple-todo
 docker compose -f docker-compose.aa-local.yml down
@@ -123,13 +133,13 @@ The script **`scripts/setup-local-aa.mjs`**:
 
 Useful flags:
 
-| Flag | Meaning |
-|------|--------|
-| `--start-anvil` | Spawn detached `anvil` (you stop it when finished) |
-| `--skip-docker` | Alto/compose already up |
-| `--skip-forge` | Only refresh `.env` from existing `broadcast/.../run-latest.json` |
-| `--only-env` | Same as refresh only (no Docker, no forge) |
-| `--rpc-url` / `--bundler-url` | Non-default URLs |
+| Flag                          | Meaning                                                           |
+| ----------------------------- | ----------------------------------------------------------------- |
+| `--start-anvil`               | Spawn detached `anvil` (you stop it when finished)                |
+| `--skip-docker`               | Alto/compose already up                                           |
+| `--skip-forge`                | Only refresh `.env` from existing `broadcast/.../run-latest.json` |
+| `--only-env`                  | Same as refresh only (no Docker, no forge)                        |
+| `--rpc-url` / `--bundler-url` | Non-default URLs                                                  |
 
 If you use **Vite bundler/paymaster proxies**, re-edit `VITE_BUNDLER_URL` / `VITE_RPC_URL` in `.env.development` after the script (it writes direct `127.0.0.1` URLs).
 
@@ -157,17 +167,20 @@ Use this when escrow/implementation addresses changed, Anvil was restarted, or t
 ## 1) Deploy Contracts (Foundry)
 
 ### 1A) Install Foundry + deps
+
 ```bash
 foundryup
 forge install foundry-rs/forge-std
 ```
 
 ### 1B) Local (Anvil)
+
 ```bash
 anvil
 ```
 
 In a second terminal:
+
 ```bash
 cd /Users/nandi/Documents/projekte/DecentraSol/simple-todo
 export PRIVATE_KEY=0x... # use the first Anvil private key
@@ -182,6 +195,7 @@ Use the deployed mock implementation address as `VITE_IMPLEMENTATION_CONTRACT`.
 > `MockOpenfort7702Implementation` is for local testing only and intentionally permissive. Do not use it in production.
 
 ### 1C) Sepolia
+
 ```bash
 cd /Users/nandi/Documents/projekte/DecentraSol/simple-todo
 export PRIVATE_KEY=0x...     # deployer key
@@ -213,6 +227,7 @@ VITE_USDT_ADDRESS=0x...             # test ERC20 address (mock USDT)
 ```
 
 ### Notes
+
 - `VITE_USDT_ADDRESS` should be a test ERC20 on Sepolia.
 - If you don’t have a test USDT, deploy a mock ERC20 and use its address.
 - If you’re using a paymaster, your bundler should be configured accordingly.
@@ -220,16 +235,19 @@ VITE_USDT_ADDRESS=0x...             # test ERC20 address (mock USDT)
 ### Openfort vs Own Implementation (Sepolia/Mainnet)
 
 Use Openfort implementation by default when:
+
 - You want the current app flow to work without changing wallet adapter code.
 - `src/lib/wallet/openfort/*` remains your account abstraction integration path.
 - You prefer provider-maintained account logic over maintaining your own account contract stack.
 
 Use your own implementation when:
+
 - You need custom account validation rules, permissions, or upgrade governance.
 - You want full ownership of audits, upgrades, and backward compatibility guarantees.
 - You plan to remove dependency on Openfort-specific account behavior and APIs.
 
 Important:
+
 - `VITE_IMPLEMENTATION_CONTRACT` must implement the methods expected by this app (`initialize`, `execute`, `executeBatch`, account validation path via EntryPoint).
 - `VITE_IMPLEMENTATION_CONTRACT` must be different from `VITE_ENTRY_POINT_ADDRESS`.
 - For local Anvil this repo uses a dev-only mock implementation contract; for Sepolia/Mainnet use a real production implementation address.
@@ -358,11 +376,13 @@ If the deadline passes, Alice can also click **Refund**.
 ## Mainnet Deployment
 
 1. Deploy `TodoEscrow.sol` on mainnet using Foundry:
+
 ```bash
 export PRIVATE_KEY=0x...     # deployer key
 export RPC_URL_MAINNET=...   # mainnet RPC
 forge script contracts/script/DeployEscrow.s.sol --rpc-url $RPC_URL_MAINNET --broadcast
 ```
+
 2. Update `.env`:
 
 ```bash
@@ -412,11 +432,11 @@ PW_HEADED=1 PW_PASSKEY_VERBOSE=1 PW_SLOW_MO=250 pnpm run test:e2e:passkey-escrow
 
 **Playwright Inspector (`--debug`) without rebuilding / without “site not found”:**
 
-| Goal | What to run |
-|------|-------------|
-| **Skip Docker/Anvil setup only** (global setup still runs `build:test` unless you add more flags) | `pnpm run test:e2e:passkey-escrow:skip-aa:debug` |
-| **Skip build + reuse the same flow as headed reuse-preview** | **Terminal 1:** `pnpm run build:test && pnpm run preview:test` (leave running). **Terminal 2:** `pnpm run test:e2e:passkey-escrow:reuse-preview:skip-aa:debug` |
-| **Skip build; let Playwright start `preview:test` for you** (no second terminal) | Once: `pnpm run build:test`. Then: `pnpm run test:e2e:passkey-escrow:skip-aa:skip-build:debug` |
+| Goal                                                                                              | What to run                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Skip Docker/Anvil setup only** (global setup still runs `build:test` unless you add more flags) | `pnpm run test:e2e:passkey-escrow:skip-aa:debug`                                                                                                               |
+| **Skip build + reuse the same flow as headed reuse-preview**                                      | **Terminal 1:** `pnpm run build:test && pnpm run preview:test` (leave running). **Terminal 2:** `pnpm run test:e2e:passkey-escrow:reuse-preview:skip-aa:debug` |
+| **Skip build; let Playwright start `preview:test` for you** (no second terminal)                  | Once: `pnpm run build:test`. Then: `pnpm run test:e2e:passkey-escrow:skip-aa:skip-build:debug`                                                                 |
 
 `PW_REUSE_PREVIEW=1` means **do not start** the preview server — Playwright assumes **`pnpm run preview:test` is already listening on `127.0.0.1:4174`**. If nothing is running, the browsers will fail to load the app. To avoid a full Vite build in global setup, set **`PW_REUSE_PREVIEW=1`** or **`E2E_SKIP_VITE_BUILD=1`** (see `e2e/global-setup-passkey-escrow.mjs`).
 
@@ -442,6 +462,7 @@ PW_HEADED=1 PW_PASSKEY_VERBOSE=1 PW_SLOW_MO=250 pnpm run test:e2e:passkey-escrow
 ---
 
 ## Local Tests (Foundry)
+
 ```bash
 cd /Users/nandi/Documents/projekte/DecentraSol/simple-todo
 forge test -vv
@@ -450,6 +471,7 @@ forge test -vv
 ---
 
 ## Troubleshooting
+
 - **`cast run` shows `execute(TodoEscrow, 1 ETH, lockEth…)` then `← [Stop]` with no child `CALL`, `logs []`, ~48k gas**: On **Anvil**, EIP-7702 **self-call** + delegated **`execute` → external `CALL`** is often broken (tx succeeds, **no** `EscrowLocked`). **Escrow lock/release/refund** on **chain 31337** therefore sends **normal type-2 txs from the stored owner EOA** to TodoEscrow / ERC20 (`sendLocalAnvilDirectOwnerCalls` in `src/lib/wallet/passkey-wallet.js`) — same address as the passkey “smart account” in the UI. Bootstrap / `initialize` still uses the 7702 self-tx path. Rebuild **`build:test`** after wallet changes; **`PW_REUSE_PREVIEW` skips the build** — restart preview from a fresh build.
 - **E2E “hangs” after lock / endless `on-chain escrow after lock (waiting)` with `amount=0`**: Check the lines **above** the poll. If you see **`No EscrowLocked log from TodoEscrow`** and **`TodoEscrow contract ETH balance after lock …: 0`**, the lock transaction **did not** call `lockEth` on the configured contract (or logs are missing). The UI can still show **Escrow: locked** because OrbDB was updated after the wallet reported success — **rebuilding preview alone does not fix** that if `window.__PASSKEY_E2E_CHAIN__` already matches Anvil. The spec now **fails fast** with a clear error instead of waiting the full poll. Fix the **7702 `execute` → TodoEscrow** path (including **gas** above), **`VITE_ESCROW_CONTRACT`**, and that Anvil actually has that deployment at the same RPC.
 - **Wallet “Balance” ~3 ETH on both Alice and Bob, but I locked 1 ETH / Bob should have ~4 ETH**: The line **Balance (native ETH at this address)** is only `eth_getBalance(yourPasskeyAddress)`. It does **not** include ETH sitting in **`TodoEscrow`**. After **Lock funds**, Alice’s balance should fall by about the lock amount (plus gas); that ETH is now in the escrow contract — use **Refresh balance + txs** and check **TodoEscrow contract (network total)**. Bob’s balance **does not** increase when Alice locks; it increases after **Confirm & Pay** (release) pays his **delegate wallet** beneficiary. Local funding is often **~1 ETH auto-prefund** (if balance was low at account creation) **+ 2 ETH** from **Fund 2 ETH** ≈ **3 ETH** before escrow actions — so **~2.99 ETH** after small gas is normal **until** you lock (Alice drops) or receive a release (Bob rises).

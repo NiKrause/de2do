@@ -38,7 +38,8 @@ export async function getWebAuthnEncryptionKey({ allowCreate = true } = {}) {
 	if (!WebAuthnDIDProvider.isSupported()) return null;
 
 	const storedCredential = getStoredWebAuthnCredential();
-	const isVarsig = storedCredential?.authMode === 'varsig' || storedCredential?.authMode === 'hardware';
+	const isVarsig =
+		storedCredential?.authMode === 'varsig' || storedCredential?.authMode === 'hardware';
 	const rawCredentialId = isVarsig
 		? storedCredential?.credentialInfo?.credentialId
 		: storedCredential?.credentialInfo?.rawCredentialId;
