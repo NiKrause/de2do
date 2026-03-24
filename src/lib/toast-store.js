@@ -4,8 +4,8 @@ import { writable } from 'svelte/store';
 export const toastStore = writable(null);
 
 // Helper function to show toast messages
-export function showToast(message, type = 'default', duration = 3000) {
-	toastStore.set({ message, type, duration });
+export function showToast(message, type = 'default', duration = 3000, details = '') {
+	toastStore.set({ message, type, duration, details });
 }
 
 // Add methods to the toastStore

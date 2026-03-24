@@ -3,7 +3,8 @@
 	import { fade, fly } from 'svelte/transition';
 	import { initializeP2P, initializationStore } from '$lib/p2p.js';
 	import { todosStore, todoDBStore, orbitdbStore } from '$lib/db-actions.js';
-	import { ConsentModal, WebAuthnSetup, setOnPasskeyPrompt } from '@le-space/orbitdb-ui';
+	import { ConsentModal, setOnPasskeyPrompt } from '@le-space/orbitdb-ui';
+	import WebAuthnSetup from '$lib/components/identity/WebAuthnSetup.svelte';
 	import WalletProfile from '$lib/components/identity/WalletProfile.svelte';
 	import SystemToast from '$lib/components/ui/SystemToast.svelte';
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
@@ -30,10 +31,10 @@
 		availableTodoListsStore
 	} from '$lib/todo-list-manager.js';
 	import { get } from 'svelte/store';
-	import { showToast } from '$lib/toast-store.js';
+	import { showExternalPasskeyPrompt } from '$lib/passkey-notice.js';
 
-	// Wire passkey prompts to toast (used by varsig identity)
-	setOnPasskeyPrompt((msg) => showToast(msg, 'default', 3000));
+	// Wire package-level passkey prompts (hardware/varsig paths) to the shared explanatory notice UI.
+	setOnPasskeyPrompt(showExternalPasskeyPrompt);
 	// import { Cloud } from 'lucide-svelte'; // Unused for now
 	import { browser } from '$app/environment';
 	import { replaceState } from '$app/navigation';

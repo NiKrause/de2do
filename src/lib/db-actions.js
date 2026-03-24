@@ -6,7 +6,7 @@ import {
 	peerIdStore,
 	delegatedWriteAuthStore
 } from './stores.js';
-import { authenticateWithWebAuthn, hasExistingCredentials } from '@le-space/orbitdb-ui';
+import { authenticateWithWebAuthn, hasExistingCredentials } from './identity/passkey-client.js';
 
 // Store for OrbitDB instances
 export const orbitdbStore = writable(null);

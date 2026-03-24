@@ -8,7 +8,7 @@
 		getStoredCredentialInfos,
 		setPreferredWebAuthnMode,
 		useExistingWebAuthnCredential
-	} from '$lib/identity/webauthn-identity.js';
+	} from '$lib/identity/passkey-client.js';
 
 	const dispatch = createEventDispatcher();
 

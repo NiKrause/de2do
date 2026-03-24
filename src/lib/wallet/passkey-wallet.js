@@ -32,6 +32,7 @@ import { OPENFORT_INIT_DOMAIN } from './openfort/const.js';
 import { WEB_AUTHN_STUB_SIGNATURE } from './openfort/stubSignatures.js';
 import { deepHexlify } from './openfort/utils.js';
 import { createPaymasterClient } from './paymaster-client.js';
+import { beforePasskeyPrompt } from '../passkey-notice.js';
 
 const STORAGE_KEY = 'passkey_wallet_credential';
 const OWNER_KEY_STORAGE_KEY = 'passkey_wallet_owner_keys';
@@ -651,6 +652,11 @@ export async function consolidatePasskeyCredentials() {
 
 export async function createPasskeyWalletCredential(address) {
 	if (!address) throw new Error('Wallet address is required to bind the passkey');
+
+	await beforePasskeyPrompt(
+		'Create wallet passkey',
+		'Needed to create a dedicated passkey credential for wallet signing on this device.'
+	);
 
 	const credential = await WebAuthnP256.createCredential({
 		authenticatorSelection: {

@@ -10,6 +10,7 @@ import { accountABI } from './accountABI.js';
 import { ENTRY_POINT_VERSION, KeyType } from './const.js';
 import { encodeWebAuthnSignature } from './encodeSignature.js';
 import { P256_STUB_SIGNATURE } from './stubSignatures.js';
+import { beforePasskeyPrompt } from '../../passkey-notice.js';
 
 const executeSingleAbi = [
 	{
@@ -206,6 +207,11 @@ export async function toOpenfortSmartAccount({
 				entryPointAddress,
 				userOperation: { ...userOperation, sender, signature: '0x' }
 			});
+
+			await beforePasskeyPrompt(
+				'Approve blockchain transaction',
+				'Needed to sign this smart-account transaction with your passkey wallet.'
+			);
 
 			const webauthnData = await WebAuthnP256.sign({
 				challenge: userOpHash,
