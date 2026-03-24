@@ -18,8 +18,6 @@ on:
       - 'foundry.toml'
       - 'docker-compose.aa-local.yml'
       - 'alto-config.json'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
       - 'src/lib/wallet/**'
       - 'src/lib/escrow/**'
       - 'src/lib/chain/**'
@@ -37,8 +35,6 @@ on:
       - 'foundry.toml'
       - 'docker-compose.aa-local.yml'
       - 'alto-config.json'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
       - 'src/lib/wallet/**'
       - 'src/lib/escrow/**'
       - 'src/lib/chain/**'
@@ -64,6 +60,8 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

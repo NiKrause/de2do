@@ -32,6 +32,7 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+!.env.test
 !.env.development.example
 !.env.test.example
 
@@ -42,4 +43,5 @@ vite.config.ts.timestamp-*
 # Foundry (build artifacts)
 out/
 cache/
-broadcast/
+# Keep only run-latest.json per script; timestamped runs are noise / machine-specific
+broadcast/**/run-[0-9]*.json
