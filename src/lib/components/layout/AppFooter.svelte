@@ -156,15 +156,17 @@
 </script>
 
 <footer
-	class="fixed right-0 bottom-0 left-0 z-40 border-t border-gray-200 bg-white px-4 py-2 shadow-lg"
+	class="fixed right-0 bottom-0 left-0 z-40 border-t border-gray-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur sm:px-4"
 >
-	<div class="container mx-auto flex max-w-4xl items-center justify-between text-xs">
+	<div
+		class="container mx-auto flex max-w-4xl flex-col gap-2 text-xs sm:flex-row sm:items-center sm:justify-between"
+	>
 		<!-- Left: PeerID -->
-		<div class="flex items-center gap-3">
+		<div class="flex min-w-0 items-center gap-2 sm:gap-3">
 			<span class="text-gray-500">PeerID:</span>
 			<button
 				type="button"
-				class="cursor-pointer rounded bg-blue-50 px-2 py-1 font-mono text-blue-600 hover:bg-blue-100"
+				class="min-w-0 truncate rounded bg-blue-50 px-2 py-1 font-mono text-blue-600 hover:bg-blue-100"
 				title="Click to copy full PeerID"
 				onclick={() => copyToClipboard(peerId, 'PeerID')}
 			>
@@ -173,11 +175,11 @@
 		</div>
 
 		<!-- Center: DID Identity -->
-		<div class="flex items-center gap-2">
+		<div class="flex min-w-0 flex-wrap items-center gap-2">
 			<span class="text-gray-500">DID:</span>
 			<button
 				type="button"
-				class="cursor-pointer rounded bg-purple-50 px-2 py-1 font-mono text-purple-600 hover:bg-purple-100"
+				class="min-w-0 truncate rounded bg-purple-50 px-2 py-1 font-mono text-purple-600 hover:bg-purple-100"
 				title="Click to copy full DID"
 				onclick={() => copyToClipboard(identity?.id, 'DID')}
 			>
@@ -193,7 +195,7 @@
 		</div>
 
 		<!-- Right: Delegated auth + connected peers -->
-		<div class="relative flex items-center gap-4">
+		<div class="relative flex flex-wrap items-center gap-3 sm:gap-4">
 			<div class="flex items-center gap-2">
 				<span class="text-gray-500">Delegated Auth:</span>
 				<span

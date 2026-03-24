@@ -159,14 +159,35 @@ export async function acceptConsentAndInitialize(page, options = {}) {
 export async function waitForP2PInitialization(page, timeout = 30000) {
 	console.log('⏳ Waiting for P2P initialization...');
 
-	// Wait for todo input to be available (indicates OrbitDB is ready)
-	await page.waitForSelector('[data-testid="todo-input"]', { timeout: 10000 });
-
-	// Wait for footer to be displayed (indicates successful P2P initialization)
-	// The footer appears when initializationStore.isInitialized is true
+	// Add Todo can be collapsed by default, so do not use `todo-input` visibility as the init signal.
+	// Instead wait for the post-init footer and one of the normal-mode widgets that appears after OrbitDB opens.
 	await page.waitForSelector('footer', { timeout, state: 'visible' });
+	await page.waitForFunction(
+		() =>
+			!!document.querySelector('[data-testid="identity-mode"]') &&
+			!!(
+				document.querySelector('[data-testid="todo-item"]') ||
+				document.querySelector('button[aria-expanded][type="button"]') ||
+				document.querySelector('#users-list')
+			),
+		{ timeout }
+	);
 
 	console.log('✅ P2P initialization completed');
+}
+
+/**
+ * Ensure the Add Todo section is expanded before interacting with its inputs.
+ *
+ * @param {import('@playwright/test').Page} page - Playwright page instance
+ */
+export async function ensureAddTodoExpanded(page) {
+	const addTodoToggle = page.getByRole('button', { name: /Add Todo/i }).first();
+	await expect(addTodoToggle).toBeVisible({ timeout: 10000 });
+	if ((await addTodoToggle.getAttribute('aria-expanded')) !== 'true') {
+		await addTodoToggle.click();
+	}
+	await page.waitForSelector('[data-testid="todo-input"]', { timeout: 10000, state: 'visible' });
 }
 
 /**

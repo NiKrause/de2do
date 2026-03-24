@@ -72,6 +72,13 @@
 	}
 
 	const CONSENT_KEY = `consentAccepted@${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}`;
+	const SECTION_STATE_KEY = 'simple-todo:page-sections:v1';
+	const DEFAULT_SECTION_STATE = {
+		settings: true,
+		wallet: false,
+		addTodo: false,
+		todoList: true
+	};
 
 	let error = null;
 
@@ -87,6 +94,7 @@
 
 	// Storacha integration state
 	let showStorachaIntegration = false;
+	let sectionState = { ...DEFAULT_SECTION_STATE };
 
 	// QR Code modal state
 	let showQRCodeModal = false;
@@ -125,6 +133,38 @@
 		showWebAuthnSetup = true;
 	};
 
+	function loadSectionState() {
+		if (!browser) return;
+		try {
+			const raw = localStorage.getItem(SECTION_STATE_KEY);
+			if (!raw) {
+				sectionState = { ...DEFAULT_SECTION_STATE };
+				return;
+			}
+			const parsed = JSON.parse(raw);
+			sectionState = {
+				...DEFAULT_SECTION_STATE,
+				...(parsed && typeof parsed === 'object' ? parsed : {})
+			};
+		} catch {
+			sectionState = { ...DEFAULT_SECTION_STATE };
+		}
+	}
+
+	function persistSectionState() {
+		if (!browser) return;
+		try {
+			localStorage.setItem(SECTION_STATE_KEY, JSON.stringify(sectionState));
+		} catch {
+			// ignore storage errors
+		}
+	}
+
+	function toggleSection(section) {
+		sectionState = { ...sectionState, [section]: !sectionState[section] };
+		persistSectionState();
+	}
+
 	const handleWebAuthnSetupComplete = async (event) => {
 		showWebAuthnSetup = false;
 
@@ -153,6 +193,8 @@
 
 	onMount(async () => {
 		try {
+			loadSectionState();
+
 			// Check if there's a hash in the URL - if so, auto-initialize even without consent
 			const hasHash = window.location.hash && window.location.hash.startsWith('#/');
 			const hasConsent = localStorage.getItem(CONSENT_KEY) === 'true';
@@ -332,6 +374,7 @@
 	<ConsentModal
 		bind:show={showModal}
 		bind:rememberDecision
+		layout="footer"
 		rememberLabel="Don't show this again on this device"
 		proceedButtonText="Accept & Continue"
 		appName="Simple Todo"
@@ -349,15 +392,15 @@
 		modeConfig="choice"
 		defaultMode="worker"
 		appName="Simple Todo"
-		oncreated={(detail) => handleWebAuthnSetupComplete({ detail })}
-		onskip={() => handleWebAuthnSetupComplete({})}
+		on:created={handleWebAuthnSetupComplete}
+		on:skip={handleWebAuthnSetupComplete}
 	/>
 {/if}
 
 <!-- Password modal for encrypted databases -->
 <ManagedPasswordModal />
 
-<main class="container mx-auto max-w-4xl p-6 pb-20">
+<main class="container mx-auto max-w-4xl p-6 pb-28 sm:pb-24">
 	{#if !isEmbedMode}
 		<AppHeader onQRCodeClick={() => (showQRCodeModal = true)} />
 	{/if}
@@ -398,64 +441,177 @@
 		</div>
 	{:else}
 		<!-- Normal Mode UI -->
-		<!-- Todo List Selector and Encryption Options -->
-		<div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-			<div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+		<!-- Settings -->
+		<div class="mb-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+			<button
+				type="button"
+				class="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-gray-50"
+				aria-expanded={sectionState.settings}
+				on:click={() => toggleSection('settings')}
+			>
 				<div>
-					<UsersList />
+					<h2 class="text-base font-semibold text-gray-900">Settings</h2>
+					<p class="text-sm text-gray-500">Users, lists, and encryption</p>
 				</div>
-				<div>
-					<TodoListSelector />
+				<span
+					class="text-gray-500 transition-transform duration-200"
+					class:rotate-180={sectionState.settings}
+				>
+					<svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+						<path
+							fill-rule="evenodd"
+							d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 011.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+							clip-rule="evenodd"
+						/>
+					</svg>
+				</span>
+			</button>
+			{#if sectionState.settings}
+				<div class="border-t border-gray-100 p-4" transition:fade>
+					<div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+						<div>
+							<UsersList />
+						</div>
+						<div>
+							<TodoListSelector />
+						</div>
+					</div>
+					<EncryptionSettings
+						{isCurrentDbEncrypted}
+						bind:enableEncryption
+						bind:encryptionPassword
+						{preferences}
+						disabled={!$initializationStore.isInitialized}
+						on:encryptionEnabled={(e) => {
+							isCurrentDbEncrypted = e.detail.isCurrentDbEncrypted;
+							// Mark this as a manual update to prevent reactive overwrite
+							lastManualEncryptionUpdate = {
+								listName: $currentTodoListNameStore,
+								encrypted: e.detail.isCurrentDbEncrypted,
+								timestamp: Date.now()
+							};
+						}}
+						on:encryptionDisabled={(e) => {
+							isCurrentDbEncrypted = e.detail.isCurrentDbEncrypted;
+							// Mark this as a manual update to prevent reactive overwrite
+							lastManualEncryptionUpdate = {
+								listName: $currentTodoListNameStore,
+								encrypted: e.detail.isCurrentDbEncrypted,
+								timestamp: Date.now()
+							};
+						}}
+					/>
 				</div>
-			</div>
-			<EncryptionSettings
-				{isCurrentDbEncrypted}
-				bind:enableEncryption
-				bind:encryptionPassword
-				{preferences}
-				disabled={!$initializationStore.isInitialized}
-				on:encryptionEnabled={(e) => {
-					isCurrentDbEncrypted = e.detail.isCurrentDbEncrypted;
-					// Mark this as a manual update to prevent reactive overwrite
-					lastManualEncryptionUpdate = {
-						listName: $currentTodoListNameStore,
-						encrypted: e.detail.isCurrentDbEncrypted,
-						timestamp: Date.now()
-					};
-				}}
-				on:encryptionDisabled={(e) => {
-					isCurrentDbEncrypted = e.detail.isCurrentDbEncrypted;
-					// Mark this as a manual update to prevent reactive overwrite
-					lastManualEncryptionUpdate = {
-						listName: $currentTodoListNameStore,
-						encrypted: e.detail.isCurrentDbEncrypted,
-						timestamp: Date.now()
-					};
-				}}
-			/>
+			{/if}
 		</div>
 
-		<WalletProfile />
+		<!-- Passkey Wallet -->
+		<div class="mb-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+			<button
+				type="button"
+				class="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-gray-50"
+				aria-expanded={sectionState.wallet}
+				on:click={() => toggleSection('wallet')}
+			>
+				<div>
+					<h2 class="text-base font-semibold text-gray-900">Passkey Wallet</h2>
+					<p class="text-sm text-gray-500">Smart account, wallet address, and local funding</p>
+				</div>
+				<span
+					class="text-gray-500 transition-transform duration-200"
+					class:rotate-180={sectionState.wallet}
+				>
+					<svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+						<path
+							fill-rule="evenodd"
+							d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 011.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+							clip-rule="evenodd"
+						/>
+					</svg>
+				</span>
+			</button>
+			{#if sectionState.wallet}
+				<div class="border-t border-gray-100 p-4" transition:fade>
+					<WalletProfile />
+				</div>
+			{/if}
+		</div>
 
-		<!-- Add TODO Form -->
-		<AddTodoForm
-			on:add={handleAddTodo}
-			disabled={!$initializationStore.isInitialized}
-			delegationEnabled={delegationEnabledForCurrentDb}
-		/>
-
-		<!-- Breadcrumb Navigation -->
-		<BreadcrumbNavigation {preferences} {enableEncryption} {encryptionPassword} />
+		<!-- Add TODO -->
+		<div class="mb-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+			<button
+				type="button"
+				class="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-gray-50"
+				aria-expanded={sectionState.addTodo}
+				on:click={() => toggleSection('addTodo')}
+			>
+				<div>
+					<h2 class="text-base font-semibold text-gray-900">Add Todo</h2>
+					<p class="text-sm text-gray-500">Create tasks, costs, and delegation details</p>
+				</div>
+				<span
+					class="text-gray-500 transition-transform duration-200"
+					class:rotate-180={sectionState.addTodo}
+				>
+					<svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+						<path
+							fill-rule="evenodd"
+							d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 011.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+							clip-rule="evenodd"
+						/>
+					</svg>
+				</span>
+			</button>
+			{#if sectionState.addTodo}
+				<div class="border-t border-gray-100 p-4" transition:fade>
+					<AddTodoForm
+						on:add={handleAddTodo}
+						disabled={!$initializationStore.isInitialized}
+						delegationEnabled={delegationEnabledForCurrentDb}
+					/>
+				</div>
+			{/if}
+		</div>
 
 		<!-- TODO List -->
-		<TodoList
-			todos={$todosStore}
-			delegationEnabled={delegationEnabledForCurrentDb}
-			on:delete={handleDelete}
-			on:toggleComplete={handleToggleComplete}
-			on:createSubList={handleCreateSubList}
-			on:revokeDelegation={handleRevokeDelegation}
-		/>
+		<div class="mb-6 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+			<button
+				type="button"
+				class="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-gray-50"
+				aria-expanded={sectionState.todoList}
+				on:click={() => toggleSection('todoList')}
+			>
+				<div>
+					<h2 class="text-base font-semibold text-gray-900">Todo List</h2>
+					<p class="text-sm text-gray-500">Current tasks, breadcrumbs, and delegated workflow</p>
+				</div>
+				<span
+					class="text-gray-500 transition-transform duration-200"
+					class:rotate-180={sectionState.todoList}
+				>
+					<svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+						<path
+							fill-rule="evenodd"
+							d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 011.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+							clip-rule="evenodd"
+						/>
+					</svg>
+				</span>
+			</button>
+			{#if sectionState.todoList}
+				<div class="border-t border-gray-100 p-4" transition:fade>
+					<BreadcrumbNavigation {preferences} {enableEncryption} {encryptionPassword} />
+					<TodoList
+						todos={$todosStore}
+						delegationEnabled={delegationEnabledForCurrentDb}
+						on:delete={handleDelete}
+						on:toggleComplete={handleToggleComplete}
+						on:createSubList={handleCreateSubList}
+						on:revokeDelegation={handleRevokeDelegation}
+					/>
+				</div>
+			{/if}
+		</div>
 
 		<!-- Storacha Test Suite - Temporarily disabled
 		<StorachaTest />

@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
 	acceptConsentAndInitialize,
+	ensureAddTodoExpanded,
 	waitForP2PInitialization,
 	getCurrentDatabaseAddress,
 	waitForPeerCount,
@@ -64,6 +65,7 @@ test('should not show password modal for unencrypted database opened via URL', a
 	console.log(`  ✓ Database address: ${dbAddress}`);
 
 	// Add a todo to ensure database has content
+	await ensureAddTodoExpanded(page1);
 	const todoInput1 = page1.locator('[data-testid="todo-input"]').first();
 	await expect(todoInput1).toBeEnabled({ timeout: 10000 });
 

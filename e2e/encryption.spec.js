@@ -1,6 +1,7 @@
 import { test, expect, chromium } from '@playwright/test';
 import {
 	acceptConsentAndInitialize,
+	ensureAddTodoExpanded,
 	waitForP2PInitialization,
 	getCurrentDatabaseAddress,
 	getPeerId,
@@ -70,6 +71,7 @@ test.describe('Encryption E2E Tests', () => {
 		console.log(`✅ Browser A database address: ${dbAddressA}`);
 
 		// Add a todo
+		await ensureAddTodoExpanded(browserAPage);
 		const todoInput = browserAPage.locator('[data-testid="todo-input"]');
 		await todoInput.fill(testTodoText);
 		const addButton = browserAPage.locator('[data-testid="add-todo-button"]');
@@ -96,8 +98,7 @@ test.describe('Encryption E2E Tests', () => {
 		await waitForP2PInitialization(pageBrowserB, 60000);
 		console.log('✅ Browser B: P2P initialized');
 
-		// Wait for database to be opened (check that todo input is available)
-		await pageBrowserB.waitForSelector('[data-testid="todo-input"]', { timeout: 30000 });
+		// Database/UI is ready once the shared initialized footer is present; Add Todo may stay collapsed.
 		console.log('✅ Browser B: Database opened via URL');
 
 		// Ensure network peer connectivity and force a deterministic todo refresh before assertion.
@@ -278,9 +279,8 @@ test.describe('Encryption E2E Tests', () => {
 			console.log(`   Expected address: ${dbAddressA}`);
 			console.log(`   Actual address: ${actualAddress || 'not found'}`);
 
-			// Wait for todo input to be visible (indicates database is loaded and UI is ready)
-			await pageBrowserC.waitForSelector('[data-testid="todo-input"]', { timeout: 30000 });
-			console.log('✅ Browser C: Todo input visible, database loaded');
+			// Add Todo can be collapsed by default; reaching this point already proves the shared DB is open.
+			console.log('✅ Browser C: Database UI loaded');
 
 			// Wait for page to be fully interactive (no loading spinners)
 			await pageBrowserC
@@ -436,6 +436,7 @@ test.describe('Encryption E2E Tests', () => {
 		expect(dbAddressA).toBeTruthy();
 
 		// Add a todo
+		await ensureAddTodoExpanded(browserAPage);
 		const todoInput = browserAPage.locator('[data-testid="todo-input"]');
 		await todoInput.fill(testTodoText);
 		const addButton = browserAPage.locator('[data-testid="add-todo-button"]');
@@ -552,6 +553,7 @@ test.describe('Encryption E2E Tests', () => {
 		expect(dbAddressA).toBeTruthy();
 
 		// Add a todo
+		await ensureAddTodoExpanded(browserAPage);
 		const todoInput = browserAPage.locator('[data-testid="todo-input"]');
 		await todoInput.fill(testTodoText);
 		const addButton = browserAPage.locator('[data-testid="add-todo-button"]');
