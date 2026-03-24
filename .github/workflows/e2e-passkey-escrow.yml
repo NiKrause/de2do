@@ -5,7 +5,7 @@ name: E2E Passkey Escrow (local AA)
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, eip-7702]
     paths:
       - '.github/workflows/e2e-passkey-escrow.yml'
       - 'e2e/passkey-wallet-escrow.spec.js'
