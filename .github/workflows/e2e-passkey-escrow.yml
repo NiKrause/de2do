@@ -102,6 +102,12 @@ jobs:
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
 
+      - name: Dump AA stack diagnostics
+        if: always()
+        run: |
+          docker compose -f docker-compose.aa-local.yml ps || true
+          docker compose -f docker-compose.aa-local.yml logs --no-color contract-deployer alto mock-paymaster || true
+
       - name: Build app (test mode)
         run: pnpm run build:test
         env:
