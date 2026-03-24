@@ -196,7 +196,8 @@ async function main() {
 
 	if (flags.has('start-anvil') && !onlyEnv) {
 		log('Starting detached Anvil…');
-		const proc = spawn('anvil', [], {
+		// Bind to all interfaces so Docker containers can reach host Anvil via host-gateway in CI.
+		const proc = spawn('anvil', ['--host', '0.0.0.0', '--port', '8545'], {
 			detached: true,
 			stdio: 'ignore',
 			cwd: ROOT
