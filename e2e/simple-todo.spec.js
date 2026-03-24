@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
 	acceptConsentAndInitialize,
+	ensureAddTodoExpanded,
 	waitForP2PInitialization,
 	waitForPeerCount,
 	getPeerId,
@@ -553,6 +554,7 @@ test.describe('Simple Todo P2P Application', () => {
 		// Step 2: Wait for P2P initialization to complete
 		console.log('⏳ Waiting for P2P initialization...');
 		await waitForP2PInitialization(page);
+		await ensureAddTodoExpanded(page);
 
 		console.log('✅ P2P initialization successful');
 		console.log('✅ Todo input form is visible');
@@ -678,8 +680,11 @@ test.describe('Simple Todo P2P Application', () => {
 		// Wait for modal to disappear
 		await expect(page.locator('[data-testid="consent-modal"]')).not.toBeVisible();
 
+		// Handle WebAuthn modal if present
+		await handleWebAuthnModal(page);
+
 		// Should still be able to use the app in offline mode
-		await expect(page.locator('[data-testid="todo-input"]')).toBeVisible({ timeout: 10000 });
+		await ensureAddTodoExpanded(page);
 
 		console.log('✅ Offline mode test completed');
 	});
@@ -783,6 +788,7 @@ test.describe('Simple Todo P2P Application', () => {
 		await handleWebAuthnModal(page);
 
 		// Wait for todo input to be ready and enabled
+		await ensureAddTodoExpanded(page);
 		const todoInput = page.locator('[data-testid="todo-input"]');
 		await expect(todoInput).toBeVisible({ timeout: 15000 });
 		await expect(todoInput).toBeEnabled({ timeout: 10000 });

@@ -18,6 +18,8 @@ on:
       - 'foundry.toml'
       - 'docker-compose.aa-local.yml'
       - 'alto-config.json'
+      - 'package.json'
+      - 'package-lock.json'
       - 'src/lib/wallet/**'
       - 'src/lib/escrow/**'
       - 'src/lib/chain/**'
@@ -35,6 +37,8 @@ on:
       - 'foundry.toml'
       - 'docker-compose.aa-local.yml'
       - 'alto-config.json'
+      - 'package.json'
+      - 'package-lock.json'
       - 'src/lib/wallet/**'
       - 'src/lib/escrow/**'
       - 'src/lib/chain/**'
@@ -58,16 +62,11 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'pnpm'
+          cache: 'npm'
 
       - name: Install system dependencies
         run: |
@@ -75,20 +74,20 @@ jobs:
           sudo apt-get install -y build-essential python3 cmake pkg-config libssl-dev curl
 
       - name: Install JS dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm install --no-audit
 
       - name: Ensure native node-datachannel is built
         run: |
           if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
             echo "node-datachannel native module missing; rebuilding..."
             rm -rf node_modules/@ipshipyard/node-datachannel/build || true
-            pnpm rebuild @ipshipyard/node-datachannel
+            npm rebuild @ipshipyard/node-datachannel
           else
             echo "node-datachannel native module present"
           fi
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps
+        run: npx playwright install --with-deps
 
       - name: Prepare .env.test
         run: |
@@ -98,7 +97,7 @@ jobs:
           fi
 
       - name: Local AA stack (Anvil + Docker Alto + forge → .env.test)
-        run: pnpm run setup:local-aa:test
+        run: npm run setup:local-aa:test
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
 
@@ -109,13 +108,13 @@ jobs:
           docker compose -f docker-compose.aa-local.yml logs --no-color contract-deployer alto mock-paymaster || true
 
       - name: Build app (test mode)
-        run: pnpm run build:test
+        run: npm run build:test
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
 
       - name: Start static preview (background)
         run: |
-          pnpm run preview:test &
+          npm run preview:test &
           echo $! > /tmp/passkey-preview.pid
           echo "Waiting for http://127.0.0.1:4174 …"
           timeout 120 bash -c 'until curl -sf -o /dev/null http://127.0.0.1:4174/; do sleep 1; done'
@@ -131,7 +130,7 @@ jobs:
           command: >-
             bash -lc
             'lsof -ti:3001,4101,4102,4103,4106 2>/dev/null | xargs kill -9 2>/dev/null || true;
-            pnpm run test:e2e:passkey-escrow:reuse-preview:skip-aa'
+            npm run test:e2e:passkey-escrow:reuse-preview:skip-aa'
         env:
           CI: true
           E2E_SKIP_LOCAL_AA_SETUP: '1'
