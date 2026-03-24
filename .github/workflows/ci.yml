@@ -14,16 +14,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-
-      - name: Pin npm version
-        run: |
-          npm install -g npm@11.10.1
-          npm --version
+          cache: 'pnpm'
 
       - name: Install system dependencies
         run: |
@@ -31,7 +31,7 @@ jobs:
           sudo apt-get install -y build-essential python3 cmake pkg-config libssl-dev
 
       - name: Install dependencies
-        run: npm install --no-audit
+        run: pnpm install --frozen-lockfile
 
       # Relay is `orbitdb-relay-pinner` from package.json (no `relay/` subfolder).
       - name: Rebuild native modules if needed (libp2p / datachannel)
@@ -39,16 +39,16 @@ jobs:
           if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
             echo "node-datachannel native module missing; rebuilding..."
             rm -rf node_modules/@ipshipyard/node-datachannel/build || true
-            npm rebuild @ipshipyard/node-datachannel || true
+            pnpm rebuild @ipshipyard/node-datachannel || true
           else
             echo "node-datachannel native module present"
           fi
 
       - name: Lint code
-        run: npm run lint
+        run: pnpm run lint
         # continue-on-error: true
       - name: Build application
-        run: npm run build
+        run: pnpm run build
       - name: Build success notification
         run: echo "✅ Build completed successfully"
 

@@ -3,8 +3,8 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm install -g npm@11.11.0 && npm ci
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate && pnpm install --frozen-lockfile
 
 COPY . .
 
@@ -18,7 +18,7 @@ ENV VITE_RELAY_BOOTSTRAP_ADDR_PROD=$VITE_RELAY_BOOTSTRAP_ADDR_PROD
 ENV VITE_PUBSUB_TOPICS=$VITE_PUBSUB_TOPICS
 ENV VITE_NODE_ENV=$VITE_NODE_ENV
 
-RUN npm run build
+RUN pnpm run build
 
 
 # ---------- Production stage ----------
@@ -27,10 +27,10 @@ FROM node:22-alpine AS production
 WORKDIR /app
 
 # Copy dependency files
-COPY package.json package-lock.json ./
+COPY package.json pnpm-lock.yaml ./
 
 #DO NOT omit dev deps because vite preview is used
-RUN npm install -g npm@11.11.0 && npm ci
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate && pnpm install --frozen-lockfile
 
 # Copy built output from build stage
 COPY --from=build /app/build ./build
@@ -46,4 +46,4 @@ ENV HOST=0.0.0.0
 ENV PORT=5173
 
 # Serve the built app (unchanged behavior)
-CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "5173"]
+CMD ["pnpm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "5173"]

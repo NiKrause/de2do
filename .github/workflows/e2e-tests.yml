@@ -15,16 +15,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: ${{ env.ENABLE_CACHE != 'false' && 'npm' || '' }}
-
-      - name: Pin npm version
-        run: |
-          npm install -g npm@11.10.1
-          npm --version
+          cache: ${{ env.ENABLE_CACHE != 'false' && 'pnpm' || '' }}
 
       - name: Install system dependencies
         run: |
@@ -33,20 +33,20 @@ jobs:
           sudo apt-get install -y build-essential python3 cmake pkg-config libssl-dev
 
       - name: Install dependencies
-        run: npm install --no-audit
+        run: pnpm install --frozen-lockfile
 
       - name: Ensure native node-datachannel is built
         run: |
           if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
             echo "node-datachannel native module missing; rebuilding..."
             rm -rf node_modules/@ipshipyard/node-datachannel/build || true
-            npm rebuild @ipshipyard/node-datachannel
+            pnpm rebuild @ipshipyard/node-datachannel
           else
             echo "node-datachannel native module present"
           fi
 
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+        run: pnpm exec playwright install --with-deps
 
       - name: Run core E2E tests with fresh-run retry
         uses: nick-fields/retry@v3
@@ -54,7 +54,7 @@ jobs:
           timeout_minutes: 25
           max_attempts: 2
           retry_wait_seconds: 10
-          command: bash -lc 'lsof -ti:4101,4102,4103,4106,3000,4174,9090 2>/dev/null | xargs kill -9 2>/dev/null || true; npm run test:e2e -- e2e/simple-todo.spec.js e2e/consent-screen.spec.js e2e/remote-db-url-access.spec.js --grep-invert "should create passkey, add todos, and sync to another browser|should replicate database when Browser B opens Browser A database by name|should disable network and keep peer count at zero"'
+          command: bash -lc 'lsof -ti:4101,4102,4103,4106,3000,4174,9090 2>/dev/null | xargs kill -9 2>/dev/null || true; pnpm run test:e2e -- e2e/simple-todo.spec.js e2e/consent-screen.spec.js e2e/remote-db-url-access.spec.js --grep-invert "should create passkey, add todos, and sync to another browser|should replicate database when Browser B opens Browser A database by name|should disable network and keep peer count at zero"'
         env:
           CI: true
 
@@ -87,16 +87,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: ${{ env.ENABLE_CACHE != 'false' && 'npm' || '' }}
-
-      - name: Pin npm version
-        run: |
-          npm install -g npm@11.10.1
-          npm --version
+          cache: ${{ env.ENABLE_CACHE != 'false' && 'pnpm' || '' }}
 
       - name: Install system dependencies
         run: |
@@ -104,20 +104,20 @@ jobs:
           sudo apt-get install -y build-essential python3 cmake pkg-config libssl-dev
 
       - name: Install dependencies
-        run: npm install --no-audit
+        run: pnpm install --frozen-lockfile
 
       - name: Ensure native node-datachannel is built
         run: |
           if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
             echo "node-datachannel native module missing; rebuilding..."
             rm -rf node_modules/@ipshipyard/node-datachannel/build || true
-            npm rebuild @ipshipyard/node-datachannel
+            pnpm rebuild @ipshipyard/node-datachannel
           else
             echo "node-datachannel native module present"
           fi
 
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+        run: pnpm exec playwright install --with-deps
 
       - name: Run encryption E2E tests with fresh-run retry
         uses: nick-fields/retry@v3
@@ -125,7 +125,7 @@ jobs:
           timeout_minutes: 20
           max_attempts: 2
           retry_wait_seconds: 10
-          command: bash -lc 'lsof -ti:4101,4102,4103,4106,3000,4174,9090 2>/dev/null | xargs kill -9 2>/dev/null || true; npm run test:e2e -- e2e/encryption.spec.js e2e/encryption-migration.spec.js e2e/per-database-encryption.spec.js'
+          command: bash -lc 'lsof -ti:4101,4102,4103,4106,3000,4174,9090 2>/dev/null | xargs kill -9 2>/dev/null || true; pnpm run test:e2e -- e2e/encryption.spec.js e2e/encryption-migration.spec.js e2e/per-database-encryption.spec.js'
         env:
           CI: true
 
@@ -158,16 +158,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: ${{ env.ENABLE_CACHE != 'false' && 'npm' || '' }}
-
-      - name: Pin npm version
-        run: |
-          npm install -g npm@11.10.1
-          npm --version
+          cache: ${{ env.ENABLE_CACHE != 'false' && 'pnpm' || '' }}
 
       - name: Install system dependencies
         run: |
@@ -175,20 +175,20 @@ jobs:
           sudo apt-get install -y build-essential python3 cmake pkg-config libssl-dev
 
       - name: Install dependencies
-        run: npm install --no-audit
+        run: pnpm install --frozen-lockfile
 
       - name: Ensure native node-datachannel is built
         run: |
           if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
             echo "node-datachannel native module missing; rebuilding..."
             rm -rf node_modules/@ipshipyard/node-datachannel/build || true
-            npm rebuild @ipshipyard/node-datachannel
+            pnpm rebuild @ipshipyard/node-datachannel
           else
             echo "node-datachannel native module present"
           fi
 
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+        run: pnpm exec playwright install --with-deps
 
       - name: Run WebAuthn E2E tests with fresh-run retry
         uses: nick-fields/retry@v3
@@ -196,7 +196,7 @@ jobs:
           timeout_minutes: 10
           max_attempts: 2
           retry_wait_seconds: 10
-          command: bash -lc 'lsof -ti:4101,4102,4103,4106,3000,4174,9090 2>/dev/null | xargs kill -9 2>/dev/null || true; npm run test:e2e -- e2e/webauthn.spec.js'
+          command: bash -lc 'lsof -ti:4101,4102,4103,4106,3000,4174,9090 2>/dev/null | xargs kill -9 2>/dev/null || true; pnpm run test:e2e -- e2e/webauthn.spec.js'
         env:
           CI: true
 
@@ -241,16 +241,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: ${{ env.ENABLE_CACHE != 'false' && 'npm' || '' }}
-
-      - name: Pin npm version
-        run: |
-          npm install -g npm@11.10.1
-          npm --version
+          cache: ${{ env.ENABLE_CACHE != 'false' && 'pnpm' || '' }}
 
       - name: Install system dependencies
         run: |
@@ -258,20 +258,20 @@ jobs:
           sudo apt-get install -y build-essential python3 cmake pkg-config libssl-dev
 
       - name: Install dependencies
-        run: npm install --no-audit
+        run: pnpm install --frozen-lockfile
 
       - name: Ensure native node-datachannel is built
         run: |
           if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
             echo "node-datachannel native module missing; rebuilding..."
             rm -rf node_modules/@ipshipyard/node-datachannel/build || true
-            npm rebuild @ipshipyard/node-datachannel
+            pnpm rebuild @ipshipyard/node-datachannel
           else
             echo "node-datachannel native module present"
           fi
 
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+        run: pnpm exec playwright install --with-deps
 
       - name: Run sync test with retries
         uses: nick-fields/retry@v3
@@ -279,7 +279,7 @@ jobs:
           timeout_minutes: 10
           max_attempts: 3
           retry_wait_seconds: 5
-          command: bash -lc 'lsof -ti:4101,4102,4103,4106,3000,4174,9090 2>/dev/null | xargs kill -9 2>/dev/null || true; npm run test:e2e -- ${{ matrix.file }} -g "${{ matrix.test }}" --workers=1'
+          command: bash -lc 'lsof -ti:4101,4102,4103,4106,3000,4174,9090 2>/dev/null | xargs kill -9 2>/dev/null || true; pnpm run test:e2e -- ${{ matrix.file }} -g "${{ matrix.test }}" --workers=1'
         env:
           CI: true
 
