@@ -46,25 +46,6 @@ function describeEncryptionSecret(secret) {
 	return 'YES';
 }
 
-function describeBinaryValue(value) {
-	if (value instanceof Uint8Array) {
-		return { kind: 'Uint8Array', length: value.length };
-	}
-	if (value instanceof ArrayBuffer) {
-		return { kind: 'ArrayBuffer', length: value.byteLength };
-	}
-	if (ArrayBuffer.isView(value)) {
-		return { kind: value.constructor?.name || 'TypedArray', length: value.byteLength };
-	}
-	if (typeof value === 'string') {
-		return { kind: 'string', length: value.length };
-	}
-	if (value == null) {
-		return { kind: String(value), length: 0 };
-	}
-	return { kind: typeof value, length: value.length ?? 0 };
-}
-
 // Export libp2p instance for plugins
 export const libp2pStore = writable(null);
 // Remove this line - don't re-export peerIdStore
@@ -856,93 +837,16 @@ export async function initializeP2P(preferences = {}) {
 				const varsigCredential = storedWebAuthn.credentialInfo;
 				const identity = await getOrCreateVarsigIdentity(varsigCredential);
 				const identityStorage = createIpfsIdentityStorage(helia);
-				const identities = createWebAuthnVarsigIdentities(identity, {}, identityStorage);
-				// Short-term mixed-mode compatibility:
-				// in hardware mode, varsig verification alone rejects worker-signed identities.
-				// Attach a generic fallback verifier so hardware+worker peers can interoperate.
 				const fallbackIdentities = wrapWithVarsigVerification(
 					await Identities({ ipfs: helia }),
 					helia
 				);
-				const originalVerify = identities.verify?.bind(identities);
-				const originalGetIdentity = identities.getIdentity?.bind(identities);
-				const originalVerifyIdentity = identities.verifyIdentity?.bind(identities);
-				const unsupportedVarsigHeader = (err) =>
-					String(err?.message || '')
-						.toLowerCase()
-						.includes('unsupported varsig header');
-
-				identities.verify = async (signature, publicKey, data) => {
-					if (originalVerify) {
-						try {
-							const result = await originalVerify(signature, publicKey, data);
-							if (result) return true;
-						} catch (error) {
-							if (!unsupportedVarsigHeader(error)) {
-								console.warn('⚠️ Varsig verify failed, trying generic fallback', {
-									error: error?.message || String(error),
-									signature: describeBinaryValue(signature),
-									publicKey: describeBinaryValue(publicKey),
-									data: describeBinaryValue(data)
-								});
-							}
-						}
-					}
-
-					try {
-						return await fallbackIdentities.verify(signature, publicKey, data);
-					} catch (fallbackError) {
-						console.warn('⚠️ Generic verify fallback failed', {
-							error: fallbackError?.message || String(fallbackError),
-							signature: describeBinaryValue(signature),
-							publicKey: describeBinaryValue(publicKey),
-							data: describeBinaryValue(data)
-						});
-						return false;
-					}
-				};
-
-				identities.getIdentity = async (hash) => {
-					if (originalGetIdentity) {
-						try {
-							const resolved = await originalGetIdentity(hash);
-							if (resolved) return resolved;
-						} catch (error) {
-							console.debug('Varsig identities.getIdentity miss before fallback', {
-								hash,
-								error: error?.message || String(error)
-							});
-						}
-					}
-					return await fallbackIdentities.getIdentity(hash);
-				};
-
-				identities.verifyIdentity = async (identityToVerify) => {
-					if (originalVerifyIdentity) {
-						try {
-							const result = await originalVerifyIdentity(identityToVerify);
-							if (result) return true;
-						} catch (error) {
-							if (!unsupportedVarsigHeader(error)) {
-								console.warn('⚠️ Varsig verifyIdentity failed, trying generic fallback', {
-									error: error?.message || String(error),
-									identityId: identityToVerify?.id || null,
-									identityType: identityToVerify?.type || null
-								});
-							}
-						}
-					}
-					try {
-						return await fallbackIdentities.verifyIdentity(identityToVerify);
-					} catch (fallbackError) {
-						console.warn('⚠️ Generic verifyIdentity fallback failed', {
-							error: fallbackError?.message || String(fallbackError),
-							identityId: identityToVerify?.id || null,
-							identityType: identityToVerify?.type || null
-						});
-						return false;
-					}
-				};
+				const identities = createWebAuthnVarsigIdentities(
+					identity,
+					{},
+					identityStorage,
+					fallbackIdentities
+				);
 				identities.verifyIdentityFallback = async (identityToVerify) => {
 					if (
 						identityToVerify?.type === 'webauthn' &&
