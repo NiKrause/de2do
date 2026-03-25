@@ -658,8 +658,14 @@ async function setupPasskeyWallet(page, label, did) {
 	await selectUserDidInCombobox(page, label, did);
 
 	logPasskeyStep(label, 'Passkey Wallet Profile: warning checkbox + Create Passkey Smart Account…');
-	await expect(page.getByTestId('wallet-profile')).toBeVisible({ timeout: 15000 });
-	await page.getByTestId('wallet-profile').scrollIntoViewIfNeeded();
+	const walletProfile = page.getByTestId('wallet-profile');
+	if (!(await walletProfile.isVisible().catch(() => false))) {
+		const walletSectionToggle = page.getByRole('button', { name: /Passkey Wallet/i });
+		await expect(walletSectionToggle).toBeVisible({ timeout: 15000 });
+		await walletSectionToggle.click();
+	}
+	await expect(walletProfile).toBeVisible({ timeout: 15000 });
+	await walletProfile.scrollIntoViewIfNeeded();
 
 	await page.getByTestId('wallet-smart-account-warning').check();
 	await expect(page.getByTestId('wallet-smart-account-warning')).toBeChecked();
