@@ -1,7 +1,5 @@
 import { get } from 'svelte/store';
-import {
-	updateStoresAfterDatabaseOpen
-} from '$lib/database/database-manager.js';
+import { updateStoresAfterDatabaseOpen } from '$lib/database/database-manager.js';
 import { openDatabaseByAddress } from '$lib/p2p.js';
 import {
 	switchToTodoList,

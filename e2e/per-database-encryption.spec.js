@@ -1,10 +1,5 @@
 import { test, expect, chromium } from '@playwright/test';
-import {
-	acceptConsentAndInitialize,
-	waitForP2PInitialization,
-	getCurrentDatabaseAddress,
-	getPeerId
-} from './helpers.js';
+import { acceptConsentAndInitialize, waitForP2PInitialization, getPeerId } from './helpers.js';
 
 // Mark intentionally unused test helpers so eslint doesn't complain while this suite is skipped
 void chromium;

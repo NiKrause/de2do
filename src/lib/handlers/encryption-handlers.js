@@ -230,9 +230,7 @@ export function createEncryptionHandlers({ preferences }) {
 				}
 				clearInlineUnlock();
 				toastStore.show(
-					usedMethod === 'webauthn-prf'
-						? 'Database unlocked with WebAuthn'
-						: 'Database unlocked',
+					usedMethod === 'webauthn-prf' ? 'Database unlocked with WebAuthn' : 'Database unlocked',
 					'success'
 				);
 				return { success: true, isCurrentDbEncrypted: true };

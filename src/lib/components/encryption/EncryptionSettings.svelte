@@ -33,10 +33,10 @@
 	$: inlineUnlockRequest = {
 		address: unlockState?.address || currentDbAddress || null,
 		name: unlockState?.name || currentDbName || null,
-		displayName: unlockState?.displayName || currentTodoListName || currentDbName || currentDbAddress
+		displayName:
+			unlockState?.displayName || currentTodoListName || currentDbName || currentDbAddress
 	};
-	$: showInlineUnlock =
-		Boolean(inlineUnlockRequest.address || inlineUnlockRequest.name) && !isCurrentDbEncrypted;
+	$: showInlineUnlock = Boolean(unlockState?.active) && !isCurrentDbEncrypted;
 
 	async function handleDisableClick() {
 		const result = await encryptionHandlers.handleDisableEncryption('');
@@ -85,9 +85,13 @@
 
 	async function handleUnlockClick() {
 		const manualSecret = unlockPassword.trim() ? unlockPassword : null;
-		const result = await encryptionHandlers.handleUnlockDatabase(inlineUnlockRequest, manualSecret, {
-			preferWebAuthn: unlockUseWebAuthnPreferred
-		});
+		const result = await encryptionHandlers.handleUnlockDatabase(
+			inlineUnlockRequest,
+			manualSecret,
+			{
+				preferWebAuthn: unlockUseWebAuthnPreferred
+			}
+		);
 		if (result.success) {
 			unlockPassword = '';
 			dispatch('unlockSucceeded', { isCurrentDbEncrypted: result.isCurrentDbEncrypted });
@@ -106,11 +110,7 @@
 	}
 
 	function handleUnlockKeyDown(e) {
-		if (
-			e.key === 'Enter' &&
-			(unlockPassword.trim() || webauthnEncryptionAvailable) &&
-			!disabled
-		) {
+		if (e.key === 'Enter' && (unlockPassword.trim() || webauthnEncryptionAvailable) && !disabled) {
 			e.preventDefault();
 			handleUnlockClick();
 		}
@@ -199,8 +199,7 @@
 					type="button"
 					on:click={handleEnableClick}
 					disabled={disabled ||
-						(!encryptionPassword.trim() &&
-							(!webauthnEncryptionAvailable || !useWebAuthnPreferred))}
+						(!encryptionPassword.trim() && (!webauthnEncryptionAvailable || !useWebAuthnPreferred))}
 					class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					{#if webauthnEncryptionAvailable && useWebAuthnPreferred && !encryptionPassword.trim()}
