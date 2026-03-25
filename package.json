@@ -80,7 +80,7 @@
 		"@chainsafe/libp2p-noise": "^16.1.4",
 		"@chainsafe/libp2p-yamux": "^7.0.4",
 		"@ipld/dag-cbor": "^9.2.5",
-		"@le-space/orbitdb-identity-provider-webauthn-did": "^0.2.11",
+		"@le-space/orbitdb-identity-provider-webauthn-did": "^0.2.12",
 		"@le-space/orbitdb-simple-encryption": "^0.0.2",
 		"@le-space/orbitdb-ui": "^0.1.4",
 		"@libp2p/autonat": "^2.0.38",
