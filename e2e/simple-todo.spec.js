@@ -1013,6 +1013,7 @@ test.describe('Simple Todo P2P Application', () => {
 
 		// Add 3 todos
 		const todos = ['Buy groceries', 'Walk the dog', 'Write tests'];
+		await ensureAddTodoExpanded(page1);
 		const todoInput1 = page1.locator('[data-testid="todo-input"]');
 		await expect(todoInput1).toBeVisible({ timeout: 15000 });
 		await expect(todoInput1).toBeEnabled({ timeout: 10000 });
@@ -1396,6 +1397,7 @@ test.describe('Simple Todo P2P Application', () => {
 		await waitForP2PInitialization(page1);
 
 		// Wait for todo input to be ready
+		await ensureAddTodoExpanded(page1);
 		const todoInput1 = page1.locator('[data-testid="todo-input"]');
 		await expect(todoInput1).toBeVisible({ timeout: 15000 });
 
@@ -1462,6 +1464,7 @@ test.describe('Simple Todo P2P Application', () => {
 		await waitForP2PInitialization(page2);
 
 		// Wait for todo input to be ready
+		await ensureAddTodoExpanded(page2);
 		const todoInput2 = page2.locator('[data-testid="todo-input"]');
 		await expect(todoInput2).toBeVisible({ timeout: 15000 });
 
