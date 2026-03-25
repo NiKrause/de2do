@@ -1,12 +1,6 @@
 import { get } from 'svelte/store';
-import {
-	openDatabaseWithEncryptionDetection,
-	openDatabaseWithPassword
-} from './database-opener.js';
-import { passwordManager } from '$lib/password/password-manager.js';
 import { loadTodos } from '$lib/db-actions.js';
 import { toastStore } from '$lib/toast-store.js';
-import { getWebAuthnEncryptionKey } from '$lib/encryption/webauthn-encryption.js';
 import {
 	listAvailableTodoLists,
 	availableTodoListsStore,
@@ -21,101 +15,13 @@ import {
 import { getCurrentIdentityId } from '$lib/stores.js';
 
 /**
- * Open database with automatic password prompting
- * @param {Object} options - Opening options
- * @returns {Promise<Object>} Result with success flag
- */
-export async function openDatabaseWithPasswordPrompt(options, { skipWebAuthn = false } = {}) {
-	const { address, name, displayName, preferences } = options;
-
-	// First attempt: try without encryption
-	const result = await openDatabaseWithEncryptionDetection({
-		address,
-		name,
-		displayName,
-		preferences,
-		onPasswordRequired: async (dbInfo) => {
-			// Database is encrypted, request password
-			const dbNameForModal =
-				dbInfo.displayName || dbInfo.name || dbInfo.address?.split('/').pop() || 'Database';
-
-			try {
-				let password = null;
-				let usedWebAuthn = false;
-				if (!skipWebAuthn) {
-					password = await getWebAuthnEncryptionKey({ allowCreate: false });
-					usedWebAuthn = Boolean(password?.subarray);
-				}
-				if (!password) {
-					password = await passwordManager.requestPassword(dbNameForModal);
-				}
-
-				// Try to open with password
-				const passwordResult = await openDatabaseWithPassword({
-					address: dbInfo.address,
-					name: dbInfo.name,
-					displayName: dbInfo.displayName,
-					preferences,
-					password
-				});
-
-				if (passwordResult.wrongPassword && usedWebAuthn) {
-					const manualPassword = await passwordManager.requestPassword(dbNameForModal);
-					const manualResult = await openDatabaseWithPassword({
-						address: dbInfo.address,
-						name: dbInfo.name,
-						displayName: dbInfo.displayName,
-						preferences,
-						password: manualPassword
-					});
-					if (manualResult.wrongPassword) {
-						const retryCount = passwordManager.incrementRetry();
-						if (retryCount < 3) {
-							toastStore.show(`❌ Incorrect password. Attempt ${retryCount}/3`, 'error');
-							return await openDatabaseWithPasswordPrompt(options, { skipWebAuthn: true });
-						}
-						toastStore.show('❌ Too many failed attempts', 'error');
-						passwordManager.cancel();
-						return { success: false, error: 'Too many failed attempts' };
-					}
-					return manualResult;
-				}
-
-				if (passwordResult.wrongPassword) {
-					// Wrong password, increment retry and request again
-					const retryCount = passwordManager.incrementRetry();
-					if (retryCount < 3) {
-						toastStore.show(`❌ Incorrect password. Attempt ${retryCount}/3`, 'error');
-						// Recursive call for retry
-						return await openDatabaseWithPasswordPrompt(options, { skipWebAuthn: true });
-					} else {
-						toastStore.show('❌ Too many failed attempts', 'error');
-						passwordManager.cancel();
-						return { success: false, error: 'Too many failed attempts' };
-					}
-				}
-
-				return passwordResult;
-			} catch (err) {
-				if (err.message === 'Password entry cancelled') {
-					toastStore.show('⚠️ Database open cancelled', 'info');
-					return { success: false, cancelled: true };
-				}
-				throw err;
-			}
-		}
-	});
-
-	return result;
-}
-
-/**
  * Update stores and registry after database is opened
  * @param {Object} db - Opened database
  * @param {string} address - Database address
- * @param {Object} preferences - Network preferences
+ * @param {Object} [options] - Store update options
  */
-export async function updateStoresAfterDatabaseOpen(db, address) {
+export async function updateStoresAfterDatabaseOpen(db, address, options = {}) {
+	const { loadTodosAfterOpen = true, encryptionEnabledOverride } = options;
 	const currentIdentityId = getCurrentIdentityId();
 	let displayName = db.name || 'Unknown';
 	let dbName = db.name || null;
@@ -134,6 +40,12 @@ export async function updateStoresAfterDatabaseOpen(db, address) {
 			// Found in registry
 			displayName = list.displayName;
 			dbName = list.dbName;
+			if (
+				encryptionEnabledOverride !== undefined &&
+				list.encryptionEnabled !== encryptionEnabledOverride
+			) {
+				list.encryptionEnabled = encryptionEnabledOverride;
+			}
 
 			// Extract identity from dbName
 			if (dbName && dbName.includes('_')) {
@@ -170,7 +82,9 @@ export async function updateStoresAfterDatabaseOpen(db, address) {
 				dbName: dbName,
 				displayName: displayName,
 				address: normalizedAddress,
-				parent: null
+				parent: null,
+				encryptionEnabled:
+					encryptionEnabledOverride !== undefined ? encryptionEnabledOverride : false
 			};
 
 			const updatedLists = [...availableLists, newList];
@@ -179,7 +93,14 @@ export async function updateStoresAfterDatabaseOpen(db, address) {
 			// Persist in registry
 			try {
 				const { addTodoListToRegistry } = await import('$lib/todo-list-manager.js');
-				await addTodoListToRegistry(displayName, dbName, normalizedAddress, null, false, null);
+				await addTodoListToRegistry(
+					displayName,
+					dbName,
+					normalizedAddress,
+					null,
+					encryptionEnabledOverride !== undefined ? encryptionEnabledOverride : false,
+					null
+				);
 			} catch (e) {
 				console.warn('Could not persist to registry:', e);
 			}
@@ -218,8 +139,9 @@ export async function updateStoresAfterDatabaseOpen(db, address) {
 		todoListHierarchyStore.set([{ name: displayName, parent: null }]);
 	}
 
-	// Load todos
-	await loadTodos();
+	if (loadTodosAfterOpen) {
+		await loadTodos();
+	}
 
 	// Show success toast
 	if (dbName) {

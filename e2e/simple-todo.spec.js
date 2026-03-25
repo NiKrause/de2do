@@ -1644,6 +1644,7 @@ test.describe('Simple Todo P2P Application', () => {
 
 		// Add a test todo
 		const testTodoEmbed = 'Todo for embed test';
+		await ensureAddTodoExpanded(page);
 		const todoInput = page.locator('[data-testid="todo-input"]');
 		await expect(todoInput).toBeVisible({ timeout: 10000 });
 		await todoInput.fill(testTodoEmbed);

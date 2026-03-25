@@ -9,6 +9,13 @@ import {
 import { enableDatabaseEncryption, disableDatabaseEncryption } from '$lib/encryption-migration.js';
 import { loadTodos } from '$lib/db-actions.js';
 import { getWebAuthnEncryptionKey } from '$lib/encryption/webauthn-encryption.js';
+import { openDatabaseWithPassword } from '$lib/database/database-opener.js';
+import { updateStoresAfterDatabaseOpen } from '$lib/database/database-manager.js';
+import {
+	clearInlineUnlock,
+	requestInlineUnlock,
+	updateInlineUnlock
+} from '$lib/encryption/inline-unlock-store.js';
 
 function hasEncryptionSecret(secret) {
 	if (!secret) return false;
@@ -166,8 +173,102 @@ export function createEncryptionHandlers({ preferences }) {
 		}
 	}
 
+	/**
+	 * Handle unlocking an already-open database inline.
+	 * This intentionally does not try to pre-detect whether a password is necessary.
+	 * Users can supply a password or a WebAuthn PRF key and we verify by reopening + reading entries.
+	 *
+	 * @param {Object} unlockRequest - Requested database to unlock
+	 * @param {string|Uint8Array|null} manualSecret - Optional manually entered password
+	 * @param {Object} [options] - Unlock options
+	 * @returns {Promise<{success: boolean, isCurrentDbEncrypted: boolean, wrongPassword?: boolean}>}
+	 */
+	async function handleUnlockDatabase(unlockRequest, manualSecret = null, options = {}) {
+		const { preferWebAuthn = true } = options;
+		const address = unlockRequest?.address || get(currentDbAddressStore);
+		const name = unlockRequest?.name || get(currentDbNameStore);
+		const displayName = unlockRequest?.displayName || get(currentTodoListNameStore);
+
+		if (!address && !name && !displayName) {
+			toastStore.show('No database selected to unlock', 'error');
+			return { success: false, isCurrentDbEncrypted: false };
+		}
+
+		let encryptionSecret = manualSecret;
+		let usedMethod = typeof manualSecret === 'string' ? 'password' : null;
+		if (!hasEncryptionSecret(encryptionSecret) && preferWebAuthn) {
+			encryptionSecret = await getWebAuthnEncryptionKey({ allowCreate: false });
+			if (hasEncryptionSecret(encryptionSecret)) {
+				usedMethod = 'webauthn-prf';
+			}
+		}
+
+		if (!hasEncryptionSecret(encryptionSecret)) {
+			updateInlineUnlock({
+				...unlockRequest,
+				wrongPassword: false,
+				error: 'Enter a password or use WebAuthn to unlock this database.'
+			});
+			return { success: false, isCurrentDbEncrypted: false };
+		}
+
+		try {
+			const result = await openDatabaseWithPassword({
+				address,
+				name,
+				displayName,
+				preferences,
+				password: encryptionSecret
+			});
+
+			if (result.success) {
+				const effectiveAddress = address || result.database?.address;
+				if (result.database && effectiveAddress) {
+					await updateStoresAfterDatabaseOpen(result.database, effectiveAddress, {
+						encryptionEnabledOverride: true
+					});
+				}
+				clearInlineUnlock();
+				toastStore.show(
+					usedMethod === 'webauthn-prf'
+						? 'Database unlocked with WebAuthn'
+						: 'Database unlocked',
+					'success'
+				);
+				return { success: true, isCurrentDbEncrypted: true };
+			}
+
+			if (result.wrongPassword) {
+				updateInlineUnlock({
+					...unlockRequest,
+					wrongPassword: true,
+					error: 'Incorrect password. Please try again.',
+					lastTriedMethod: usedMethod
+				});
+				return { success: false, isCurrentDbEncrypted: false, wrongPassword: true };
+			}
+
+			requestInlineUnlock({
+				...unlockRequest,
+				error: result.error?.message || 'Failed to unlock database.',
+				lastTriedMethod: usedMethod
+			});
+			return { success: false, isCurrentDbEncrypted: false };
+		} catch (error) {
+			updateInlineUnlock({
+				...unlockRequest,
+				wrongPassword: false,
+				error: error?.message || 'Failed to unlock database.',
+				lastTriedMethod: usedMethod
+			});
+			toastStore.show(`Failed to unlock database: ${error.message}`, 'error');
+			return { success: false, isCurrentDbEncrypted: false };
+		}
+	}
+
 	return {
 		handleEnableEncryption,
-		handleDisableEncryption
+		handleDisableEncryption,
+		handleUnlockDatabase
 	};
 }

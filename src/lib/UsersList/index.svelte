@@ -138,34 +138,25 @@
 		const { replaceState } = await import('$app/navigation');
 
 		if (targetProjects && targetProjects.address) {
-			// Use centralized password prompt flow for consistent encryption detection
 			try {
-				const { openDatabaseWithPasswordPrompt } = await import('../database/database-manager.js');
+				const { openDatabaseByAddress } = await import('../p2p.js');
 
 				console.log('🔍 Opening target projects database:', targetProjects.address);
-				const result = await openDatabaseWithPasswordPrompt({
-					address: targetProjects.address,
-					preferences
-				});
+				await openDatabaseByAddress(targetProjects.address, preferences, false, null);
 
-				if (result.success) {
-					// Update stores
-					currentTodoListNameStore.set('projects');
-					if (targetProjects.dbName) {
-						currentDbNameStore.set(targetProjects.dbName);
-					}
-					currentDbAddressStore.set(targetProjects.address);
+				// Update stores
+				currentTodoListNameStore.set('projects');
+				if (targetProjects.dbName) {
+					currentDbNameStore.set(targetProjects.dbName);
+				}
+				currentDbAddressStore.set(targetProjects.address);
 
-					// Update hash
-					if (typeof window !== 'undefined') {
-						const hash = targetProjects.address.startsWith('/')
-							? targetProjects.address
-							: `/${targetProjects.address}`;
-						replaceState(`#${hash}`, { replaceState: true });
-					}
-				} else if (result.cancelled) {
-					// User cancelled password entry
-					console.log('⚠️ User cancelled database open');
+				// Update hash
+				if (typeof window !== 'undefined') {
+					const hash = targetProjects.address.startsWith('/')
+						? targetProjects.address
+						: `/${targetProjects.address}`;
+					replaceState(`#${hash}`, { replaceState: true });
 				}
 			} catch (e) {
 				console.error('Failed to open projects database:', e);
@@ -175,31 +166,24 @@
 			// Try opening by name if not found in available lists
 			const dbName = `${targetUserId}_projects`;
 			try {
-				const { openDatabaseWithPasswordPrompt } = await import('../database/database-manager.js');
+				const { openDatabaseByName } = await import('../p2p.js');
 
 				console.log('🔍 Opening target projects database by name:', dbName);
-				const result = await openDatabaseWithPasswordPrompt({
-					name: dbName,
-					preferences
-				});
+				const openedDB = await openDatabaseByName(dbName, preferences, false, null);
 
-				if (result.success) {
-					// Update stores
-					currentTodoListNameStore.set('projects');
-					currentDbNameStore.set(dbName);
-					if (result.database?.address) {
-						currentDbAddressStore.set(result.database.address);
+				// Update stores
+				currentTodoListNameStore.set('projects');
+				currentDbNameStore.set(dbName);
+				if (openedDB?.address) {
+					currentDbAddressStore.set(openedDB.address);
 
-						// Update hash
-						if (typeof window !== 'undefined') {
-							const hash = result.database.address.startsWith('/')
-								? result.database.address
-								: `/${result.database.address}`;
-							replaceState(`#${hash}`, { replaceState: true });
-						}
+					// Update hash
+					if (typeof window !== 'undefined') {
+						const hash = openedDB.address.startsWith('/')
+							? openedDB.address
+							: `/${openedDB.address}`;
+						replaceState(`#${hash}`, { replaceState: true });
 					}
-				} else if (result.cancelled) {
-					console.log('⚠️ User cancelled database open');
 				}
 			} catch (e) {
 				console.error('Failed to open projects database by name:', e);

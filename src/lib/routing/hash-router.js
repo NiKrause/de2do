@@ -1,6 +1,5 @@
 import { get } from 'svelte/store';
 import {
-	openDatabaseWithPasswordPrompt,
 	updateStoresAfterDatabaseOpen
 } from '$lib/database/database-manager.js';
 import { openDatabaseByAddress } from '$lib/p2p.js';
@@ -88,7 +87,9 @@ async function handleEmbedRoute(hash, context) {
 
 	try {
 		toastStore.show('🌐 Loading database from network...', 'info', 5000);
-		await openDatabaseWithPasswordPrompt({ address: normalizedAddress, preferences });
+		await openDatabaseByAddress(normalizedAddress, preferences, false, null);
+		const openedDB = get(todoDBStore);
+		await updateStoresAfterDatabaseOpen(openedDB, normalizedAddress);
 		await loadTodos();
 
 		// Load hierarchy for breadcrumb navigation
@@ -175,7 +176,7 @@ async function handleAddressRoute(hashValue, preferences) {
 	console.log(`🔗 Opening database by address from URL: ${normalizedAddress}`);
 	toastStore.show('🌐 Loading database from network...', 'info', 5000);
 
-	await openDatabaseWithPasswordPrompt({ address: normalizedAddress, preferences });
+	await openDatabaseByAddress(normalizedAddress, preferences, false, null);
 	const openedDB = get(todoDBStore);
 
 	// Update stores after opening (this handles registry, hierarchy, etc.)

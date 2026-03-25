@@ -6,7 +6,8 @@ import {
 	getCurrentDatabaseAddress,
 	getPeerId,
 	waitForPeerCount,
-	waitForTodoText
+	waitForTodoText,
+	waitForTodoSyncEvent
 } from './helpers.js';
 
 test.describe('Encryption E2E Tests', () => {
@@ -366,171 +367,64 @@ test.describe('Encryption E2E Tests', () => {
 		await browserCContext.close();
 	});
 
-	test.skip('should handle wrong password gracefully', async ({ page: browserAPage }) => {
-		console.log('\n🚀 Starting wrong password handling test...\n');
-
-		// Capture browser console logs
-		browserAPage.on('console', (msg) => {
-			const type = msg.type();
-			const text = msg.text();
-			if (
-				type === 'error' ||
-				text.includes('Encryption') ||
-				text.includes('Migration') ||
-				text.includes('handler')
-			) {
-				console.log(`[🌐 BROWSER ${type.toUpperCase()}]`, text);
-			}
-		});
-
-		const encryptionPassword = 'correct-password';
-		const wrongPassword = 'wrong-password';
+	test('should unlock encrypted database inline in another browser with the correct password', async ({
+		page: browserAPage
+	}) => {
+		const encryptionPassword = `correct-password-${Date.now()}`;
 		const testTodoText = `Password test todo - ${Date.now()}`;
 
-		// ============================================================================
-		// BROWSER A: Create encrypted database
-		// ============================================================================
-		console.log('📱 BROWSER A: Setting up encrypted database...');
-
-		// Navigate to the app with error handling
-		console.log('🌐 Navigating to app...');
-		let response;
-		try {
-			response = await browserAPage.goto('/', {
-				waitUntil: 'networkidle',
-				timeout: 30000
-			});
-			console.log(`✅ Navigation successful (status: ${response?.status() || 'unknown'})`);
-		} catch (error) {
-			console.error('❌ Navigation failed:', error.message);
-			throw error;
-		}
-
+		await browserAPage.goto('/', {
+			waitUntil: 'networkidle',
+			timeout: 30000
+		});
 		await acceptConsentAndInitialize(browserAPage);
 		await waitForP2PInitialization(browserAPage);
 
-		// Enable encryption
-		console.log('🔐 Browser A: Enabling encryption...');
 		const encryptionCheckbox = browserAPage.getByLabel(/Enable Encryption/i);
 		await encryptionCheckbox.check();
-
-		// Wait for password input to appear
 		const passwordInputA = browserAPage.locator('#encryption-password');
 		await passwordInputA.waitFor({ state: 'visible', timeout: 5000 });
-
-		// Enter encryption password
 		await passwordInputA.fill(encryptionPassword);
+		await browserAPage.getByRole('button', { name: /Apply Encryption/i }).click();
+		await browserAPage.getByTestId('encryption-active-indicator').waitFor({
+			state: 'visible',
+			timeout: 30000
+		});
 
-		// Click "Apply Encryption" button
-		const applyEncryptionButton = browserAPage.getByRole('button', { name: /Apply Encryption/i });
-		await applyEncryptionButton.click();
-
-		// Wait for encryption to be ACTUALLY applied (database migrated)
-		// Look for the "Encryption: Active" indicator that appears after migration completes
-		console.log('⏳ Browser A: Waiting for encryption to complete...');
-		const encryptionActiveIndicator = browserAPage.getByTestId('encryption-active-indicator');
-		await encryptionActiveIndicator.waitFor({ state: 'visible', timeout: 30000 });
-		console.log('✅ Browser A: Encryption confirmed active (migration completed)');
+		await ensureAddTodoExpanded(browserAPage);
+		const todoInput = browserAPage.locator('[data-testid="todo-input"]');
+		await todoInput.fill(testTodoText);
+		await browserAPage.locator('[data-testid="add-todo-button"]').click();
+		await expect(browserAPage.locator(`text=${testTodoText}`).first()).toBeVisible({
+			timeout: 10000
+		});
 
 		const dbAddressA = await getCurrentDatabaseAddress(browserAPage);
 		expect(dbAddressA).toBeTruthy();
 
-		// Add a todo
-		await ensureAddTodoExpanded(browserAPage);
-		const todoInput = browserAPage.locator('[data-testid="todo-input"]');
-		await todoInput.fill(testTodoText);
-		const addButton = browserAPage.locator('[data-testid="add-todo-button"]');
-		await addButton.click();
-
-		await expect(browserAPage.locator(`text=${testTodoText}`).first()).toBeVisible({
-			timeout: 10000
-		});
-		console.log(`✅ Browser A: Added encrypted todo`);
-
-		// ============================================================================
-		// BROWSER B: Try with wrong password
-		// ============================================================================
-		console.log('\n📱 BROWSER B: Testing wrong password handling...');
-
-		const browserB = await chromium.launch();
-		const contextB = await browserB.newContext();
-		const pageBrowserB = await contextB.newPage();
-
-		// Capture browser console logs for debugging
-		pageBrowserB.on('console', (msg) => {
-			const type = msg.type();
-			const text = msg.text();
-			if (
-				type === 'error' ||
-				text.includes('PasswordModal') ||
-				text.includes('retry') ||
-				text.includes('password')
-			) {
-				console.log(`[🌐 BROWSER B ${type.toUpperCase()}]`, text);
-			}
-		});
-
-		// Navigate directly to the encrypted database URL
+		const browserBContext = await browserAPage.context().browser().newContext();
+		const pageBrowserB = await browserBContext.newPage();
 		await pageBrowserB.goto(`/?#/${dbAddressA}`);
-
-		// Wait for page to load
-		// Note: When navigating with a hash, the app auto-initializes without showing consent modal
 		await pageBrowserB.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
-		await pageBrowserB.waitForTimeout(1000);
-
-		// Accept consent (skip if not found - hash URLs auto-initialize without modal)
-		// await acceptConsentAndInitialize(pageBrowserB, { skipIfNotFound: true });
 		await waitForP2PInitialization(pageBrowserB);
 
-		// Wait for password modal to appear (it appears when encrypted DB is detected)
-		// The modal appears asynchronously when the app tries to open the encrypted database
-		const passwordModal = pageBrowserB.locator('h2:has-text("Database Password Required")');
-		await passwordModal.waitFor({ state: 'visible', timeout: 20000 });
+		const inlineUnlockPanel = pageBrowserB.getByTestId('inline-unlock-panel');
+		await expect(inlineUnlockPanel).toBeVisible({ timeout: 20000 });
+		await pageBrowserB.getByTestId('inline-unlock-password').fill(encryptionPassword);
+		await pageBrowserB.getByTestId('inline-unlock-button').click();
 
-		// Enter WRONG password
-		const passwordInput = pageBrowserB.locator('#password');
-		await passwordInput.waitFor({ state: 'visible', timeout: 5000 });
-		await passwordInput.fill(wrongPassword);
-
-		const unlockButton = pageBrowserB.getByRole('button', { name: /Unlock/i });
-		await unlockButton.click();
-
-		// Wrong password: modal should close briefly, then reappear after ~2s with retry warning
-		// Wait for modal to disappear first
-		console.log('⏳ Browser B: Waiting for password verification (2s)...');
-		await passwordModal.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {
-			console.log('⚠️ Modal did not disappear - might have failed immediately');
+		await waitForPeerCount(pageBrowserB, 1, 30000);
+		await pageBrowserB.evaluate(async () => {
+			if (typeof window.forceReloadTodos === 'function') {
+				await window.forceReloadTodos();
+			}
 		});
-
-		// Wait for modal to reappear with retry warning
-		console.log('⏳ Browser B: Waiting for modal to reappear with retry warning...');
-		await passwordModal.waitFor({ state: 'visible', timeout: 5000 });
-
-		// Check for retry warning message using testid
-		const retryWarning = pageBrowserB.getByTestId('password-retry-warning');
-		await expect(retryWarning).toBeVisible({ timeout: 2000 });
-		console.log('✅ Browser B: Modal reappeared with retry warning for wrong password');
-
-		// Try again with correct password
-		await passwordInput.clear();
-		await passwordInput.fill(encryptionPassword);
-		await unlockButton.click();
-
-		// Wait for password modal to close and todo to appear
-		await passwordModal.waitFor({ state: 'hidden', timeout: 15000 });
-		console.log('✅ Browser B: Database unlocked with correct password on retry');
-
-		// Verify todo is accessible
+		await waitForTodoSyncEvent(pageBrowserB, { todoText: testTodoText, timeout: 30000 });
 		await expect(pageBrowserB.locator(`text=${testTodoText}`).first()).toBeVisible({
 			timeout: 30000
 		});
-		console.log('✅ Browser B: Verified todo is accessible after successful unlock');
 
-		console.log('\n' + '='.repeat(60));
-		console.log('🎉 WRONG PASSWORD TEST PASSED');
-		console.log('='.repeat(60) + '\n');
-
-		await browserB.close();
+		await browserBContext.close();
 	});
 
 	test('should allow opening unencrypted database without password', async ({
