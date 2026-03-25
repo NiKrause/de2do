@@ -270,6 +270,7 @@ test.describe('Simple Todo P2P Application', () => {
 			const bobDid = await bob.evaluate(() => window.__currentIdentityId__ || null);
 			expect(bobDid).toBeTruthy();
 
+			await ensureAddTodoExpanded(alice);
 			await alice.getByRole('button', { name: /Show Advanced Fields/i }).click();
 			await alice.getByTestId('todo-input').fill(originalTitle);
 			await alice.locator('#add-todo-description').fill(originalDescription);
@@ -1128,6 +1129,7 @@ test.describe('Simple Todo P2P Application', () => {
 		const updatedTitle = `${originalTitle} - updated by Bob`;
 		const updatedDescription = 'Updated by Bob via delegation';
 
+		await ensureAddTodoExpanded(alice);
 		await alice.getByRole('button', { name: /Show Advanced Fields/i }).click();
 		await alice.getByTestId('todo-input').fill(originalTitle);
 		await alice.locator('#add-todo-description').fill(originalDescription);
