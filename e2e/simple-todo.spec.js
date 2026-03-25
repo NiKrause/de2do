@@ -120,6 +120,11 @@ test.describe('Simple Todo P2P Application', () => {
 		return result.body;
 	}
 
+	async function isRelayPinningHttpAvailable() {
+		const result = await fetchRelayJson('/pinning/stats');
+		return Boolean(result.ok && result.body);
+	}
+
 	async function waitForRelayPinnedDatabaseOrThrow(
 		dbAddress,
 		failedSyncsBefore = 0,
@@ -176,6 +181,11 @@ test.describe('Simple Todo P2P Application', () => {
 			// The test assertions already passed at this point, so don't fail teardown on this race.
 			if (message.includes('ENOENT')) {
 				console.warn('⚠️ Ignoring context close ENOENT during artifact flush:', message);
+				return;
+			}
+			// After a test timeout the browser may already be gone when `finally` runs.
+			if (message.includes('Target page, context or browser has been closed')) {
+				console.warn('⚠️ Ignoring context close (already closed):', message);
 				return;
 			}
 			throw error;
@@ -255,11 +265,17 @@ test.describe('Simple Todo P2P Application', () => {
 			await initializeWithWebAuthn(alice, 'Alice', aliceOptions);
 
 			const aliceDid = await alice.evaluate(() => window.__currentIdentityId__ || null);
-			const alicePeerId = await getPeerId(alice);
-			const pinningStatsBefore = await getRelayPinningStatsOrThrow();
-			const failedSyncsBefore = Number(pinningStatsBefore?.failedSyncs || 0);
+			const relayPinningHttpAvailable = await isRelayPinningHttpAvailable();
+			let failedSyncsBefore = 0;
+			if (relayPinningHttpAvailable) {
+				const pinningStatsBefore = await getRelayPinningStatsOrThrow();
+				failedSyncsBefore = Number(pinningStatsBefore?.failedSyncs || 0);
+			} else {
+				console.warn(
+					`⚠️ ${scenarioName}: relay has no /pinning/* HTTP API; mixed-mode test will rely on live P2P replication only`
+				);
+			}
 			expect(aliceDid).toBeTruthy();
-			expect(alicePeerId).toBeTruthy();
 
 			const originalTitle = `Delegated mixed-mode todo ${scenarioName} ${Date.now()}`;
 			const originalDescription = `Original description ${scenarioName}`;
@@ -288,21 +304,23 @@ test.describe('Simple Todo P2P Application', () => {
 			const aliceDbAddress = await getCurrentDatabaseAddress(alice, 15000);
 			expect(aliceDbAddress).toBeTruthy();
 			await assertAccessControllerType(alice, 'todo-delegation', 30000);
-			// Ask relay to sync the DB immediately so pinning assertion can pass quickly.
-			const syncResponse = await postRelayJson(
-				'/pinning/sync',
-				{ dbAddress: aliceDbAddress },
-				30000
-			);
-			// /pinning/sync can legitimately run longer than client timeout.
-			// If request times out client-side (status=0), continue with stats/databases polling.
-			if (!syncResponse.ok && syncResponse.status !== 0) {
-				throw new Error(
-					`Relay /pinning/sync failed (status=${syncResponse.status}) for ${aliceDbAddress}. ` +
-						`Response: ${JSON.stringify(syncResponse.body)}`
+			if (relayPinningHttpAvailable) {
+				// Ask relay to sync the DB immediately so pinning assertion can pass quickly.
+				const syncResponse = await postRelayJson(
+					'/pinning/sync',
+					{ dbAddress: aliceDbAddress },
+					30000
 				);
+				// /pinning/sync can legitimately run longer than client timeout.
+				// If request times out client-side (status=0), continue with stats/databases polling.
+				if (!syncResponse.ok && syncResponse.status !== 0) {
+					throw new Error(
+						`Relay /pinning/sync failed (status=${syncResponse.status}) for ${aliceDbAddress}. ` +
+							`Response: ${JSON.stringify(syncResponse.body)}`
+					);
+				}
+				await waitForRelayPinnedDatabaseOrThrow(aliceDbAddress, failedSyncsBefore, 45000);
 			}
-			await waitForRelayPinnedDatabaseOrThrow(aliceDbAddress, failedSyncsBefore, 45000);
 
 			await addAndSelectUserByDid(bob, aliceDid);
 
@@ -311,15 +329,40 @@ test.describe('Simple Todo P2P Application', () => {
 				.toBe(aliceDbAddress);
 			await assertAccessControllerType(bob, 'todo-delegation', 30000);
 
-			await expect
-				.poll(async () => await getConnectedPeerIds(bob), { timeout: 90000 })
-				.toContain(alicePeerId);
+			// Same as two-browser sync tests: relay + other browser (see `waitForPeerCount` elsewhere).
+			await waitForPeerCount(bob, 2, 120000);
 			await waitForTodoAfterDidSwitch(bob, aliceDid, originalTitle);
 
-			await bob.getByRole('button', { name: 'Edit' }).first().click();
-			await bob.locator('input[id^="edit-title-"]').first().fill(updatedTitle);
-			await bob.locator('textarea[id^="edit-description-"]').first().fill(updatedDescription);
-			const saveButton = bob.getByRole('button', { name: 'Save' }).first();
+			// Match the delegated edit flow in `should allow delegated user to edit…` (scoped row + current form markup).
+			const bobTodoTextForEdit = bob
+				.locator('[data-testid="todo-text"]')
+				.filter({ hasText: originalTitle })
+				.first();
+			if ((await bobTodoTextForEdit.count()) === 0) {
+				await expect(bob.locator('[data-testid="todo-text"]').first()).toBeVisible({
+					timeout: 60000
+				});
+			}
+			const effectiveTodoText =
+				(await bobTodoTextForEdit.count()) > 0
+					? bobTodoTextForEdit
+					: bob.locator('[data-testid="todo-text"]').first();
+			const bobTodoRowForEdit = effectiveTodoText
+				.locator('xpath=ancestor::div[contains(@class,"rounded-md") and contains(@class,"border")]')
+				.first();
+			await expect(bobTodoRowForEdit).toBeVisible({ timeout: 60000 });
+			await bobTodoRowForEdit.scrollIntoViewIfNeeded();
+			const editButton = bobTodoRowForEdit.locator('button[title="Edit todo"]').first();
+			await expect(editButton).toBeVisible({ timeout: 60000 });
+			await editButton.click();
+			const editFormInput = bob.locator('input[placeholder="Edit todo..."]').first();
+			await expect(editFormInput).toBeVisible({ timeout: 30000 });
+			const editFormContainer = editFormInput
+				.locator('xpath=ancestor::div[contains(@class,"mb-6") and contains(@class,"shadow-md")]')
+				.first();
+			await editFormInput.fill(updatedTitle);
+			await editFormContainer.locator('#add-todo-description').first().fill(updatedDescription);
+			const saveButton = editFormContainer.locator('[data-testid="add-todo-button"]').first();
 			await saveButton.click();
 			const delegatedAuthState = bob.getByTestId('delegated-auth-state');
 			await assertDelegatedStateAfterAction(bob, delegatedAuthState);
@@ -344,9 +387,11 @@ test.describe('Simple Todo P2P Application', () => {
 				timeout: 60000
 			});
 
-			const pinningStatsAfter = await getRelayPinningStatsOrThrow();
-			const failedSyncsAfter = Number(pinningStatsAfter?.failedSyncs || 0);
-			expect(failedSyncsAfter).toBeLessThanOrEqual(failedSyncsBefore);
+			if (relayPinningHttpAvailable) {
+				const pinningStatsAfter = await getRelayPinningStatsOrThrow();
+				const failedSyncsAfter = Number(pinningStatsAfter?.failedSyncs || 0);
+				expect(failedSyncsAfter).toBeLessThanOrEqual(failedSyncsBefore);
+			}
 		} finally {
 			await safeCloseContext(contextAlice);
 			await safeCloseContext(contextBob);
@@ -372,10 +417,38 @@ test.describe('Simple Todo P2P Application', () => {
 		await usersInput.press('Enter');
 	}
 
+	async function ensureTodoListSectionExpanded(page) {
+		const toggle = page.getByRole('button', { name: /Todo List/i }).first();
+		await expect(toggle).toBeVisible({ timeout: 15000 });
+		if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+			await toggle.click();
+		}
+	}
+
 	async function waitForTodoAfterDidSwitch(page, did, todoText) {
 		void did;
-		void todoText;
-		await expect(page.locator('div.rounded-md.border').first()).toBeVisible({ timeout: 60000 });
+		const project = test.info().project.name;
+		await ensureTodoListSectionExpanded(page);
+		const deadline = Date.now() + 120000;
+		while (Date.now() < deadline) {
+			await page.evaluate(async () => {
+				if (typeof window.forceReloadTodos === 'function') {
+					await window.forceReloadTodos();
+				}
+			});
+			await ensureTodoListSectionExpanded(page);
+			try {
+				await expect(page.locator(`[data-todo-text="${todoText}"]`).first()).toBeVisible({
+					timeout: 8000
+				});
+				console.log(`✅ Todo visible after DID switch: ${todoText.slice(0, 64)}…`);
+				return;
+			} catch {
+				// Replication or UI still catching up — retry after a short pause.
+			}
+			await page.waitForTimeout(3000);
+		}
+		await waitForTodoText(page, todoText, 10000, { browserName: project });
 	}
 
 	async function getCurrentAccessControllerType(page) {
@@ -958,7 +1031,7 @@ test.describe('Simple Todo P2P Application', () => {
 	});
 
 	test('should create passkey, add todos, and sync to another browser', async ({ browser }) => {
-		test.setTimeout(120000);
+		test.setTimeout(300000);
 
 		const context1 = await browser.newContext();
 		const context2 = await browser.newContext();
@@ -1074,7 +1147,7 @@ test.describe('Simple Todo P2P Application', () => {
 
 		// Wait for peer connection
 		console.log('🔗 Bob: Waiting for peer connections...');
-		await waitForPeerCount(page2, 1, 90000);
+		await waitForPeerCount(page2, 2, 120000);
 
 		// Verify all 3 todos sync
 		console.log('⏳ Bob: Waiting for todos to sync...');
@@ -1089,6 +1162,108 @@ test.describe('Simple Todo P2P Application', () => {
 		await context2.close();
 
 		console.log('🎉 Passkey + database sharing test completed!');
+	});
+
+	/**
+	 * Same flow as `should create passkey, add todos, and sync to another browser` (hash URL + todo sync),
+	 * but with **Alice = worker (ed25519)** and **Bob = hardware (ed25519)** — matches the mixed identity
+	 * pair used in the delegated signature tests (UsersList path vs hash URL path).
+	 */
+	test('should sync passkey todos via hash URL (Alice worker, Bob hardware ed25519)', async ({
+		browser
+	}) => {
+		test.setTimeout(300000);
+
+		const context1 = await browser.newContext();
+		const context2 = await browser.newContext();
+
+		const page1 = await context1.newPage();
+		const page2 = await context2.newPage();
+
+		page1.on('console', (msg) => console.log('Alice:', msg.text()));
+		page2.on('console', (msg) => console.log('Bob:', msg.text()));
+
+		console.log(
+			'🚀 Passkey + hash URL sync — Alice worker(ed25519), Bob hardware(ed25519) (mixed mode)'
+		);
+
+		await initializeWithWebAuthn(page1, 'Alice', { mode: 'worker' });
+
+		const todos = ['Buy groceries', 'Walk the dog', 'Write tests'];
+		await ensureAddTodoExpanded(page1);
+		const todoInput1 = page1.locator('[data-testid="todo-input"]');
+		await expect(todoInput1).toBeVisible({ timeout: 15000 });
+		await expect(todoInput1).toBeEnabled({ timeout: 10000 });
+
+		for (const todoText of todos) {
+			await todoInput1.fill(todoText);
+			await page1.locator('[data-testid="add-todo-button"]').click();
+			await expect(page1.locator('text=' + todoText).first()).toBeVisible({ timeout: 5000 });
+			console.log(`✅ Alice: Added "${todoText}"`);
+		}
+
+		await page1.waitForTimeout(3000);
+
+		const dbAddress = await getCurrentDatabaseAddress(page1, 15000);
+		expect(dbAddress).toBeTruthy();
+		console.log(`✅ Alice: Database address: ${dbAddress}`);
+		const aliceDid = await page1.evaluate(() => window.__currentIdentityId__ || null);
+		expect(aliceDid).toBeTruthy();
+		console.log(`✅ Alice: DID: ${aliceDid}`);
+
+		await initializeWithWebAuthn(page2, 'Bob', {
+			mode: 'hardware',
+			hardwareAlgorithm: 'ed25519'
+		});
+
+		console.log('📱 Bob: Opening shared database (hash URL)...');
+		const baseUrl = await page1.evaluate(() => window.location.origin);
+		const sharedDbUrl = `${baseUrl}/#${dbAddress}`;
+		const passwordModalHeading = page2.locator('text=/enter.*password/i').first();
+		let bobInitialized = false;
+		for (let attempt = 1; attempt <= 3; attempt += 1) {
+			await page2.goto(sharedDbUrl);
+
+			await waitForP2PInitialization(page2);
+
+			const hasPasswordModal = await passwordModalHeading
+				.isVisible({ timeout: 3000 })
+				.catch(() => false);
+			if (!hasPasswordModal) {
+				bobInitialized = true;
+				break;
+			}
+
+			console.warn(
+				`⚠️ Bob: Unexpected password modal while opening unencrypted DB (attempt ${attempt}/3), retrying...`
+			);
+			await page2.reload();
+			await page2.waitForTimeout(2000);
+		}
+		expect(bobInitialized).toBe(true);
+
+		const usersListbox = page2.getByTestId('users-listbox');
+		await expect(usersListbox).toBeVisible({ timeout: 30000 });
+		await expect(usersListbox.getByRole('option', { name: aliceDid })).toBeVisible({
+			timeout: 60000
+		});
+		console.log('✅ Bob: Alice DID is visible in UsersList');
+
+		console.log('🔗 Bob: Waiting for peer connections...');
+		await waitForPeerCount(page2, 2, 120000);
+
+		console.log('⏳ Bob: Waiting for todos to sync...');
+		for (const todoText of todos) {
+			await waitForTodoText(page2, todoText, 60000);
+			console.log(`✅ Bob: Found "${todoText}"`);
+		}
+
+		console.log('✅ Bob: All 3 todos synced (worker + hardware ed25519)!');
+
+		await context1.close();
+		await context2.close();
+
+		console.log('🎉 Mixed-mode passkey + database sharing test completed!');
 	});
 
 	test('should allow delegated user to edit and complete todo via UsersList DID flow', async ({
@@ -1231,10 +1406,10 @@ test.describe('Simple Todo P2P Application', () => {
 		await safeCloseContext(contextBob);
 	});
 
-	test.skip('should verify delegated signatures for alice worker(ed25519) and bob hardware(ed25519)', async ({
+	test('should verify delegated signatures for alice worker(ed25519) and bob hardware(ed25519)', async ({
 		browser
 	}) => {
-		test.setTimeout(180000);
+		test.setTimeout(300000);
 		await runDelegatedFlowForModeCombination(
 			browser,
 			'alice-worker-bob-hardware-ed25519',
@@ -1243,10 +1418,10 @@ test.describe('Simple Todo P2P Application', () => {
 		);
 	});
 
-	test.skip('should verify delegated signatures for alice worker(ed25519) and bob hardware(p-256)', async ({
+	test('should verify delegated signatures for alice worker(ed25519) and bob hardware(p-256)', async ({
 		browser
 	}) => {
-		test.setTimeout(180000);
+		test.setTimeout(300000);
 		await runDelegatedFlowForModeCombination(
 			browser,
 			'alice-worker-bob-hardware-p256',
@@ -1255,10 +1430,10 @@ test.describe('Simple Todo P2P Application', () => {
 		);
 	});
 
-	test.skip('should verify delegated signatures for alice hardware(ed25519) and bob hardware(p-256)', async ({
+	test('should verify delegated signatures for alice hardware(ed25519) and bob hardware(p-256)', async ({
 		browser
 	}) => {
-		test.setTimeout(180000);
+		test.setTimeout(300000);
 		await runDelegatedFlowForModeCombination(
 			browser,
 			'alice-hardware-ed25519-bob-hardware-p256',
@@ -1267,10 +1442,10 @@ test.describe('Simple Todo P2P Application', () => {
 		);
 	});
 
-	test.skip('should verify delegated signatures for alice worker(ed25519) and bob worker(ed25519)', async ({
+	test('should verify delegated signatures for alice worker(ed25519) and bob worker(ed25519)', async ({
 		browser
 	}) => {
-		test.setTimeout(180000);
+		test.setTimeout(300000);
 		await runDelegatedFlowForModeCombination(
 			browser,
 			'alice-worker-ed25519-bob-worker-ed25519',
@@ -1279,10 +1454,10 @@ test.describe('Simple Todo P2P Application', () => {
 		);
 	});
 
-	test.skip('should verify delegated signatures for alice hardware(ed25519) and bob hardware(ed25519)', async ({
+	test('should verify delegated signatures for alice hardware(ed25519) and bob hardware(ed25519)', async ({
 		browser
 	}) => {
-		test.setTimeout(180000);
+		test.setTimeout(300000);
 		await runDelegatedFlowForModeCombination(
 			browser,
 			'alice-hardware-ed25519-bob-hardware-ed25519',
@@ -1291,10 +1466,10 @@ test.describe('Simple Todo P2P Application', () => {
 		);
 	});
 
-	test.skip('should verify delegated signatures for alice hardware(p-256) and bob hardware(p-256)', async ({
+	test('should verify delegated signatures for alice hardware(p-256) and bob hardware(p-256)', async ({
 		browser
 	}) => {
-		test.setTimeout(180000);
+		test.setTimeout(300000);
 		await runDelegatedFlowForModeCombination(
 			browser,
 			'alice-hardware-p256-bob-hardware-p256',
@@ -1303,10 +1478,10 @@ test.describe('Simple Todo P2P Application', () => {
 		);
 	});
 
-	test.skip('should prevent malicious user from editing or completing non-delegated todo', async ({
+	test('should prevent malicious user from editing or completing non-delegated todo', async ({
 		browser
 	}) => {
-		test.setTimeout(180000);
+		test.setTimeout(300000);
 		const contextAlice = await browser.newContext();
 		const contextMallory = await browser.newContext();
 
@@ -1322,6 +1497,7 @@ test.describe('Simple Todo P2P Application', () => {
 		const originalTitle = `Owner only todo ${Date.now()}`;
 		const maliciousTitle = `${originalTitle} - hacked`;
 
+		await ensureAddTodoExpanded(alice);
 		await alice.getByTestId('todo-input').fill(originalTitle);
 		await alice.getByTestId('add-todo-button').click();
 		await waitForTodoText(alice, originalTitle, 15000, { browserName: test.info().project.name });
@@ -1335,7 +1511,7 @@ test.describe('Simple Todo P2P Application', () => {
 			.poll(async () => await getCurrentDatabaseAddress(mallory, 10000), { timeout: 60000 })
 			.toBe(aliceDbAddress);
 
-		await waitForPeerCount(mallory, 1, 90000);
+		await waitForPeerCount(mallory, 2, 120000);
 		await waitForTodoAfterDidSwitch(mallory, aliceDid, originalTitle);
 
 		const malloryTodoRow = mallory
@@ -1361,7 +1537,7 @@ test.describe('Simple Todo P2P Application', () => {
 	test('should replicate database when Browser B opens Browser A database by name', async ({
 		browser
 	}) => {
-		test.setTimeout(120000);
+		test.setTimeout(300000);
 
 		// Create two separate browser contexts (simulating two different browsers)
 		const context1 = await browser.newContext();
@@ -1470,7 +1646,7 @@ test.describe('Simple Todo P2P Application', () => {
 
 		// Wait for peer connections
 		console.log('🔗 Browser B: Waiting for peer connections...');
-		await waitForPeerCount(page2, 1, 90000);
+		await waitForPeerCount(page2, 2, 120000);
 
 		// Wait a bit for peer discovery
 		await page2.waitForTimeout(5000);

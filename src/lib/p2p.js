@@ -847,6 +847,15 @@ export async function initializeP2P(preferences = {}) {
 					identityStorage,
 					fallbackIdentities
 				);
+				// OrbitDB Entry.verify invokes identity.verify(sig, key, bytes), not identities.verify.
+				// orbitdb-ui getOrCreateVarsigIdentity wires identity.verify to varsig-only; remote
+				// worker-signed entries would never hit the hybrid identities.verify without this.
+				identity.verify = (signature, arg2, arg3) => {
+					const hasExplicitPublicKey = arg3 !== undefined;
+					const publicKey = hasExplicitPublicKey ? arg2 : identity.publicKey;
+					const data = hasExplicitPublicKey ? arg3 : arg2;
+					return identities.verify(signature, publicKey, data);
+				};
 				identities.verifyIdentityFallback = async (identityToVerify) => {
 					if (
 						identityToVerify?.type === 'webauthn' &&

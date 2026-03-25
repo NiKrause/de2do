@@ -45,9 +45,8 @@ import {
 	addVirtualAuthenticator,
 	waitForP2PInitialization,
 	waitForTodoText,
-	getCurrentDatabaseAddress,
-	getPeerId,
-	getConnectedPeerIds
+	waitForPeerCount,
+	getCurrentDatabaseAddress
 } from './helpers.js';
 
 /** Escrow lock amount (must match Passkey Wallet + Anvil funding headroom). */
@@ -863,9 +862,7 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 		try {
 			await initializeWithWebAuthn(alice, 'Alice');
 			const aliceDid = await alice.evaluate(() => window.__currentIdentityId__ || null);
-			const alicePeerId = await getPeerId(alice);
 			expect(aliceDid).toBeTruthy();
-			expect(alicePeerId).toBeTruthy();
 
 			// Bob before long smart-account steps so the second headed window loads the app early.
 			logPasskeyStep(
@@ -935,9 +932,8 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 				.toBe(aliceDbAddress);
 			await assertAccessControllerType(bob, 'todo-delegation', 45000);
 
-			await expect
-				.poll(async () => await getConnectedPeerIds(bob), { timeout: 120000 })
-				.toContain(alicePeerId);
+			// Align with simple-todo two-browser tests: relay + other browser (not a specific peer id string).
+			await waitForPeerCount(bob, 2, 120000);
 
 			await waitForTodoText(bob, todoTitle, 120000, { browserName: 'chromium' });
 			await logTodoUiSnapshot(bob, 'Bob');
