@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import {
 	acceptConsentAndInitialize,
+	ensureAddTodoExpanded,
+	ensureTodoListSectionExpanded,
 	waitForP2PInitialization,
 	getCurrentDatabaseAddress
 } from './helpers.js';
@@ -58,7 +60,8 @@ test('should migrate unencrypted database to encrypted', async ({ page }) => {
 	const originalAddress = await getCurrentDatabaseAddress(page);
 	console.log(`  ✓ Original address: ${originalAddress}`);
 
-	// Wait for todo input to be enabled
+	// Add Todo is a collapsible section; todo-input is not mounted until expanded.
+	await ensureAddTodoExpanded(page);
 	const todoInput = page.locator('[data-testid="todo-input"]').first();
 	await expect(todoInput).toBeEnabled({ timeout: 10000 });
 	console.log('  ✓ Todo input is ready');
@@ -118,7 +121,9 @@ test('should migrate unencrypted database to encrypted', async ({ page }) => {
 	// ============================================================================
 	console.log('🔍 STEP 3: Verifying todos after migration...\n');
 
-	// Wait for todo input to be enabled again (database reopened after migration)
+	// Migration may collapse sections; reopen Add Todo + Todo List for assertions.
+	await ensureAddTodoExpanded(page);
+	await ensureTodoListSectionExpanded(page);
 	await expect(todoInput).toBeEnabled({ timeout: 10000 });
 	console.log('  ✓ Todo input is ready after migration');
 
@@ -164,6 +169,7 @@ test('should migrate unencrypted database to encrypted', async ({ page }) => {
 	// ============================================================================
 	console.log('📝 STEP 5: Adding new todo to encrypted database...\n');
 
+	await ensureAddTodoExpanded(page);
 	// Verify we can add new todos to the encrypted database
 	const newTodoText = `New todo after encryption - ${projectName}`;
 	await todoInput.fill(newTodoText);

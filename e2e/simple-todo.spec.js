@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
 	acceptConsentAndInitialize,
 	ensureAddTodoExpanded,
+	ensureTodoListSectionExpanded,
 	waitForP2PInitialization,
 	waitForPeerCount,
 	getPeerId,
@@ -1514,21 +1515,32 @@ test.describe('Simple Todo P2P Application', () => {
 		await waitForPeerCount(mallory, 2, 120000);
 		await waitForTodoAfterDidSwitch(mallory, aliceDid, originalTitle);
 
-		const malloryTodoRow = mallory
-			.locator('div.rounded-md.border', {
-				has: mallory.locator(`[data-todo-text="${originalTitle}"]`)
-			})
-			.first();
-		await expect(malloryTodoRow.locator('input[type="checkbox"]')).toBeDisabled();
-
-		await mallory.getByRole('button', { name: 'Edit' }).first().click();
-		await mallory.locator('input[id^="edit-title-"]').first().fill(maliciousTitle);
-		await mallory.getByRole('button', { name: 'Save' }).first().click();
-
-		await expect(alice.locator(`[data-todo-text="${originalTitle}"]`).first()).toBeVisible({
-			timeout: 30000
+		// Do not use `:has([data-todo-text=…])` for the row locator: that attribute lives on view-mode markup
+		// and disappears when edit mode mounts `AddTodoForm`, which breaks the locator mid-test.
+		await expect(mallory.getByTestId('todo-item')).toHaveCount(1);
+		const malloryTodoRow = mallory.getByTestId('todo-item').first();
+		await expect(malloryTodoRow.locator(`[data-todo-text="${originalTitle}"]`)).toBeVisible({
+			timeout: 15000
 		});
-		await expect(alice.locator(`[data-todo-text="${maliciousTitle}"]`).first()).toHaveCount(0);
+		await expect(malloryTodoRow.getByTestId('todo-complete-checkbox')).toBeDisabled({
+			timeout: 60000
+		});
+
+		await malloryTodoRow.getByTitle('Edit todo').click();
+		await expect(malloryTodoRow.getByTestId('todo-input')).toBeVisible({ timeout: 15000 });
+		await malloryTodoRow.getByTestId('todo-input').fill(maliciousTitle);
+		await malloryTodoRow.getByTestId('add-todo-button').click();
+
+		await ensureTodoListSectionExpanded(alice);
+		await alice.evaluate(async () => {
+			if (typeof window.forceReloadTodos === 'function') {
+				await window.forceReloadTodos();
+			}
+		});
+		await expect(alice.locator(`[data-todo-text="${originalTitle}"]`).first()).toBeVisible({
+			timeout: 60000
+		});
+		await expect(alice.locator(`[data-todo-text="${maliciousTitle}"]`)).toHaveCount(0);
 
 		await safeCloseContext(contextAlice);
 		await safeCloseContext(contextMallory);
