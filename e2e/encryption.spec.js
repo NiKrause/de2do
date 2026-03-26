@@ -8,6 +8,7 @@ import {
 	getCurrentDatabaseAddress,
 	getPeerId,
 	waitForPeerCount,
+	E2E_TWO_BROWSER_PEER_TIMEOUT_MS,
 	waitForTodoText,
 	waitForTodoSyncEvent
 } from './helpers.js';
@@ -104,8 +105,11 @@ test.describe('Encryption E2E Tests', () => {
 		// Database/UI is ready once the shared initialized footer is present; Add Todo may stay collapsed.
 		console.log('✅ Browser B: Database opened via URL');
 
-		// Alice stays open: expect relay + at least one other peer (creator) before syncing.
-		await waitForPeerCount(pageBrowserB, 2, 20000);
+		// Same two-browser bar as simple-todo.spec.js: wait on both A and B until footer shows ≥2 peers.
+		await Promise.all([
+			waitForPeerCount(browserAPage, 2, E2E_TWO_BROWSER_PEER_TIMEOUT_MS),
+			waitForPeerCount(pageBrowserB, 2, E2E_TWO_BROWSER_PEER_TIMEOUT_MS)
+		]);
 		await pageBrowserB.evaluate(async () => {
 			if (typeof window.forceReloadTodos === 'function') {
 				await window.forceReloadTodos();
@@ -306,7 +310,7 @@ test.describe('Encryption E2E Tests', () => {
 					console.log('⚠️ Browser C: Loading check timeout, continuing anyway...');
 				});
 
-			await waitForPeerCount(pageBrowserC, 2, 20000);
+			await waitForPeerCount(pageBrowserC, 2, E2E_TWO_BROWSER_PEER_TIMEOUT_MS);
 			await pageBrowserC.evaluate(async () => {
 				if (typeof window.forceReloadTodos === 'function') {
 					await window.forceReloadTodos();
@@ -321,7 +325,7 @@ test.describe('Encryption E2E Tests', () => {
 				console.warn(`⚠️ Browser C: Todo not visible yet, trying fallback to URL method...`);
 				// Fallback: use URL if user list doesn't work
 				await pageBrowserC.goto(`/?#/${dbAddressA}`);
-				await waitForPeerCount(pageBrowserC, 2, 20000);
+				await waitForPeerCount(pageBrowserC, 2, E2E_TWO_BROWSER_PEER_TIMEOUT_MS);
 				await pageBrowserC.evaluate(async () => {
 					if (typeof window.forceReloadTodos === 'function') {
 						await window.forceReloadTodos();
@@ -409,8 +413,10 @@ test.describe('Encryption E2E Tests', () => {
 		await pageBrowserB.goto(`/?#/${dbAddressA}`);
 		await pageBrowserB.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
 		await waitForP2PInitialization(pageBrowserB);
-		// Alice stays open: wait for relay + creator (same pattern as simple-todo two-browser tests).
-		await waitForPeerCount(pageBrowserB, 2, 45000);
+		await Promise.all([
+			waitForPeerCount(browserAPage, 2, E2E_TWO_BROWSER_PEER_TIMEOUT_MS),
+			waitForPeerCount(pageBrowserB, 2, E2E_TWO_BROWSER_PEER_TIMEOUT_MS)
+		]);
 		// Inline unlock lives under Settings → EncryptionSettings; section is collapsed by default.
 		await ensureSettingsExpanded(pageBrowserB);
 

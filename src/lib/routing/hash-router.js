@@ -173,6 +173,7 @@ async function handleAddressRoute(hashValue, preferences) {
 	console.log(`🔗 Opening database by address from URL: ${normalizedAddress}`);
 	toastStore.show('🌐 Loading database from network...', 'info', 5000);
 
+	// Address hashes never carry a password; encrypted DBs open then unlock via UI (or use a display-name hash).
 	await openDatabaseByAddress(normalizedAddress, preferences, false, null);
 	const openedDB = get(todoDBStore);
 

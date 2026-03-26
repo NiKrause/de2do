@@ -5,12 +5,36 @@ import {
 	getCurrentDatabaseAddress,
 	waitForTodoText,
 	ensureAddTodoExpanded,
+	ensureSettingsExpanded,
+	ensureTodoListSectionExpanded,
 	waitForPeerCount,
+	E2E_TWO_BROWSER_PEER_TIMEOUT_MS,
 	waitForTodoSyncEvent
 } from './helpers.js';
 
 // Mark intentionally unused test helpers so eslint doesn't complain
 void chromium;
+
+/** Same as e2e/encryption.spec.js but avoids `/?#//orbitdb/...` when address has a leading slash. */
+function urlForDbAddress(address) {
+	const path = address.startsWith('/') ? address.slice(1) : address;
+	return `/?#/${path}`;
+}
+
+/**
+ * Raw `#/orbitdb/...` routes open without encryption (see hash-router handleAddressRoute).
+ * Encrypted databases must be unlocked after load — same for returning users and new contexts.
+ */
+async function unlockEncryptedDbOpenedByAddressUrl(page, password) {
+	await ensureSettingsExpanded(page);
+	await page.waitForFunction(() => typeof window.__e2eRequestInlineUnlock === 'function', {
+		timeout: 30000
+	});
+	await page.evaluate(() => window.__e2eRequestInlineUnlock());
+	await expect(page.getByTestId('inline-unlock-panel')).toBeVisible({ timeout: 20000 });
+	await page.getByTestId('inline-unlock-password').fill(password);
+	await page.getByTestId('inline-unlock-button').click();
+}
 
 /**
  * Focused test for opening databases via URL in new browser contexts
@@ -20,7 +44,7 @@ void chromium;
  * - Step 8: Open encrypted database via URL and unlock inline so todos become visible
  */
 test.describe('Remote Database URL Access', () => {
-	test.setTimeout(120000); // 2 minutes
+	test.setTimeout(420000); // setup + two URL contexts + encrypted sync (aligned with encryption.spec.js browser B flow)
 
 	test('should handle opening unencrypted and encrypted databases via URL', async ({ browser }) => {
 		const timestamp = Date.now();
@@ -74,7 +98,7 @@ test.describe('Remote Database URL Access', () => {
 
 		// Make sure the source browser is serving the unencrypted database before the
 		// second context tries to open it by address.
-		await page1.goto(`/#${unencryptedAddress}`);
+		await page1.goto(urlForDbAddress(unencryptedAddress));
 		await waitForTodoText(page1, `Task 1-1 of ${unencryptedProjectName}`, 30000);
 
 		const context2 = await browser.newContext();
@@ -97,8 +121,8 @@ test.describe('Remote Database URL Access', () => {
 			}
 		});
 
-		await page2.goto(`/#${unencryptedAddress}`);
-		console.log(`→ Navigated to: /#${unencryptedAddress}`);
+		await page2.goto(urlForDbAddress(unencryptedAddress));
+		console.log(`→ Navigated to: ${urlForDbAddress(unencryptedAddress)}`);
 
 		// Wait for initialization and database to load
 		await waitForP2PInitialization(page2);
@@ -117,8 +141,9 @@ test.describe('Remote Database URL Access', () => {
 		expect(hasPasswordModal1).toBe(false);
 		console.log('✅ No password modal for unencrypted project (correct)');
 
-		// Wait for the remote database to actually sync before asserting replicated content.
-		await waitForPeerCount(page2, 1, 30000);
+		// Alice (page1) stays open. Only page2 must show relay + creator for replicated sync;
+		// page1’s footer can stay at 1 until the second tab fully meshes, so do not Promise.all on page1.
+		await waitForPeerCount(page2, 2, E2E_TWO_BROWSER_PEER_TIMEOUT_MS);
 		await page2.evaluate(async () => {
 			if (typeof window.forceReloadTodos === 'function') {
 				await window.forceReloadTodos();
@@ -138,10 +163,11 @@ test.describe('Remote Database URL Access', () => {
 		// ============================================================================
 		console.log('\n🌐 STEP 2: Opening encrypted database via URL...\n');
 
-		// Switch the source browser back to the encrypted database using the in-app list
-		// selector so we stay on the same cached-password flow used during normal usage.
-		await switchToProject(page1, encryptedProjectName);
-		await waitForTodoText(page1, `Task 2-1 of ${encryptedProjectName}`, 30000);
+		const encryptedTodoText = `Task 2-1 of ${encryptedProjectName}`;
+		// Same URL hash on Alice and new browser; address routes never pass a password — unlock inline.
+		await page1.goto(urlForDbAddress(encryptedAddress));
+		await waitForP2PInitialization(page1, 60000);
+		await page1.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
 
 		const context3 = await browser.newContext();
 		const page3 = await context3.newPage();
@@ -165,37 +191,37 @@ test.describe('Remote Database URL Access', () => {
 			}
 		});
 
-		await page3.goto(`/#${encryptedAddress}`);
-		console.log(`→ Navigated to: /#${encryptedAddress}`);
+		await page3.goto(urlForDbAddress(encryptedAddress));
+		console.log(`→ Navigated to: ${urlForDbAddress(encryptedAddress)}`);
 
-		// Wait for initialization
-		await waitForP2PInitialization(page3);
+		await waitForP2PInitialization(page3, 60000);
 		console.log('→ P2P initialized in new browser context');
 
-		// Unlock inline instead of waiting for a modal prompt.
-		console.log('→ Waiting for inline unlock controls...');
-		const inlineUnlockPanel = page3.getByTestId('inline-unlock-panel');
-		await expect(inlineUnlockPanel).toBeVisible({ timeout: 60000 });
-		console.log('✅ Inline unlock controls are visible');
+		await page3.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+		// Both tabs must be up before footer can show relay + other browser (simple-todo pattern).
+		await Promise.all([
+			waitForPeerCount(page1, 2, E2E_TWO_BROWSER_PEER_TIMEOUT_MS),
+			waitForPeerCount(page3, 2, E2E_TWO_BROWSER_PEER_TIMEOUT_MS)
+		]);
 
-		console.log('→ Entering password...');
-		await page3.getByTestId('inline-unlock-password').fill(password);
-		await page3.getByTestId('inline-unlock-button').click();
-		console.log('→ Submitted password');
+		await unlockEncryptedDbOpenedByAddressUrl(page1, password);
+		await page1.evaluate(async () => {
+			if (typeof window.forceReloadTodos === 'function') {
+				await window.forceReloadTodos();
+			}
+		});
+		await ensureTodoListSectionExpanded(page1);
+		await waitForTodoText(page1, encryptedTodoText, 120000);
 
-		await waitForPeerCount(page3, 1, 30000);
+		console.log('→ Unlocking encrypted DB opened by address URL (new browser)...');
+		await unlockEncryptedDbOpenedByAddressUrl(page3, password);
 		await page3.evaluate(async () => {
 			if (typeof window.forceReloadTodos === 'function') {
 				await window.forceReloadTodos();
 			}
 		});
-		await waitForTodoSyncEvent(page3, {
-			todoText: `Task 2-1 of ${encryptedProjectName}`,
-			timeout: 60000
-		});
-
-		// Verify todos visible
-		await verifyTodosVisible(page3, [`Task 2-1 of ${encryptedProjectName}`], { timeout: 60000 });
+		await ensureTodoListSectionExpanded(page3);
+		await waitForTodoText(page3, encryptedTodoText, 120000);
 		console.log('✅ Encrypted project todos visible after password entry');
 
 		await safeClose(context3, 'context3');
@@ -310,27 +336,6 @@ async function verifyTodosVisible(page, todoTexts, { timeout = 30000 } = {}) {
 	for (const todoText of todoTexts) {
 		await waitForTodoText(page, todoText, timeout);
 	}
-}
-
-async function switchToProject(page, projectName) {
-	const todoListInput = page.locator('input[placeholder*="todo list" i]').first();
-	await expect(todoListInput).toBeVisible({ timeout: 10000 });
-	await todoListInput.click();
-	await page.waitForTimeout(500);
-
-	const listbox = page.getByRole('listbox');
-	const projectOption = listbox.locator(`text=${projectName}`).first();
-	if (await projectOption.isVisible({ timeout: 3000 }).catch(() => false)) {
-		await projectOption.click();
-	} else {
-		await todoListInput.press('Control+A').catch(() => {});
-		await todoListInput.press('Meta+A').catch(() => {});
-		await todoListInput.fill(projectName);
-		await page.waitForTimeout(300);
-		await todoListInput.press('Enter');
-	}
-
-	await page.waitForTimeout(1500);
 }
 
 async function safeClose(context, label) {

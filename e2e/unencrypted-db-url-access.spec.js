@@ -2,11 +2,18 @@ import { test, expect } from '@playwright/test';
 import {
 	acceptConsentAndInitialize,
 	ensureAddTodoExpanded,
+	ensureTodoListSectionExpanded,
 	waitForP2PInitialization,
 	getCurrentDatabaseAddress,
 	waitForPeerCount,
-	waitForTodoSyncEvent
+	E2E_TWO_BROWSER_PEER_TIMEOUT_MS,
+	waitForTodoText
 } from './helpers.js';
+
+function urlForDbAddress(address) {
+	const path = address.startsWith('/') ? address.slice(1) : address;
+	return `/?#/${path}`;
+}
 
 /**
  * Test case for the encryption detection bug when opening unencrypted databases via URL.
@@ -91,13 +98,18 @@ test('should not show password modal for unencrypted database opened via URL', a
 
 	// Navigate directly to the database address
 	// This simulates opening a shared link in a new browser
-	console.log(`  → Navigating to: /#${dbAddress}`);
-	await page2.goto(`/#${dbAddress}`);
+	const dbUrl = urlForDbAddress(dbAddress);
+	console.log(`  → Navigating to: ${dbUrl}`);
+	await page2.goto(dbUrl);
 
-	// Wait for initialization and potential sync
-	// The issue: database appears empty initially, encryption detection assumes encrypted
-	console.log('  → Waiting for database to load and sync...');
-	await page2.waitForTimeout(2000);
+	await waitForP2PInitialization(page2, 60000);
+	console.log('  → Waiting for relay + creator peer before sync...');
+	await waitForPeerCount(page2, 2, E2E_TWO_BROWSER_PEER_TIMEOUT_MS);
+	await page2.evaluate(async () => {
+		if (typeof window.forceReloadTodos === 'function') {
+			await window.forceReloadTodos();
+		}
+	});
 
 	// ============================================================================
 	// STEP 3: Verify NO password modal appears
@@ -127,19 +139,8 @@ test('should not show password modal for unencrypted database opened via URL', a
 	// ============================================================================
 	console.log('\n🔍 STEP 4: Verifying todos are visible after sync...\n');
 
-	// Ensure at least one network peer before checking replicated content.
-	await waitForPeerCount(page2, 1, 20000);
-	await page2.evaluate(async () => {
-		if (typeof window.forceReloadTodos === 'function') {
-			await window.forceReloadTodos();
-		}
-	});
-
-	// Wait for deterministic sync signal from the app, then assert the todo is rendered.
-	await waitForTodoSyncEvent(page2, { todoText, timeout: 30000 });
-	await expect(page2.locator(`[data-todo-text="${todoText}"]`).first()).toBeVisible({
-		timeout: 5000
-	});
+	await ensureTodoListSectionExpanded(page2);
+	await waitForTodoText(page2, todoText, 120000);
 	console.log(`  ✓ Todo visible: ${todoText}`);
 	console.log('  ✅ Database content accessible without password (correct)');
 

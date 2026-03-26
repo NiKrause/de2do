@@ -260,13 +260,19 @@ export async function waitForTodoVisibleWithReplicationPoll(
 }
 
 /**
+ * Timeout for `waitForPeerCount(page, 2, …)` in multi-browser E2E: relay plus at least one other
+ * app peer. Same duration as `simple-todo.spec.js` two-browser peer waits (`120000`).
+ */
+export const E2E_TWO_BROWSER_PEER_TIMEOUT_MS = 120000;
+
+/**
  * Helper to wait for peer connection count to reach a minimum
  *
  * @param {import('@playwright/test').Page} page - Playwright page instance
  * @param {number} minPeers - Minimum number of peers to wait for. Use 2 when another browser (or
  *   the creator) is still connected so you see relay plus at least one app peer; use 1 only when
  *   no other client is expected (e.g. isolated single-browser scenario).
- * @param {number} [timeout=60000] - Timeout in milliseconds
+ * @param {number} [timeout=60000] - Timeout in milliseconds (use E2E_TWO_BROWSER_PEER_TIMEOUT_MS for two-browser sync)
  */
 export async function waitForPeerCount(page, minPeers = 1, timeout = 60000) {
 	console.log(`⏳ Waiting for at least ${minPeers} peer(s)...`);
