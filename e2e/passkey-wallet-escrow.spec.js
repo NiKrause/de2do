@@ -714,9 +714,32 @@ async function setupPasskeyWallet(page, label, did) {
 				`With PW_REUSE_PREVIEW=1, global setup adds the key to .env.test after you may have built — run \`pnpm run build:test\` with VITE_LOCAL_DEV_FUNDER_PRIVATE_KEY in .env.test, then \`pnpm run preview:test\`, and re-run.`
 		);
 	}
-	await expect(page.getByTestId('wallet-fund-anvil')).toBeEnabled({ timeout: 60000 });
-	await page.getByTestId('wallet-fund-anvil').click();
-	await expect(page.getByText(/Funded smart account/i)).toBeVisible({ timeout: 120000 });
+	await expect(fundBtn).toBeEnabled({ timeout: 60000 });
+	await fundBtn.click();
+	// Success is a 3s toast with slide-in CSS; headless often never satisfies Playwright "visible".
+	// Treat button idle + on-chain balance as ground truth (same RPC as `getTestChainRpcUrl()`).
+	await expect(fundBtn).toBeEnabled({ timeout: 120000 });
+	await expect(fundBtn).toHaveText(/Fund 2 ETH/, { timeout: 15000 });
+
+	const fundErr = page.getByText(/Failed to fund local account/i);
+	if (await fundErr.isVisible().catch(() => false)) {
+		throw new Error(
+			`Passkey E2E (${label}): local fund failed (toast). Check Anvil, funder key, and RPC.`
+		);
+	}
+
+	const addrSpan = page.getByTestId('wallet-smart-account-address');
+	await expect(addrSpan).toBeVisible({ timeout: 15000 });
+	const fundedAddr = (await addrSpan.textContent())?.trim();
+	expect(fundedAddr).toMatch(/^0x[a-fA-F0-9]{40}$/);
+	const minWei = parseEther('1');
+	await expect
+		.poll(async () => (await ethGetBalance(fundedAddr)) >= minWei, {
+			timeout: 90000,
+			intervals: [400, 800, 1200, 2000]
+		})
+		.toBe(true);
+
 	console.log(`✅ ${label}: smart account funded`);
 }
 
@@ -793,7 +816,7 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 		const todoTitle = `Passkey escrow E2E ${Date.now()}`;
 
 		console.log(
-			`[passkey-e2e] app http://localhost:4174 relay HTTP ${RELAY_HTTP_PORT} — PW_HEADED=1 headed, PW_PASSKEY_VERBOSE=1 browser console, PW_SLOW_MO=250`
+			`[passkey-e2e] app http://localhost:4174 relay HTTP ${RELAY_HTTP_PORT} — PW_HEADED=${process.env.PW_HEADED || '(unset)'} PW_PASSKEY_VERBOSE=${process.env.PW_PASSKEY_VERBOSE || '(unset)'} PW_SLOW_MO=${process.env.PW_SLOW_MO || '(unset)'}`
 		);
 
 		async function initializeWithWebAuthn(page, label) {
