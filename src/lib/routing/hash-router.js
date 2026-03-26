@@ -12,7 +12,7 @@ import {
 	todoListHierarchyStore,
 	buildHierarchyPath
 } from '$lib/todo-list-manager.js';
-import { todoDBStore, loadTodos } from '$lib/db-actions.js';
+import { todoDBStore } from '$lib/db-actions.js';
 import { toastStore } from '$lib/toast-store.js';
 import { getCurrentIdentityId } from '$lib/stores.js';
 
@@ -88,7 +88,6 @@ async function handleEmbedRoute(hash, context) {
 		await openDatabaseByAddress(normalizedAddress, preferences, false, null);
 		const openedDB = get(todoDBStore);
 		await updateStoresAfterDatabaseOpen(openedDB, normalizedAddress);
-		await loadTodos();
 
 		// Load hierarchy for breadcrumb navigation
 		try {
@@ -177,7 +176,6 @@ async function handleAddressRoute(hashValue, preferences) {
 	await openDatabaseByAddress(normalizedAddress, preferences, false, null);
 	const openedDB = get(todoDBStore);
 
-	// Update stores after opening (this handles registry, hierarchy, etc.)
 	await updateStoresAfterDatabaseOpen(openedDB, normalizedAddress);
 }
 

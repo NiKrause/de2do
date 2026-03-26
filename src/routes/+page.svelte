@@ -19,7 +19,7 @@
 	import BreadcrumbNavigation from '$lib/components/todo/BreadcrumbNavigation.svelte';
 	import AppHeader from '$lib/components/layout/AppHeader.svelte';
 	import EncryptionSettings from '$lib/components/encryption/EncryptionSettings.svelte';
-	import { inlineUnlockStore } from '$lib/encryption/inline-unlock-store.js';
+	import { inlineUnlockStore, requestInlineUnlock } from '$lib/encryption/inline-unlock-store.js';
 	import { consolidatePasskeyCredentials } from '$lib/wallet/passkey-wallet.js';
 	import { setupDatabaseDebug } from '$lib/debug/database-debug.js';
 	import { createTodoHandlers } from '$lib/handlers/todo-handlers.js';
@@ -256,6 +256,16 @@
 				window.__getDbAddress = () => {
 					return $currentDbAddressStore || $todoDBStore?.address || null;
 				};
+				// Dev-only: let Playwright open the inline unlock panel when P2P timing is flaky
+				if (import.meta.env.DEV) {
+					window.__e2eRequestInlineUnlock = () => {
+						requestInlineUnlock({
+							address: get(currentDbAddressStore),
+							name: get(currentDbNameStore),
+							displayName: get(currentTodoListNameStore)
+						});
+					};
+				}
 			}
 
 			// Return cleanup function

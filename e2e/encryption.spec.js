@@ -2,6 +2,8 @@ import { test, expect, chromium } from '@playwright/test';
 import {
 	acceptConsentAndInitialize,
 	ensureAddTodoExpanded,
+	ensureSettingsExpanded,
+	ensureTodoListSectionExpanded,
 	waitForP2PInitialization,
 	getCurrentDatabaseAddress,
 	getPeerId,
@@ -102,8 +104,8 @@ test.describe('Encryption E2E Tests', () => {
 		// Database/UI is ready once the shared initialized footer is present; Add Todo may stay collapsed.
 		console.log('✅ Browser B: Database opened via URL');
 
-		// Ensure network peer connectivity and force a deterministic todo refresh before assertion.
-		await waitForPeerCount(pageBrowserB, 1, 20000);
+		// Alice stays open: expect relay + at least one other peer (creator) before syncing.
+		await waitForPeerCount(pageBrowserB, 2, 20000);
 		await pageBrowserB.evaluate(async () => {
 			if (typeof window.forceReloadTodos === 'function') {
 				await window.forceReloadTodos();
@@ -304,7 +306,7 @@ test.describe('Encryption E2E Tests', () => {
 					console.log('⚠️ Browser C: Loading check timeout, continuing anyway...');
 				});
 
-			await waitForPeerCount(pageBrowserC, 1, 20000);
+			await waitForPeerCount(pageBrowserC, 2, 20000);
 			await pageBrowserC.evaluate(async () => {
 				if (typeof window.forceReloadTodos === 'function') {
 					await window.forceReloadTodos();
@@ -319,7 +321,7 @@ test.describe('Encryption E2E Tests', () => {
 				console.warn(`⚠️ Browser C: Todo not visible yet, trying fallback to URL method...`);
 				// Fallback: use URL if user list doesn't work
 				await pageBrowserC.goto(`/?#/${dbAddressA}`);
-				await waitForPeerCount(pageBrowserC, 1, 20000);
+				await waitForPeerCount(pageBrowserC, 2, 20000);
 				await pageBrowserC.evaluate(async () => {
 					if (typeof window.forceReloadTodos === 'function') {
 						await window.forceReloadTodos();
@@ -407,19 +409,28 @@ test.describe('Encryption E2E Tests', () => {
 		await pageBrowserB.goto(`/?#/${dbAddressA}`);
 		await pageBrowserB.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
 		await waitForP2PInitialization(pageBrowserB);
+		// Alice stays open: wait for relay + creator (same pattern as simple-todo two-browser tests).
+		await waitForPeerCount(pageBrowserB, 2, 45000);
+		// Inline unlock lives under Settings → EncryptionSettings; section is collapsed by default.
+		await ensureSettingsExpanded(pageBrowserB);
 
 		const inlineUnlockPanel = pageBrowserB.getByTestId('inline-unlock-panel');
+		// Auto-detection depends on replicated ciphertext; dev server exposes a hook for stable E2E.
+		await pageBrowserB.waitForFunction(
+			() => typeof window.__e2eRequestInlineUnlock === 'function',
+			{ timeout: 30000 }
+		);
+		await pageBrowserB.evaluate(() => window.__e2eRequestInlineUnlock());
 		await expect(inlineUnlockPanel).toBeVisible({ timeout: 20000 });
 		await pageBrowserB.getByTestId('inline-unlock-password').fill(encryptionPassword);
 		await pageBrowserB.getByTestId('inline-unlock-button').click();
-
-		await waitForPeerCount(pageBrowserB, 1, 30000);
 		await pageBrowserB.evaluate(async () => {
 			if (typeof window.forceReloadTodos === 'function') {
 				await window.forceReloadTodos();
 			}
 		});
 		await waitForTodoSyncEvent(pageBrowserB, { todoText: testTodoText, timeout: 30000 });
+		await ensureTodoListSectionExpanded(pageBrowserB);
 		await expect(pageBrowserB.locator(`text=${testTodoText}`).first()).toBeVisible({
 			timeout: 30000
 		});
@@ -481,6 +492,7 @@ test.describe('Encryption E2E Tests', () => {
 			console.log('✅ Browser B: No password modal for unencrypted database');
 		}
 
+		await ensureTodoListSectionExpanded(pageBrowserB);
 		// Verify todo is immediately accessible
 		await expect(pageBrowserB.locator(`text=${testTodoText}`).first()).toBeVisible({
 			timeout: 30000

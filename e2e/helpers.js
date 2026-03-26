@@ -263,7 +263,9 @@ export async function waitForTodoVisibleWithReplicationPoll(
  * Helper to wait for peer connection count to reach a minimum
  *
  * @param {import('@playwright/test').Page} page - Playwright page instance
- * @param {number} minPeers - Minimum number of peers to wait for
+ * @param {number} minPeers - Minimum number of peers to wait for. Use 2 when another browser (or
+ *   the creator) is still connected so you see relay plus at least one app peer; use 1 only when
+ *   no other client is expected (e.g. isolated single-browser scenario).
  * @param {number} [timeout=60000] - Timeout in milliseconds
  */
 export async function waitForPeerCount(page, minPeers = 1, timeout = 60000) {

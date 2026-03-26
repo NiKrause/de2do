@@ -1,5 +1,10 @@
 import { writable, derived, get } from 'svelte/store';
+import { requestInlineUnlock } from '$lib/encryption/inline-unlock-store.js';
 import { systemToasts } from './toast-store.js';
+import {
+	currentDbNameStore,
+	currentTodoListNameStore
+} from '$lib/todo-list-manager.js';
 import {
 	currentDbAddressStore,
 	currentIdentityStore,
@@ -20,6 +25,19 @@ let previousTodoDB = null;
 
 // Derived store that updates when todos change
 export const todosCountStore = derived(todosStore, ($todos) => $todos.length);
+
+/** True when DB was opened without a key but at least one non-delegation entry has no decrypted payload */
+function entriesLookEncryptedWithoutKey(all) {
+	if (!Array.isArray(all)) return false;
+	return all.some(
+		(e) =>
+			e &&
+			e.hash !== undefined &&
+			e.value === undefined &&
+			typeof e.key === 'string' &&
+			!e.key.startsWith('delegation-action/')
+	);
+}
 
 export function getCurrentAccessControllerType() {
 	const todoDB = get(todoDBStore);
@@ -138,8 +156,35 @@ export async function loadTodos() {
 	systemToasts.showLoadingTodos();
 
 	try {
-		console.log('🔍 Calling todoDB.all()...');
-		const allTodos = await todoDB.all();
+		let allTodos;
+		try {
+			console.log('🔍 Calling todoDB.all()...');
+			allTodos = await todoDB.all();
+		} catch (error) {
+			const msg = error instanceof Error ? error.message : String(error);
+			if (
+				msg.includes('decrypt') ||
+				(error instanceof TypeError && /reading 'value'/.test(msg))
+			) {
+				requestInlineUnlock({
+					address: get(currentDbAddressStore) || todoDB.address,
+					name: get(currentDbNameStore) || todoDB.name,
+					displayName: get(currentTodoListNameStore) || todoDB.name
+				});
+				return;
+			}
+			throw error;
+		}
+
+		if (entriesLookEncryptedWithoutKey(allTodos)) {
+			requestInlineUnlock({
+				address: get(currentDbAddressStore) || todoDB.address,
+				name: get(currentDbNameStore) || todoDB.name,
+				displayName: get(currentTodoListNameStore) || todoDB.name
+			});
+			return;
+		}
+
 		console.log('🔍 Raw database entries:', allTodos); // Add this debug log
 
 		if (!Array.isArray(allTodos)) {

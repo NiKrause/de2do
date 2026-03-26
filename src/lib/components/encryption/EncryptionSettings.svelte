@@ -36,7 +36,9 @@
 		displayName:
 			unlockState?.displayName || currentTodoListName || currentDbName || currentDbAddress
 	};
-	$: showInlineUnlock = Boolean(unlockState?.active) && !isCurrentDbEncrypted;
+	// Inline unlock is driven only by unlockState; do not gate on isCurrentDbEncrypted — registry
+	// can be wrong before password unlock (e.g. remote encrypted DB opened by address).
+	$: showInlineUnlock = Boolean(unlockState?.active);
 
 	async function handleDisableClick() {
 		const result = await encryptionHandlers.handleDisableEncryption('');

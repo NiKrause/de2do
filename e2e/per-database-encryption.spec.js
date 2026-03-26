@@ -1,5 +1,11 @@
 import { test, expect, chromium } from '@playwright/test';
-import { acceptConsentAndInitialize, waitForP2PInitialization, getPeerId } from './helpers.js';
+import {
+	acceptConsentAndInitialize,
+	ensureAddTodoExpanded,
+	ensureTodoListSectionExpanded,
+	waitForP2PInitialization,
+	getPeerId
+} from './helpers.js';
 
 // Mark intentionally unused test helpers so eslint doesn't complain while this suite is skipped
 void chromium;
@@ -171,7 +177,8 @@ async function createProjectWithTodos(page, projectName, encrypted, password, to
 		}
 	}
 
-	// Wait for todo input to be enabled before adding todos
+	// Add Todo accordion must be open or todo-input is not mounted.
+	await ensureAddTodoExpanded(page);
 	const todoInput = page.locator('[data-testid="todo-input"]').first();
 	await expect(todoInput).toBeEnabled({ timeout: 10000 });
 	console.log(`  ✓ Todo input is enabled and ready`);
@@ -254,6 +261,7 @@ async function switchToProject(page, projectName) {
  * Verify that todos are visible
  */
 async function verifyTodosVisible(page, todoTexts) {
+	await ensureTodoListSectionExpanded(page);
 	for (const todoText of todoTexts) {
 		await expect(page.locator(`text=${todoText}`).first()).toBeVisible({ timeout: 10000 });
 	}
