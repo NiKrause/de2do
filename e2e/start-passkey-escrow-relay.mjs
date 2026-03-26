@@ -1,5 +1,5 @@
 /**
- * Start orbitdb relay for passkey-escrow E2E on HTTP 3001 (mock-paymaster uses 3000).
+ * Start orbitdb relay for passkey-escrow E2E on HTTP 3001 (mock-paymaster uses host 3002).
  *
  * **Pinning HTTP:** Current `orbitdb-relay-pinner` (see `dist/services/metrics.js` on npm) only exposes
  * `/metrics`, `/health`, `/multiaddrs` on the HTTP port — **no `/pinning/*`**. Global setup records

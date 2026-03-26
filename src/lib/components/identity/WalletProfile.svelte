@@ -44,7 +44,9 @@
 	 *   from: string | null,
 	 *   to: string | null,
 	 *   value: bigint,
-	 *   direction: string
+	 *   direction: string,
+	 *   escrowGrossWei?: bigint,
+	 *   escrowFeeWei?: bigint
 	 * }} RecentTransaction
 	 */
 
@@ -419,13 +421,15 @@
 	{/if}
 	{#if entryPointReady === false}
 		<div class="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
-			EntryPoint is not deployed at `VITE_ENTRY_POINT_ADDRESS` on the current chain.
+			EntryPoint is not deployed at <code class="rounded bg-red-100 px-1">{getEntryPointAddress() ?? '—'}</code> on the
+			current chain. Set <code class="rounded bg-red-100 px-1">VITE_ENTRY_POINT_ADDRESS</code> and rebuild if wrong.
 		</div>
 	{/if}
 	{#if implementationReady === false}
 		<div class="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
-			Implementation contract is not deployed at `VITE_IMPLEMENTATION_CONTRACT` on the current
-			chain.
+			Implementation contract is not deployed at <code class="rounded bg-red-100 px-1">{getImplementationAddress() ?? '—'}</code> on the
+			current chain. Run <code class="rounded bg-red-100 px-1">setup-local-aa</code> with the same env file you use for
+			<code class="rounded bg-red-100 px-1">build:test</code> (e.g. <code class="rounded bg-red-100 px-1">.env.test</code>), then rebuild.
 		</div>
 	{/if}
 	{#if missingEscrowConfig.length > 0}
@@ -574,7 +578,7 @@
 					</div>
 				{:else}
 					<div class="mt-2 space-y-2">
-						{#each recentTransactions as tx (tx.hash)}
+						{#each recentTransactions as tx (tx.hash + String(tx.direction))}
 							<div
 								class="rounded border border-slate-200 bg-white px-2 py-2"
 								data-testid="wallet-recent-tx-row"
@@ -595,6 +599,15 @@
 								<div class="mt-0.5 font-mono text-[11px] text-slate-900">
 									Value: {formatEtherFullDecimals(tx.value)} ETH
 								</div>
+								{#if tx.escrowFeeWei != null && tx.escrowGrossWei != null && tx.escrowFeeWei > 0n}
+									<div
+										class="mt-1 max-w-prose font-mono text-[10px] leading-snug text-slate-600"
+										data-testid="wallet-recent-tx-escrow-fee-breakdown"
+									>
+										Escrow gross {formatEtherFullDecimals(tx.escrowGrossWei)} ETH · protocol fee
+										{formatEtherFullDecimals(tx.escrowFeeWei)} ETH (net above is what you received)
+									</div>
+								{/if}
 								<div class="text-slate-500">{formatTimestamp(tx.timestamp)}</div>
 							</div>
 						{/each}

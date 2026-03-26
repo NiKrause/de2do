@@ -191,6 +191,75 @@ export async function ensureAddTodoExpanded(page) {
 }
 
 /**
+ * Expand the "Todo List" section — when collapsed, todo rows may not be visible to Playwright even if loaded.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+export async function ensureTodoListSectionExpanded(page) {
+	const toggle = page.getByRole('button', { name: /Todo List/i }).first();
+	await expect(toggle).toBeVisible({ timeout: 15000 });
+	if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+		await toggle.click();
+	}
+}
+
+/**
+ * Expand the Settings section — the Users combobox (`#users-list`) is only mounted when it is open.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+export async function ensureSettingsExpanded(page) {
+	const toggle = page.getByRole('button', { name: /Settings/i }).first();
+	await expect(toggle).toBeVisible({ timeout: 15000 });
+	if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+		await toggle.click();
+	}
+	await expect(page.locator('#users-list')).toBeVisible({ timeout: 10000 });
+}
+
+/**
+ * Wait for a todo after switching identity / waiting on P2P replication: keep Todo List expanded and poll
+ * `window.forceReloadTodos()` between checks (same strategy as `simple-todo.spec.js` `waitForTodoAfterDidSwitch`).
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {string} todoText
+ * @param {object} [opts]
+ * @param {number} [opts.totalTimeoutMs=120000]
+ * @param {number} [opts.pollIntervalMs=3000]
+ * @param {number} [opts.innerWaitMs=8000]
+ * @param {string} [opts.browserName]
+ */
+export async function waitForTodoVisibleWithReplicationPoll(
+	page,
+	todoText,
+	{ totalTimeoutMs = 120000, pollIntervalMs = 3000, innerWaitMs = 8000, browserName } = {}
+) {
+	console.log(`⏳ Waiting for todo "${todoText.slice(0, 48)}…" (replication poll, ${totalTimeoutMs}ms)…`);
+	await ensureTodoListSectionExpanded(page);
+	const deadline = Date.now() + totalTimeoutMs;
+	while (Date.now() < deadline) {
+		await ensureTodoListSectionExpanded(page);
+		await page.evaluate(async () => {
+			if (typeof window.forceReloadTodos === 'function') {
+				await window.forceReloadTodos();
+			}
+		});
+		try {
+			await expect(page.locator(`[data-todo-text="${todoText}"]`).first()).toBeVisible({
+				timeout: innerWaitMs
+			});
+			console.log(`✅ Todo visible after replication poll: ${todoText.slice(0, 64)}…`);
+			return;
+		} catch {
+			// Replication or UI still catching up
+		}
+		await page.waitForTimeout(pollIntervalMs);
+	}
+	await ensureTodoListSectionExpanded(page);
+	await waitForTodoText(page, todoText, 15000, { browserName });
+}
+
+/**
  * Helper to wait for peer connection count to reach a minimum
  *
  * @param {import('@playwright/test').Page} page - Playwright page instance

@@ -33,9 +33,9 @@ contract TodoEscrowTest is Test {
     escrow.setFeeConfig(feeCollector, 500);
   }
 
-  function testSetFeeBpsRejectsTooHighValue() public {
-    vm.expectRevert("fee too high");
-    escrow.setFeeBps(1_001);
+  function testSetFeeBpsRejectsAboveOneHundredPercent() public {
+    vm.expectRevert("fee exceeds 100%");
+    escrow.setFeeBps(10_001);
   }
 
   function testFeeRecipientRequiredWhenFeeEnabled() public {

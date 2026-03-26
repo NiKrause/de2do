@@ -23,15 +23,19 @@ import {
  *   from: `0x${string}` | null,
  *   to: `0x${string}` | null,
  *   value: bigint,
- *   direction: string
+ *   direction: string,
+ *   escrowGrossWei?: bigint,
+ *   escrowFeeWei?: bigint
  * }} AccountTxRow
  */
 
 const DEFAULT_LOOKBACK_BLOCKS = 200n;
-const DEFAULT_TX_LIMIT = 6;
+/** Enough rows that `incoming (escrow ETH)` from logs is not evicted when many top-level txs share a block. */
+const DEFAULT_TX_LIMIT = 16;
 
+// Must match `contracts/TodoEscrow.sol` (feeRecipient + gross/fee/net — not the old single `amount`).
 const escrowReleasedEvent = parseAbiItem(
-	'event EscrowReleased(bytes32 indexed todoId, address indexed beneficiary, address token, uint256 amount)'
+	'event EscrowReleased(bytes32 indexed todoId, address indexed beneficiary, address indexed feeRecipient, address token, uint256 grossAmount, uint256 feeAmount, uint256 netAmount)'
 );
 
 function getInsightsClient() {
@@ -114,18 +118,26 @@ async function getEscrowReleaseRowsForBeneficiary(
 		}
 
 		const token = decoded.args.token;
-		const amount = decoded.args.amount;
+		const grossAmount = decoded.args.grossAmount;
+		const feeAmount = decoded.args.feeAmount;
+		const netAmount = decoded.args.netAmount;
 		const isEth = !token || token.toLowerCase() === zeroAddress.toLowerCase();
 
-		rows.push({
+		/** @type {AccountTxRow} */
+		const row = {
 			hash: log.transactionHash,
 			blockNumber: bn,
 			timestamp,
 			from: escrowAddress,
 			to: beneficiaryAddress,
-			value: isEth ? amount : 0n,
+			value: isEth ? netAmount : 0n,
 			direction: isEth ? 'incoming (escrow ETH)' : 'incoming (escrow token)'
-		});
+		};
+		if (isEth) {
+			row.escrowGrossWei = grossAmount;
+			row.escrowFeeWei = feeAmount;
+		}
+		rows.push(row);
 	}
 
 	return rows;
@@ -211,10 +223,22 @@ export async function getRecentAccountTransactions(
 	}
 
 	const matches = [...topLevel, ...escrowRows];
+	matches.sort(sortTxRowsDescending);
+	const escrowKeySet = new Set(escrowRows.map((r) => `${r.hash}:${r.direction}`));
 	const seen = new Set();
 	/** @type {AccountTxRow[]} */
 	const merged = [];
-	matches.sort(sortTxRowsDescending);
+
+	// Prefer EscrowReleased-derived rows: they share a tx hash with outer AA txs but a distinct
+	// `direction`, and can lose same-block tie-breaks against six unrelated top-level rows.
+	for (const row of matches) {
+		const key = `${row.hash}:${row.direction}`;
+		if (seen.has(key)) continue;
+		if (!escrowKeySet.has(key)) continue;
+		seen.add(key);
+		merged.push(row);
+		if (merged.length >= limit) break;
+	}
 	for (const row of matches) {
 		const key = `${row.hash}:${row.direction}`;
 		if (seen.has(key)) continue;

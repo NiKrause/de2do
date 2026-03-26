@@ -21,8 +21,9 @@ services:
 
   mock-paymaster:
     image: ghcr.io/pimlicolabs/mock-verifying-paymaster:main
+    # Host 3002: container still listens on 3000 — avoids clashing with orbitdb-relay-pinner on host :3000
     ports:
-      - '3000:3000'
+      - '3002:3000'
     environment:
       - ALTO_RPC=http://alto:4337
       - ANVIL_RPC=http://anvil:8545

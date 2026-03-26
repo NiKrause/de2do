@@ -97,7 +97,7 @@ export function isPaymasterEnabled() {
 
 export function getPaymasterUrl() {
 	if (!isPaymasterEnabled()) return null;
-	return maybeProxyLocalDevUrl(getEnvValue('VITE_PAYMASTER_URL'), '/__paymaster', 3000);
+	return maybeProxyLocalDevUrl(getEnvValue('VITE_PAYMASTER_URL'), '/__paymaster', 3002);
 }
 
 export function getLocalDevFunderPrivateKey() {

@@ -156,7 +156,7 @@ export default defineConfig(({ mode }) => ({
 				rewrite: (path) => path.replace(/^\/__bundler/, '') || '/'
 			},
 			'/__paymaster': {
-				target: 'http://127.0.0.1:3000',
+				target: 'http://127.0.0.1:3002',
 				changeOrigin: true,
 				rewrite: (path) => path.replace(/^\/__paymaster/, '') || '/'
 			}

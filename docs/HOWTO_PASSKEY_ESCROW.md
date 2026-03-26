@@ -401,7 +401,7 @@ VITE_PAYMASTER_URL=https://your-paymaster  # optional, for gas sponsorship
 
 ## Playwright E2E (passkey wallet + Alice/Bob escrow)
 
-Automated flow: **global setup** runs `scripts/setup-local-aa.mjs` (Anvil + `docker-compose.aa-local.yml` + forge deploys) targeting **`.env.test`**, starts a relay on **port 3001** (paymaster uses 3000), then Playwright runs **`build:test`** and **`preview:test`** (`sirv build --single` — **`vite preview`** can crash with `ENOENT … .svelte-kit/output/client/manifest.json` after a static export).
+Automated flow: **global setup** runs `scripts/setup-local-aa.mjs` (Anvil + `docker-compose.aa-local.yml` + forge deploys) targeting **`.env.test`**, starts a relay on **port 3001** (mock paymaster is on host **3002**), then Playwright runs **`build:test`** and **`preview:test`** (`sirv build --single` — **`vite preview`** can crash with `ENOENT … .svelte-kit/output/client/manifest.json` after a static export).
 
 ```bash
 # Requires: Docker, Foundry (forge), Playwright browsers, Chromium

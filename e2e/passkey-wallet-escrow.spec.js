@@ -43,8 +43,12 @@ import {
 } from 'viem';
 import {
 	addVirtualAuthenticator,
+	ensureAddTodoExpanded,
+	ensureSettingsExpanded,
+	ensureTodoListSectionExpanded,
 	waitForP2PInitialization,
 	waitForTodoText,
+	waitForTodoVisibleWithReplicationPoll,
 	waitForPeerCount,
 	getCurrentDatabaseAddress
 } from './helpers.js';
@@ -631,15 +635,24 @@ async function selectUserDidInCombobox(page, label, did) {
 		label,
 		`Users combobox: select current DID (${did.slice(0, 28)}…) for app context`
 	);
+	await ensureSettingsExpanded(page);
 	const input = page.locator('#users-list');
 	await expect(input).toBeVisible({ timeout: 20000 });
 	await expect(input).toBeEnabled({ timeout: 20000 });
 	await input.click();
 	await input.fill(did);
-	await expect(page.getByTestId('users-listbox')).toBeVisible({ timeout: 15000 });
+	// Listbox is gated on `showDropdown`; blur/timing can skip rendering it while Enter still selects.
+	const listbox = page.getByTestId('users-listbox');
+	let listboxVisible = false;
+	try {
+		await listbox.waitFor({ state: 'visible', timeout: 8000 });
+		listboxVisible = true;
+	} catch {
+		// fall through to Enter
+	}
 
 	const byAttr = page.locator(`[data-testid="users-list-select-did"][data-user-did="${did}"]`);
-	if ((await byAttr.count()) === 1) {
+	if (listboxVisible && (await byAttr.count()) === 1) {
 		await byAttr.click({ force: true });
 	} else {
 		await input.press('Enter');
@@ -674,8 +687,10 @@ async function setupPasskeyWallet(page, label, did) {
 	await createBtn.click();
 
 	logPasskeyStep(label, 'waiting for smart account UI (fund button, up to 5 min)…');
+	const fundBtn = page.getByTestId('wallet-fund-anvil');
+	const funderMissingHint = page.getByText(/Local fund button is disabled/);
 	try {
-		await expect(page.getByTestId('wallet-fund-anvil')).toBeVisible({ timeout: 300000 });
+		await expect(fundBtn.or(funderMissingHint)).toBeVisible({ timeout: 300000 });
 	} catch (e) {
 		await page
 			.screenshot({
@@ -685,6 +700,18 @@ async function setupPasskeyWallet(page, label, did) {
 			.catch(() => {});
 		throw new Error(
 			`${e?.message || String(e)} — If "Fund 2 ETH" never appears: rebuild with .env.test that sets VITE_LOCAL_DEV_FUNDER_PRIVATE_KEY (global setup merges it) or check Wallet Profile for "Local fund button is disabled".`
+		);
+	}
+	if (await funderMissingHint.isVisible().catch(() => false)) {
+		await page
+			.screenshot({
+				path: `test-results/passkey-escrow/${label.toLowerCase()}-funder-not-in-bundle.png`,
+				fullPage: true
+			})
+			.catch(() => {});
+		throw new Error(
+			`Passkey E2E (${label}): "Fund 2 ETH" is missing because VITE_LOCAL_DEV_FUNDER_PRIVATE_KEY was not compiled into the app. ` +
+				`With PW_REUSE_PREVIEW=1, global setup adds the key to .env.test after you may have built — run \`pnpm run build:test\` with VITE_LOCAL_DEV_FUNDER_PRIVATE_KEY in .env.test, then \`pnpm run preview:test\`, and re-run.`
 		);
 	}
 	await expect(page.getByTestId('wallet-fund-anvil')).toBeEnabled({ timeout: 60000 });
@@ -822,6 +849,7 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 		}
 
 		async function addAndSelectUserByDid(page, did) {
+			await ensureSettingsExpanded(page);
 			const usersInput = page.locator('#users-list');
 			await expect(usersInput).toBeVisible({ timeout: 15000 });
 			await usersInput.click();
@@ -894,6 +922,18 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 				'[passkey-e2e:run] Expect TODO Items (0) above until this step: Alice adds the delegated todo next; Bob stays on his own DB until we select Alice’s DID + sync.'
 			);
 
+			logPasskeyStep(
+				'run',
+				'P2P mesh: wait for ≥2 peers on Alice and Bob before delegated todo (helps replication)'
+			);
+			await Promise.all([
+				waitForPeerCount(alice, 2, 120000),
+				waitForPeerCount(bob, 2, 120000)
+			]);
+
+			logPasskeyStep('Alice', 'expand Add Todo section (collapsible; default is collapsed)');
+			await ensureAddTodoExpanded(alice);
+
 			await alice.getByRole('button', { name: /Show Advanced Fields/i }).click();
 			await alice.getByTestId('todo-input').fill(todoTitle);
 			await alice.locator('#add-todo-cost-currency').selectOption('eth');
@@ -906,6 +946,7 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 			).trim();
 			expect(delegateWalletFilled.toLowerCase()).toBe(bobPayoutAddress.toLowerCase());
 			await alice.getByTestId('add-todo-button').click();
+			await ensureTodoListSectionExpanded(alice);
 			await waitForTodoText(alice, todoTitle, 60000, { browserName: 'chromium' });
 			await logTodoUiSnapshot(alice, 'Alice');
 			await expect(alice.getByTestId('todo-item')).toHaveCount(1);
@@ -935,7 +976,10 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 			// Align with simple-todo two-browser tests: relay + other browser (not a specific peer id string).
 			await waitForPeerCount(bob, 2, 120000);
 
-			await waitForTodoText(bob, todoTitle, 120000, { browserName: 'chromium' });
+			await waitForTodoVisibleWithReplicationPoll(bob, todoTitle, {
+				totalTimeoutMs: 120000,
+				browserName: 'chromium'
+			});
 			await logTodoUiSnapshot(bob, 'Bob');
 			await expect(bob.getByTestId('todo-item')).toHaveCount(1);
 

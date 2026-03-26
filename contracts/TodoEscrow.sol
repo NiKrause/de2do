@@ -28,7 +28,6 @@ contract TodoEscrow is Ownable {
   }
 
   mapping(bytes32 => Escrow) public escrows;
-  uint16 public constant MAX_FEE_BPS = 1_000;
   address public feeRecipient;
   uint16 public feeBps;
 
@@ -140,7 +139,8 @@ contract TodoEscrow is Ownable {
   }
 
   function _setFeeConfig(address newFeeRecipient, uint16 newFeeBps) internal {
-    require(newFeeBps <= MAX_FEE_BPS, "fee too high");
+    // Basis points are out of 10_000 (= 100%). Above that, `release` would underflow `netAmount`.
+    require(newFeeBps <= 10_000, "fee exceeds 100%");
     require(newFeeRecipient != address(0) || newFeeBps == 0, "fee recipient required");
 
     feeRecipient = newFeeRecipient;

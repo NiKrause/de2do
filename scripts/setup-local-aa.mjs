@@ -239,7 +239,9 @@ async function main() {
 		const env = {
 			...process.env,
 			PRIVATE_KEY: process.env.PRIVATE_KEY || ANVIL_DEFAULT_PRIVATE_KEY,
-			ENTRY_POINT_ADDRESS: ENTRY_POINT_V08
+			ENTRY_POINT_ADDRESS: ENTRY_POINT_V08,
+			// DeployEscrow.s.sol defaults to 15% fee; local AA + passkey E2E expect 0% unless you set FEE_BPS.
+			FEE_BPS: process.env.FEE_BPS ?? '0'
 		};
 		const runForge = (script) => {
 			log('$ forge script', script);

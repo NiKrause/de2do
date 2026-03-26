@@ -40,7 +40,7 @@ This document is the **implementation roadmap** for a reproducible local dev/tes
 1. **CI script** (or documented Makefile): start Anvil + compose + wait for RPC + bundler JSON-RPC.
 2. **`.env.test` in CI**: copy from `.env.test.example`, inject addresses from `broadcast/*/run-latest.json` (script) or fixed fixture.
 3. **Playwright `global-setup`**: optional health `curl` to bundler + `cast code` EntryPoint v0.8 (fail fast).
-4. **Passkey-escrow suite:** relay on **3001** (`e2e/start-passkey-escrow-relay.mjs`) so **3000** stays free for mock-paymaster in `docker-compose.aa-local.yml`.
+4. **Passkey-escrow suite:** relay on **3001** (`e2e/start-passkey-escrow-relay.mjs`). Mock paymaster in `docker-compose.aa-local.yml` maps to host **3002** so **3000** can stay free for **`orbitdb-relay-pinner`** (`npm run relay`).
 
 **Implemented:** `playwright.passkey-escrow.config.js` + `e2e/global-setup-passkey-escrow.mjs` runs `node scripts/setup-local-aa.mjs --env-file .env.test --start-anvil --write-anvil-pid`, merges relay + funder into `.env.test`, then `npm run build:test && preview:test`. Run: `pnpm run test:e2e:passkey-escrow`. Skip AA stack: `E2E_SKIP_LOCAL_AA_SETUP=1` (relay still starts; you manage Anvil/docker/forge).
 
