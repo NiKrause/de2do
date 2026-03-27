@@ -34,6 +34,13 @@ DATASTORE_PATH=./relay-datastore
 # Networking
 PUBSUB_TOPICS=todo._peer-discovery._p2p._pubsub
 
+# Circuit relay v2 (orbitdb-relay-pinner ≥0.4.0; see node_modules/orbitdb-relay-pinner/.env.example)
+# RELAY_CIRCUIT_HOP_TIMEOUT_MS=300000
+# RELAY_CIRCUIT_MAX_RESERVATIONS=10000
+# RELAY_CIRCUIT_RESERVATION_TTL_MS=72000000
+# RELAY_CIRCUIT_DEFAULT_DATA_LIMIT_BYTES=10737418240
+# RELAY_CIRCUIT_DEFAULT_DURATION_LIMIT_MS=1200000
+
 # Security (Production)
 API_PASSWORD=your_secure_password_here
 RELAY_PRIV_KEY=your_hex_private_key_here

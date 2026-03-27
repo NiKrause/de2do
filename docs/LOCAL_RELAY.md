@@ -2,7 +2,7 @@
 
 ## Default (this repo)
 
-`package.json` depends on **`orbitdb-relay-pinner`** from the **npm registry** (semver, e.g. `^0.1.25`). Use:
+`package.json` depends on **`orbitdb-relay-pinner`** from the **npm registry** (semver, e.g. `^0.4.0`). Use:
 
 ```bash
 npm install
