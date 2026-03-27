@@ -43,5 +43,7 @@ vite.config.ts.timestamp-*
 # Foundry (build artifacts)
 out/
 cache/
-# Keep only run-latest.json per script; timestamped runs are noise / machine-specific
+# Local Anvil / machine-specific deploy broadcasts (do not commit)
+broadcast/**/run-latest.json
+# Timestamped runs are noise / machine-specific
 broadcast/**/run-[0-9]*.json
