@@ -89,6 +89,13 @@ export const accountABI = [
 		type: 'function'
 	},
 	{
+		inputs: [],
+		name: 'initialized',
+		outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+		stateMutability: 'view',
+		type: 'function'
+	},
+	{
 		inputs: [
 			{ internalType: 'uint256', name: '_id', type: 'uint256' },
 			{ internalType: 'enum ISessionKey.KeyType', name: '_keyType', type: 'uint8' }

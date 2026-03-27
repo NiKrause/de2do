@@ -39,12 +39,38 @@ IPFS_SERVER="ipfs.le-space.de"
 # Bump version automatically (patch level) and build the project
 npm version patch
 npm run build
-# Run the ipfs add command and capture the output
+
+# --- Local Kubo: detect daemon before ipfs add (default ports: API 5001, gateway 8080, swarm 4001 tcp/udp)
+LOCAL_IPFS_OK=0
+if command -v ipfs >/dev/null 2>&1; then
+	if ipfs id >/dev/null 2>&1; then
+		LOCAL_IPFS_OK=1
+	fi
+fi
+if [[ "$LOCAL_IPFS_OK" -eq 0 ]] && command -v curl >/dev/null 2>&1; then
+	if curl -sf "http://127.0.0.1:5001/api/v0/version" >/dev/null 2>&1; then
+		LOCAL_IPFS_OK=1
+	fi
+fi
+
+if [[ "$LOCAL_IPFS_OK" -eq 1 ]]; then
+	echo "Local IPFS daemon detected (API reachable, typically http://127.0.0.1:5001)."
+else
+	echo "Note: Local IPFS does not appear to be running." >&2
+	echo "  Checked: ipfs id, and http://127.0.0.1:5001/api/v0/version" >&2
+	echo "  Default Kubo ports: API 5001, gateway 8080, swarm 4001 (tcp/udp). Start with: ipfs daemon" >&2
+fi
+
+# Add build/ to the local IPFS node (requires a running daemon for typical Kubo setups)
 output=$(ipfs add -r build/)
 
 # Extract the CID using awk or cut
 cid=$(echo "$output" | tail -n 1 | awk '{print $2}')
 echo "latest IPFS CID $cid"
+
+# Upload the same build to Storacha (CLI must be installed; see https://storacha.network )
+storacha up build
+echo "Storacha upload finished (storacha up build)."
 
 # Run the ipfs name publish command with the extracted CID
 ipfs name publish --key=$IPNS_NAME /ipfs/$cid

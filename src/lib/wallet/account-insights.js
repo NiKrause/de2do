@@ -14,6 +14,7 @@ import {
 	getLocalDevFunderPrivateKey,
 	getRpcUrl
 } from '../chain/config.js';
+import { accountABI } from './openfort/accountABI.js';
 
 /**
  * @typedef {{
@@ -62,6 +63,45 @@ function getInsightsClient() {
 		chain: getAppChain(),
 		transport: insightsHttpTransport(rpcUrl)
 	});
+}
+
+/**
+ * Whether the passkey smart account is live on-chain. EIP-7702 often yields empty `eth_getCode` on
+ * the EOA; we then use `initialized()` via `eth_call` at the same address (delegated code).
+ *
+ * @param {`0x${string}`} address
+ * @param {{ transactions?: Array<{ direction?: string, value?: bigint }> }} [options]
+ * @returns {Promise<{ deployed: boolean | null }>} `true` = active, `false` = clearly not, `null` = unknown
+ */
+export async function probePasskeySmartAccountDeployed(address, { transactions = [] } = {}) {
+	const client = getInsightsClient();
+	const chain = getAppChain();
+	const addressHex = /** @type {`0x${string}`} */ (address);
+
+	const code = await client.getBytecode({ address: addressHex });
+	if (code && code !== '0x') {
+		return { deployed: true };
+	}
+
+	try {
+		const initialized = await client.readContract({
+			address: addressHex,
+			abi: accountABI,
+			functionName: 'initialized'
+		});
+		return { deployed: Boolean(initialized) };
+	} catch {
+		// No delegation, wrong implementation ABI, or RPC does not run 7702 delegation on eth_call.
+	}
+
+	const likely7702Bootstrap =
+		chain.id !== 31337 &&
+		transactions?.some((t) => t.direction === 'self' && t.value === 0n);
+	if (likely7702Bootstrap) {
+		return { deployed: null };
+	}
+
+	return { deployed: chain.id === 31337 ? false : null };
 }
 
 /** @param {`0x${string}`} address */

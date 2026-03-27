@@ -21,10 +21,12 @@
 		fundLocalAnvilSmartAccount,
 		getAccountEthBalance,
 		getEscrowContractEthBalance,
-		getRecentAccountTransactions
+		getRecentAccountTransactions,
+		probePasskeySmartAccountDeployed
 	} from '$lib/wallet/account-insights.js';
 	import { formatEtherFullDecimals } from '$lib/wallet/format-eth-display.js';
 	import {
+		getAddressExplorerLink,
 		getAppChain,
 		getBundlerUrl,
 		getEntryPointAddress,
@@ -63,6 +65,10 @@
 	let smartAccountAddress = '';
 	/** @type {boolean | null} */
 	let smartAccountDeployed = null;
+
+	$: smartAccountExplorerLink = smartAccountAddress
+		? getAddressExplorerLink(smartAccountAddress)
+		: null;
 	/** @type {Record<string, unknown> | null} */
 	let smartAccountDebug = null;
 	let smartAccountWarningVisible = false;
@@ -137,31 +143,14 @@
 			recentTransactions = transactions;
 			escrowContractBalance = escrowBal;
 
-			// `eth_getCode` is often empty for EIP-7702–delegated EOAs; infer likely bootstrap from txs.
 			try {
-				const chain = getAppChain();
-				const publicClient = createPublicClient({
-					chain,
-					transport: http(rpcUrlProbe)
-				});
-				const code = await publicClient.getBytecode({ address: addressHex });
-				const hasCode = Boolean(code && code !== '0x');
-				const likely7702Bootstrap =
-					chain.id !== 31337 &&
-					transactions?.some((t) => t.direction === 'self' && t.value === 0n);
-				if (hasCode) {
-					smartAccountDeployed = true;
-				} else if (likely7702Bootstrap) {
-					smartAccountDeployed = null;
-				}
+				const { deployed } = await probePasskeySmartAccountDeployed(addressHex, { transactions });
+				smartAccountDeployed = deployed;
 				const profile = (await getIdentityProfile()) || {};
-				if (
-					profile.passkeySmartAccountAddress?.toLowerCase() === addressHex.toLowerCase() &&
-					(hasCode || likely7702Bootstrap)
-				) {
+				if (profile.passkeySmartAccountAddress?.toLowerCase() === addressHex.toLowerCase()) {
 					await setIdentityProfile({
 						...profile,
-						passkeySmartAccountDeployed: hasCode ? true : null
+						passkeySmartAccountDeployed: deployed
 					});
 				}
 			} catch (probeErr) {
@@ -333,14 +322,12 @@
 			let deployed = null;
 			const rpcUrl = getRpcUrl();
 			if (rpcUrl) {
-				const publicClient = createPublicClient({
-					chain: getAppChain(),
-					transport: http(rpcUrl)
-				});
-				const code = await publicClient.getBytecode({ address: accountAddress });
-				deployed = Boolean(code && code !== '0x');
-				if (!deployed && direct7702Bootstrap) {
-					// EIP-7702 delegated EOAs often return empty `eth_getCode` on public RPCs (not only Anvil).
+				const probe = await probePasskeySmartAccountDeployed(
+					/** @type {`0x${string}`} */ (accountAddress),
+					{ transactions: [] }
+				);
+				deployed = probe.deployed;
+				if (deployed === false && direct7702Bootstrap) {
 					deployed = null;
 				}
 				smartAccountDeployed = deployed;
@@ -536,12 +523,28 @@
 			data-testid="wallet-smart-account-summary"
 		>
 			Smart account: <span data-testid="wallet-smart-account-address">{smartAccountAddress}</span>
+			<!-- eslint-disable svelte/no-navigation-without-resolve -- external https:// block explorer only -->
+			{#if smartAccountExplorerLink}
+				<a
+					href={smartAccountExplorerLink.url}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="ml-1.5 inline-flex items-baseline gap-0.5 text-emerald-800 underline decoration-emerald-600/50 underline-offset-2 hover:text-emerald-950"
+					title="Open address on {smartAccountExplorerLink.name}"
+					data-testid="wallet-smart-account-explorer"
+				>
+					<span class="whitespace-nowrap">{smartAccountExplorerLink.name}</span>
+					<span class="text-[10px] leading-none opacity-80" aria-hidden="true">↗</span>
+					<span class="sr-only"> (opens in new tab)</span>
+				</a>
+			{/if}
+			<!-- eslint-enable svelte/no-navigation-without-resolve -->
 			{#if smartAccountDeployed === true}
-				(on-chain code detected)
+				(on-chain: passkey account active)
 			{:else if smartAccountDeployed === false}
-				(not deployed on-chain yet)
+				(not initialized on-chain yet)
 			{:else}
-				(deployment status unknown)
+				(could not confirm — try Refresh after a few seconds)
 			{/if}
 		</div>
 		<div

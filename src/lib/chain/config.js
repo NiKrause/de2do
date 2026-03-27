@@ -141,3 +141,23 @@ export function getPaymasterUrl() {
 export function getLocalDevFunderPrivateKey() {
 	return getEnvValue('VITE_LOCAL_DEV_FUNDER_PRIVATE_KEY');
 }
+
+/**
+ * Block explorer URL for an address (Etherscan on Sepolia/mainnet, chain-specific when viem defines it).
+ * @param {string | null | undefined} address
+ * @returns {{ url: string, name: string } | null}
+ */
+export function getAddressExplorerLink(address) {
+	if (!address || typeof address !== 'string') return null;
+	const trimmed = address.trim();
+	if (!trimmed.startsWith('0x') || trimmed.length < 42) return null;
+	try {
+		const chain = getAppChain();
+		const explorer = chain.blockExplorers?.default;
+		if (!explorer?.url) return null;
+		const url = `${String(explorer.url).replace(/\/$/, '')}/address/${trimmed}`;
+		return { url, name: explorer.name || 'Block explorer' };
+	} catch {
+		return null;
+	}
+}
