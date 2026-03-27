@@ -196,8 +196,31 @@ Use the deployed mock implementation address as `VITE_IMPLEMENTATION_CONTRACT`.
 
 ### 1C) Sepolia
 
+**Recommended — escrow + mock implementation in one go** (fills `VITE_ESCROW_CONTRACT` and `VITE_IMPLEMENTATION_CONTRACT` in the script output):
+
 ```bash
-cd /Users/nandi/Documents/projekte/DecentraSol/simple-todo
+cd /path/to/simple-todo
+# Copy `.env.sepolia.example` → `.env.sepolia`, set PRIVATE_KEY, SEPOLIA_RPC_URL / VITE_RPC_URL, optional ETHERSCAN_API_KEY
+npm run deploy:sepolia
+```
+
+By default this deploys `TodoEscrow` and **`MockOpenfort7702Implementation`** (dev-only). To skip the mock and use OpenFort’s implementation in `VITE_IMPLEMENTATION_CONTRACT` instead, set `SEPOLIA_SKIP_MOCK_IMPLEMENTATION=1` in `.env.sepolia` or run `SEPOLIA_SKIP_MOCK_IMPLEMENTATION=1 npm run deploy:sepolia`.
+
+**Mock implementation only** (e.g. escrow already deployed, you only need `VITE_IMPLEMENTATION_CONTRACT`):
+
+```bash
+cd /path/to/simple-todo
+export PRIVATE_KEY=0x... # deployer with Sepolia ETH
+export ENTRY_POINT_ADDRESS=0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108
+forge script contracts/script/DeployMockOpenfort7702Implementation.s.sol \
+  --rpc-url "$SEPOLIA_RPC_URL" --broadcast
+# Copy the implementation address from the console or broadcast/.../run-latest.json → VITE_IMPLEMENTATION_CONTRACT
+```
+
+**Escrow only** (older path — does not deploy the mock):
+
+```bash
+cd /path/to/simple-todo
 export PRIVATE_KEY=0x...     # deployer key
 export RPC_URL_SEPOLIA=...   # your Sepolia RPC
 

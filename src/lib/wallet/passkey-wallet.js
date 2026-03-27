@@ -20,11 +20,13 @@ import { getStoredWebAuthnCredential } from '@le-space/orbitdb-ui';
 import { getIdentityProfile, setIdentityProfile } from '../identity/profile.js';
 import {
 	getAppChain,
+	getBundlerHttpTransportConfig,
 	getBundlerUrl,
 	getEntryPointAddress,
 	getImplementationAddress,
 	getPaymasterUrl,
-	getRpcUrl
+	getRpcUrl,
+	shouldUsePasskeyBootstrapViaUserOp
 } from '../chain/config.js';
 import { getWebAuthnMK } from './openfort/getKeyData.js';
 import { toOpenfortSmartAccount } from './openfort/toOpenfortSmartAccount.js';
@@ -39,6 +41,33 @@ const OWNER_KEY_STORAGE_KEY = 'passkey_wallet_owner_keys';
 const DEFAULT_ANVIL_PRIVATE_KEY =
 	'0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
 const OPENFORT_INIT_TYPEHASH = '0x82dc6262fca76342c646d126714aa4005dfcd866448478747905b2e7b9837183';
+
+/** Session-only: same EOA across retries so users can fund it on Sepolia before direct EIP-7702 bootstrap. */
+const PENDING_BOOTSTRAP_PK_SESSION_KEY = 'passkey_bootstrap_pending_private_key';
+
+/** Rough floor for `initialize` + EIP-7702 type-4 gas on Sepolia (direct bootstrap, not UserOp). */
+const DIRECT_EIP7702_BOOTSTRAP_MIN_BALANCE = parseEther('0.00002');
+
+function takeOrCreateBootstrapPrivateKey() {
+	if (typeof sessionStorage === 'undefined') {
+		return generatePrivateKey();
+	}
+	const existing = sessionStorage.getItem(PENDING_BOOTSTRAP_PK_SESSION_KEY);
+	if (existing && /^0x[0-9a-fA-F]{64}$/.test(existing)) {
+		return /** @type {import('viem/accounts').Hex} */ (existing);
+	}
+	const pk = generatePrivateKey();
+	sessionStorage.setItem(PENDING_BOOTSTRAP_PK_SESSION_KEY, pk);
+	return pk;
+}
+
+function clearPendingBootstrapPrivateKey() {
+	try {
+		sessionStorage?.removeItem(PENDING_BOOTSTRAP_PK_SESSION_KEY);
+	} catch {
+		/* ignore */
+	}
+}
 
 /**
  * Anvil EIP-7702 type-4 self-delegated txs: RPC `eth_estimateGas` / `eth_fillTransaction` often returns
@@ -413,10 +442,11 @@ async function createOpenfortClients({
 	});
 
 	const paymaster = createPaymasterClient({ paymasterUrl, entryPointAddress });
+	const bundlerHttpConfig = getBundlerHttpTransportConfig();
 	const smartAccountClient = createBundlerClient({
 		account,
 		chain,
-		transport: http(bundlerUrl),
+		transport: bundlerHttpConfig ? http(bundlerUrl, bundlerHttpConfig) : http(bundlerUrl),
 		paymaster
 	});
 
@@ -720,8 +750,20 @@ export async function createPasskeySmartAccount() {
 		);
 	}
 
-	const privateKey = generatePrivateKey();
+	const privateKey = takeOrCreateBootstrapPrivateKey();
 	const signer = privateKeyToAccount(privateKey);
+
+	// Before passkey: direct EIP-7702 bootstrap needs ETH on this EOA (bundler UserOp path can use paymaster).
+	if (chain.id !== 31337 && !shouldUsePasskeyBootstrapViaUserOp()) {
+		const balance = await publicClient.getBalance({ address: signer.address });
+		if (balance < DIRECT_EIP7702_BOOTSTRAP_MIN_BALANCE) {
+			throw new Error(
+				`Fund ${signer.address} with Sepolia ETH (≥ ~0.00002 ETH) for gas, then create again. ` +
+					'The address stays the same until you finish this step. ' +
+					'Alternatively set VITE_PASSKEY_BOOTSTRAP_VIA_USEROP=1 only if your bundler supports EIP-7702 UserOperations.'
+			);
+		}
+	}
 
 	const paymasterUrl = getPaymasterUrl();
 	const credential = await resolveWalletCredential(signer.address);
@@ -769,6 +811,31 @@ export async function createPasskeySmartAccount() {
 			publicClient
 		});
 
+		clearPendingBootstrapPrivateKey();
+		return {
+			address: signer.address,
+			credential,
+			signedAuthorization,
+			userOperationHash: hash,
+			userOperation: null,
+			receipt,
+			smartAccountClient
+		};
+	}
+
+	// Public networks: many bundlers (including Openfort) reject `eip7702Auth` on `eth_sendUserOperation`.
+	// Default: same EIP-7702 type-4 + authorizationList bootstrap as Anvil, using `VITE_RPC_URL` only.
+	if (!shouldUsePasskeyBootstrapViaUserOp()) {
+		const { hash, receipt } = await sendLocal7702BootstrapTransaction({
+			signer,
+			chain,
+			rpcUrl,
+			callData,
+			signedAuthorization,
+			publicClient
+		});
+
+		clearPendingBootstrapPrivateKey();
 		return {
 			address: signer.address,
 			credential,
@@ -838,6 +905,7 @@ export async function createPasskeySmartAccount() {
 		hash: userOperationHash
 	});
 
+	clearPendingBootstrapPrivateKey();
 	return {
 		address: signer.address,
 		credential,
@@ -877,11 +945,12 @@ export async function getPasskeySmartAccountClient(address) {
 
 	const paymasterUrl = getPaymasterUrl();
 	const paymaster = createPaymasterClient({ paymasterUrl, entryPointAddress });
+	const bundlerHttpConfig = getBundlerHttpTransportConfig();
 
 	return createBundlerClient({
 		account,
 		chain,
-		transport: http(bundlerUrl),
+		transport: bundlerHttpConfig ? http(bundlerUrl, bundlerHttpConfig) : http(bundlerUrl),
 		paymaster
 	});
 }

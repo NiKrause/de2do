@@ -7,6 +7,9 @@
 #   - Deployer wallet with Sepolia ETH
 #
 # Usage:
+#   cp .env.sepolia.example .env.sepolia   # then set PRIVATE_KEY, RPC, and later VITE_* from deploy output
+#   npm run deploy:sepolia
+# Or export manually:
 #   export PRIVATE_KEY=0x...          # deployer
 #   export SEPOLIA_RPC_URL=https://... # or VITE_RPC_URL
 #   ./scripts/deploy-sepolia.sh
@@ -14,13 +17,31 @@
 # Optional:
 #   export FEE_RECIPIENT=0x...        # default: deployer
 #   export FEE_BPS=0                  # default in script: 1500 (15%); set 0 to disable fee
-#   export SKIP_MOCK_IMPLEMENTATION=1 # do not deploy mock 7702 impl (use Openfort implementation)
+#   export SEPOLIA_SKIP_MOCK_IMPLEMENTATION=1  # skip MockOpenfort7702Implementation (use Openfort impl in VITE_*)
 #   export ENTRY_POINT_ADDRESS=0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108  # default v0.8
 #   export ETHERSCAN_API_KEY=...     # adds --verify to forge (contract verification on Sepolia)
+#
+# By default this script deploys MockOpenfort7702Implementation on Sepolia (same as Foundry DeploySepolia).
+# Set SEPOLIA_SKIP_MOCK_IMPLEMENTATION=1 in .env.sepolia or the shell only when you intentionally skip the mock.
 #
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+
+# Optional: load repo-root `.env.sepolia` (gitignored) so PRIVATE_KEY / RPC / verify key are set once.
+if [[ -f "${ROOT}/.env.sepolia" ]]; then
+	set -a
+	# shellcheck source=/dev/null
+	source "${ROOT}/.env.sepolia"
+	set +a
+fi
+
+# Deploy mock 7702 implementation by default. Older `.env.sepolia` files used SKIP_MOCK_IMPLEMENTATION=1;
+# that is ignored here so the default is always "deploy mock" unless you opt in with SEPOLIA_SKIP_MOCK_IMPLEMENTATION=1.
+unset SKIP_MOCK_IMPLEMENTATION
+if [[ "${SEPOLIA_SKIP_MOCK_IMPLEMENTATION:-0}" == "1" ]]; then
+	export SKIP_MOCK_IMPLEMENTATION=1
+fi
 
 RPC_URL="${SEPOLIA_RPC_URL:-${VITE_RPC_URL:-}}"
 if [[ -z "${RPC_URL}" ]]; then

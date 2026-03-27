@@ -122,7 +122,8 @@
 	}
 
 	async function refreshSmartAccountInsights(address = smartAccountAddress) {
-		if (!address || !getRpcUrl()) return;
+		const rpcUrlProbe = getRpcUrl();
+		if (!address || !rpcUrlProbe) return;
 		const addressHex = /** @type {`0x${string}`} */ (address);
 
 		try {
@@ -135,6 +136,37 @@
 			smartAccountBalance = balance;
 			recentTransactions = transactions;
 			escrowContractBalance = escrowBal;
+
+			// `eth_getCode` is often empty for EIP-7702–delegated EOAs; infer likely bootstrap from txs.
+			try {
+				const chain = getAppChain();
+				const publicClient = createPublicClient({
+					chain,
+					transport: http(rpcUrlProbe)
+				});
+				const code = await publicClient.getBytecode({ address: addressHex });
+				const hasCode = Boolean(code && code !== '0x');
+				const likely7702Bootstrap =
+					chain.id !== 31337 &&
+					transactions?.some((t) => t.direction === 'self' && t.value === 0n);
+				if (hasCode) {
+					smartAccountDeployed = true;
+				} else if (likely7702Bootstrap) {
+					smartAccountDeployed = null;
+				}
+				const profile = (await getIdentityProfile()) || {};
+				if (
+					profile.passkeySmartAccountAddress?.toLowerCase() === addressHex.toLowerCase() &&
+					(hasCode || likely7702Bootstrap)
+				) {
+					await setIdentityProfile({
+						...profile,
+						passkeySmartAccountDeployed: hasCode ? true : null
+					});
+				}
+			} catch (probeErr) {
+				console.warn('Smart-account deployment probe failed:', probeErr);
+			}
 		} catch (error) {
 			console.warn('Failed to refresh smart-account insights:', error);
 		} finally {
@@ -295,8 +327,8 @@
 			const accountAddress = smartAccountClient.account?.address || address;
 			smartAccountAddress = accountAddress;
 			walletAddress = accountAddress;
-			const localDirect7702Bootstrap =
-				getAppChain().id === 31337 && !userOperation && Boolean(receipt?.transactionHash);
+			// Direct EIP-7702 bootstrap returns a normal tx receipt (no UserOp). Any chain: true.
+			const direct7702Bootstrap = !userOperation && Boolean(receipt?.transactionHash);
 
 			let deployed = null;
 			const rpcUrl = getRpcUrl();
@@ -307,9 +339,8 @@
 				});
 				const code = await publicClient.getBytecode({ address: accountAddress });
 				deployed = Boolean(code && code !== '0x');
-				if (!deployed && localDirect7702Bootstrap) {
-					// Local direct 7702 bootstrap can succeed even when Anvil bytecode checks
-					// do not reflect the delegated code in the same way as production infra.
+				if (!deployed && direct7702Bootstrap) {
+					// EIP-7702 delegated EOAs often return empty `eth_getCode` on public RPCs (not only Anvil).
 					deployed = null;
 				}
 				smartAccountDeployed = deployed;
@@ -337,8 +368,8 @@
 			hasCredential = true;
 			if (deployed === false) {
 				showToast('⚠️ Passkey smart account is not deployed on-chain yet', 'warning', 3500);
-			} else if (localDirect7702Bootstrap && deployed == null) {
-				showToast('✅ Local 7702 bootstrap transaction succeeded', 'success', 2500);
+			} else if (direct7702Bootstrap && deployed == null) {
+				showToast('✅ EIP-7702 bootstrap transaction succeeded', 'success', 2500);
 			} else {
 				showToast('✅ Passkey smart account ready', 'success', 2000);
 			}

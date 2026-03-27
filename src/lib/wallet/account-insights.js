@@ -29,14 +29,30 @@ import {
  * }} AccountTxRow
  */
 
-const DEFAULT_LOOKBACK_BLOCKS = 200n;
+/** Default block scan depth. Keep low: each block uses one `eth_getBlock(full)` — public RPCs rate-limit hard. */
+const DEFAULT_LOOKBACK_BLOCKS = 32n;
+/** Hard cap so `.env` cannot accidentally trigger hundreds of `getBlock` calls per refresh. */
+const MAX_LOOKBACK_BLOCKS = 64n;
 /** Enough rows that `incoming (escrow ETH)` from logs is not evicted when many top-level txs share a block. */
 const DEFAULT_TX_LIMIT = 16;
+
+function clampBlockLookback(requested) {
+	const n = requested > MAX_LOOKBACK_BLOCKS ? MAX_LOOKBACK_BLOCKS : requested;
+	return n < 0n ? 0n : n;
+}
 
 // Must match `contracts/TodoEscrow.sol` (feeRecipient + gross/fee/net — not the old single `amount`).
 const escrowReleasedEvent = parseAbiItem(
 	'event EscrowReleased(bytes32 indexed todoId, address indexed beneficiary, address indexed feeRecipient, address token, uint256 grossAmount, uint256 feeAmount, uint256 netAmount)'
 );
+
+function insightsHttpTransport(rpcUrl) {
+	return http(rpcUrl, {
+		retryCount: 2,
+		retryDelay: ({ count }) => Math.min(1500 * 2 ** count, 10_000),
+		timeout: 25_000
+	});
+}
 
 function getInsightsClient() {
 	const rpcUrl = getRpcUrl();
@@ -44,7 +60,7 @@ function getInsightsClient() {
 
 	return createPublicClient({
 		chain: getAppChain(),
-		transport: http(rpcUrl)
+		transport: insightsHttpTransport(rpcUrl)
 	});
 }
 
@@ -160,13 +176,14 @@ export async function getRecentAccountTransactions(
 ) {
 	const client = getInsightsClient();
 	const latestBlockNumber = await client.getBlockNumber();
+	const lookback = clampBlockLookback(blockLookback);
 	const normalizedAddress = address.toLowerCase();
 	/** @type {AccountTxRow[]} */
 	const topLevel = [];
 
 	for (
 		let blockNumber = latestBlockNumber;
-		blockNumber >= 0n && blockNumber >= latestBlockNumber - blockLookback;
+		blockNumber >= 0n && blockNumber >= latestBlockNumber - lookback;
 		blockNumber -= 1n
 	) {
 		const block = await client.getBlock({
@@ -208,7 +225,7 @@ export async function getRecentAccountTransactions(
 	let escrowRows = [];
 	const escrowAddr = getEscrowAddress();
 	if (escrowAddr && escrowAddr.startsWith('0x')) {
-		const fromBlock = latestBlockNumber > blockLookback ? latestBlockNumber - blockLookback : 0n;
+		const fromBlock = latestBlockNumber > lookback ? latestBlockNumber - lookback : 0n;
 		try {
 			escrowRows = await getEscrowReleaseRowsForBeneficiary(
 				client,
@@ -262,7 +279,7 @@ export async function fundLocalAnvilSmartAccount(address, amountEth = '2') {
 
 	const publicClient = createPublicClient({
 		chain,
-		transport: http(rpcUrl)
+		transport: insightsHttpTransport(rpcUrl)
 	});
 
 	const funderPrivateKey = getLocalDevFunderPrivateKey();
@@ -274,7 +291,7 @@ export async function fundLocalAnvilSmartAccount(address, amountEth = '2') {
 	const walletClient = createWalletClient({
 		account: funder,
 		chain,
-		transport: http(rpcUrl)
+		transport: insightsHttpTransport(rpcUrl)
 	});
 
 	const hash = await walletClient.sendTransaction({

@@ -21,6 +21,7 @@ import "../TodoEscrow.sol";
 /// - `FEE_BPS` — fee basis points out of 10_000 (default: 1500 = 15%).
 /// - `SKIP_MOCK_IMPLEMENTATION` — if `1`, skip MockOpenfort7702Implementation (use Openfort’s
 ///   `VITE_IMPLEMENTATION_CONTRACT` on Sepolia instead). **Warning:** mock is dev-only; not for production.
+///   `scripts/deploy-sepolia.sh` sets this only when `SEPOLIA_SKIP_MOCK_IMPLEMENTATION=1` (not from legacy `.env` keys).
 contract DeploySepolia is Script {
   /// @dev Default 15% TodoEscrow fee. Override with `FEE_BPS` (e.g. `0` to disable).
   uint256 internal constant DEFAULT_FEE_BPS = 1500;

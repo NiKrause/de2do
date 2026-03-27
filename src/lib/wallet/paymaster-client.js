@@ -1,13 +1,18 @@
 import { deepHexlify } from './openfort/utils.js';
+import { getPaymasterAuthHeader } from '../chain/config.js';
 
 export function createPaymasterClient({ paymasterUrl, entryPointAddress }) {
 	if (!paymasterUrl) return undefined;
 
 	async function sponsorUserOperation(args) {
 		const userOperation = args?.userOperation ?? args;
+		const authorization = getPaymasterAuthHeader();
 		const response = await fetch(paymasterUrl, {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
+			headers: {
+				'content-type': 'application/json',
+				...(authorization ? { Authorization: authorization } : {})
+			},
 			body: JSON.stringify({
 				method: 'pm_sponsorUserOperation',
 				params: [deepHexlify(userOperation), entryPointAddress, null]

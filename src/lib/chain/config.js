@@ -4,12 +4,15 @@ const ENV = {
 	VITE_CHAIN_ID: import.meta.env.VITE_CHAIN_ID,
 	VITE_RPC_URL: import.meta.env.VITE_RPC_URL,
 	VITE_BUNDLER_URL: import.meta.env.VITE_BUNDLER_URL,
+	VITE_BUNDLER_AUTH_HEADER: import.meta.env.VITE_BUNDLER_AUTH_HEADER,
 	VITE_ESCROW_CONTRACT: import.meta.env.VITE_ESCROW_CONTRACT,
 	VITE_USDT_ADDRESS: import.meta.env.VITE_USDT_ADDRESS,
 	VITE_ENTRY_POINT_ADDRESS: import.meta.env.VITE_ENTRY_POINT_ADDRESS,
 	VITE_IMPLEMENTATION_CONTRACT: import.meta.env.VITE_IMPLEMENTATION_CONTRACT,
 	VITE_ENABLE_PAYMASTER: import.meta.env.VITE_ENABLE_PAYMASTER,
 	VITE_PAYMASTER_URL: import.meta.env.VITE_PAYMASTER_URL,
+	VITE_PAYMASTER_AUTH_HEADER: import.meta.env.VITE_PAYMASTER_AUTH_HEADER,
+	VITE_PASSKEY_BOOTSTRAP_VIA_USEROP: import.meta.env.VITE_PASSKEY_BOOTSTRAP_VIA_USEROP,
 	VITE_LOCAL_DEV_FUNDER_PRIVATE_KEY: import.meta.env.VITE_LOCAL_DEV_FUNDER_PRIVATE_KEY
 };
 
@@ -70,6 +73,41 @@ export function getRpcUrl() {
 
 export function getBundlerUrl() {
 	return maybeProxyLocalDevUrl(getEnvValue('VITE_BUNDLER_URL'), '/__bundler', 4337);
+}
+
+/**
+ * Optional Authorization header value for hosted bundlers (e.g. Bearer token from the provider).
+ * Exposed via VITE_* (client bundle) — use the provider dashboard domain allowlists.
+ * @returns {import('viem').HttpTransportConfig | undefined}
+ */
+export function getBundlerHttpTransportConfig() {
+	const authorization = getEnvValue('VITE_BUNDLER_AUTH_HEADER');
+	if (!authorization) return undefined;
+	return {
+		fetchOptions: {
+			headers: {
+				Authorization: authorization
+			}
+		}
+	};
+}
+
+/**
+ * Same as bundler, for `pm_sponsorUserOperation` HTTP calls when paymaster is enabled.
+ * @returns {string | undefined} Full Authorization header value
+ */
+export function getPaymasterAuthHeader() {
+	return getEnvValue('VITE_PAYMASTER_AUTH_HEADER');
+}
+
+/**
+ * When true, first passkey smart-account bootstrap uses `eth_sendUserOperation` with `eip7702Auth`
+ * (needs a bundler that supports EIP-7702 UserOperations). Default off: bootstrap uses an EIP-7702
+ * type-4 transaction via `VITE_RPC_URL` instead (works with Openfort and other strict bundlers).
+ */
+export function shouldUsePasskeyBootstrapViaUserOp() {
+	const v = getEnvValue('VITE_PASSKEY_BOOTSTRAP_VIA_USEROP');
+	return v === '1' || v?.toLowerCase() === 'true';
 }
 
 export function getEscrowAddress() {
