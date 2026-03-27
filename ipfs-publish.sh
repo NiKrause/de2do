@@ -66,11 +66,29 @@ output=$(ipfs add -r build/)
 
 # Extract the CID using awk or cut
 cid=$(echo "$output" | tail -n 1 | awk '{print $2}')
-echo "latest IPFS CID $cid"
+printf '\n'
+echo "latest IPFS CID: $cid"
+echo "Public gateway URLs:"
+echo "  https://${cid}.ipfs.dweb.link"
+echo "  https://ipfs.io/ipfs/${cid}"
 
-# Upload the same build to Storacha (CLI must be installed; see https://storacha.network )
-storacha up build
-echo "Storacha upload finished (storacha up build)."
+# Update README immutable IPFS CID references as soon as we know the CID (do not depend on Storacha/SSH/IPNS).
+# Do not rewrite /ipns/... links — IPNS names stay as documented.
+# Covers: shields badge, https://<cid>.ipfs.dweb.link, and /ipfs/... path segments (not /ipns/).
+sed -i.bak \
+	-e "s|https://img.shields.io/badge/IPFS-[a-zA-Z0-9]*-brightgreen|https://img.shields.io/badge/IPFS-${cid}-brightgreen|g" \
+	-e "s|https://[a-zA-Z0-9]\{20,\}\.ipfs\.dweb\.link|https://${cid}.ipfs.dweb.link|g" \
+	-e "s|/ipfs/[^/\"'[:space:]]*|/ipfs/${cid}|g" \
+	README.md
+rm -f README.md.bak
+
+# Upload the same build to Storacha (CLI must be installed; see https://storacha.network ).
+# Network/TLS issues here must not block IPNS, pinning, or README updates.
+if storacha up build; then
+	echo "Storacha upload finished successfully (storacha up build)."
+else
+	echo "Storacha upload failed or skipped (storacha up build). Local IPFS add and README CID update already applied." >&2
+fi
 
 # Run the ipfs name publish command with the extracted CID
 ipfs name publish --key=$IPNS_NAME /ipfs/$cid
@@ -100,14 +118,6 @@ fi
 # echo "IPFS PIN added to follow ipns"
 # Get the current version from package.json
 version=$(node -p "require('./package.json').version")
-
-# Replace all /ipns/ and /ipfs/ links in README.md with the current /ipfs/CID
-# Replace /ipns/... with /ipfs/$cid (matches /ipns/ followed by any non-whitespace, quote, or slash)
-sed -i.bak "s|/ipns/[^/\"'[:space:]]*|/ipfs/$cid|g" README.md
-# Replace /ipfs/... with /ipfs/$cid (matches /ipfs/ followed by any non-whitespace, quote, or slash)
-sed -i.bak "s|/ipfs/[^/\"'[:space:]]*|/ipfs/$cid|g" README.md
-# Remove backup file created by sed
-rm -f README.md.bak
 
 # Git commands
 # git add vercel.json

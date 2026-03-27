@@ -494,29 +494,38 @@
 					? 'Create Wallet Passkey (Required)'
 					: 'Create Wallet Passkey'}
 		</button>
-		<button
-			type="button"
-			data-testid="wallet-create-smart-account"
-			on:click={handleCreateSmartAccount}
-			disabled={creatingSmartAccount || !smartAccountWarningVisible || missingConfig.length > 0}
-			class="rounded-md bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
-		>
-			{creatingSmartAccount ? 'Creating...' : 'Create Passkey Smart Account'}
-		</button>
+		{#if !smartAccountAddress}
+			<button
+				type="button"
+				data-testid="wallet-create-smart-account"
+				on:click={handleCreateSmartAccount}
+				disabled={creatingSmartAccount || !smartAccountWarningVisible || missingConfig.length > 0}
+				class="rounded-md bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+			>
+				{creatingSmartAccount ? 'Creating...' : 'Create Passkey Smart Account'}
+			</button>
+		{/if}
 	</div>
-	<div class="mt-2 flex items-center gap-2 text-xs text-amber-800">
-		<input
-			id="smart-account-warning"
-			type="checkbox"
-			data-testid="wallet-smart-account-warning"
-			bind:checked={smartAccountWarningVisible}
-			class="h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
-		/>
-		<label for="smart-account-warning">
-			I understand this will generate a new smart account address and override the wallet address
-			field.
-		</label>
-	</div>
+	{#if !smartAccountAddress}
+		<div class="mt-2 flex items-center gap-2 text-xs text-amber-800">
+			<input
+				id="smart-account-warning"
+				type="checkbox"
+				data-testid="wallet-smart-account-warning"
+				bind:checked={smartAccountWarningVisible}
+				class="h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+			/>
+			<label for="smart-account-warning">
+				I understand this will generate a new smart account address and override the wallet address
+				field.
+			</label>
+		</div>
+	{:else}
+		<p class="mt-2 text-xs text-emerald-800">
+			Passkey smart account is configured. Use <strong>Update Wallet Passkey</strong> only if you
+			need a new signing credential on this device.
+		</p>
+	{/if}
 	{#if smartAccountAddress}
 		<div
 			class="mt-2 rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-900"
