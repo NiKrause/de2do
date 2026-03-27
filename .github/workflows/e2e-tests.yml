@@ -220,6 +220,77 @@ jobs:
             debug-screenshot.png
           retention-days: 7
 
+  # Heavy WebAuthn delegation matrix (mixed modes), malicious-user, DB-by-name replication, embed
+  e2e-simple-todo-webauthn-delegation:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: ${{ env.ENABLE_CACHE != 'false' && 'npm' || '' }}
+
+      - name: Pin npm version
+        run: |
+          npm install -g npm@11.10.1
+          npm --version
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 cmake pkg-config libssl-dev
+
+      - name: Install dependencies
+        run: npm install --no-audit
+
+      - name: Ensure native node-datachannel is built
+        run: |
+          if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
+            echo "node-datachannel native module missing; rebuilding..."
+            rm -rf node_modules/@ipshipyard/node-datachannel/build || true
+            npm rebuild @ipshipyard/node-datachannel
+          else
+            echo "node-datachannel native module present"
+          fi
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Run WebAuthn delegation E2E (simple-todo-webauthn-delegation.spec.js) with fresh-run retry
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 45
+          max_attempts: 2
+          retry_wait_seconds: 15
+          command: bash -lc 'lsof -ti:4101,4102,4103,4106,3000,4174,9090 2>/dev/null | xargs kill -9 2>/dev/null || true; npm run test:e2e -- e2e/simple-todo-webauthn-delegation.spec.js --workers=1'
+        env:
+          CI: true
+
+      - name: Upload WebAuthn delegation test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-webauthn-delegation
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 30
+
+      - name: Upload WebAuthn delegation test screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-screenshots-webauthn-delegation
+          path: |
+            test-results/
+            debug-screenshot.png
+          retention-days: 7
+
   # Flaky network/sync tests - isolated in matrix with independent retries
   e2e-sync-tests:
     timeout-minutes: 35
@@ -230,7 +301,7 @@ jobs:
         include:
           - file: 'e2e/simple-todo.spec.js'
             test: 'should create passkey, add todos, and sync to another browser'
-          - file: 'e2e/simple-todo.spec.js'
+          - file: 'e2e/simple-todo-webauthn-delegation.spec.js'
             test: 'should replicate database when Browser B opens Browser A database by name'
           - file: 'e2e/consent-screen.spec.js'
             test: 'should disable network and keep peer count at zero'
