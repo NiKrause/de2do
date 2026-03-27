@@ -29,7 +29,7 @@ import {
 	wrapWithVarsigVerification
 } from '@le-space/orbitdb-ui';
 import { OrbitDBWebAuthnIdentityProviderFunction } from '@le-space/orbitdb-identity-provider-webauthn-did';
-import DelegatedTodoAccessController from './access/delegated-todo-access-controller.js';
+import DelegatedTodoAccessController from '@le-space/orbitdb-access-controller-delegated-todo';
 useAccessController(DelegatedTodoAccessController);
 // Register webauthn provider up-front so identity verification works in mixed-mode
 // scenarios (hardware varsig peers verifying worker-webAuthn entries).
@@ -90,7 +90,8 @@ function buildDatabaseOptions(
 
 	// Set up access controller - allow the specified identity to write
 	const accessController = DelegatedTodoAccessController({
-		write: [identityId]
+		write: [identityId],
+		verbose: true
 	});
 
 	const baseOptions = {
