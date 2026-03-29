@@ -16,7 +16,7 @@ import { createBundlerClient } from 'viem/account-abstraction';
 import { generatePrivateKey, privateKeyToAccount, signAuthorization } from 'viem/accounts';
 import { prepareAuthorization, prepareTransactionRequest, sendRawTransaction } from 'viem/actions';
 import { accountABI } from './openfort/accountABI.js';
-import { getStoredWebAuthnCredential } from '@le-space/orbitdb-ui';
+import { getStoredWebAuthnCredential } from '../identity/webauthn-identity.js';
 import { getIdentityProfile, setIdentityProfile } from '../identity/profile.js';
 import {
 	getAppChain,

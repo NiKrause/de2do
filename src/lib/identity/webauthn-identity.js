@@ -54,9 +54,15 @@ function bytesEqual(a, b) {
 }
 
 function normalizeMode(mode) {
-	return mode === WEBAUTHN_AUTH_MODES.HARDWARE
-		? WEBAUTHN_AUTH_MODES.HARDWARE
-		: WEBAUTHN_AUTH_MODES.WORKER;
+	if (mode == null || mode === '') {
+		return WEBAUTHN_AUTH_MODES.WORKER;
+	}
+	const m = String(mode).toLowerCase();
+	// orbitdb-ui historically persisted preferred mode as "varsig"
+	if (m === 'varsig' || m === 'hardware') {
+		return WEBAUTHN_AUTH_MODES.HARDWARE;
+	}
+	return WEBAUTHN_AUTH_MODES.WORKER;
 }
 
 function createPasskeyUserId(label) {
@@ -258,7 +264,9 @@ export function hasExistingCredentials() {
 }
 
 export function getStoredCredentialInfo() {
-	return formatStoredCredential(pickStoredCredential());
+	const record = pickStoredCredential();
+	if (!record) return null;
+	return formatStoredCredential(record);
 }
 
 export function getStoredCredentialInfos() {

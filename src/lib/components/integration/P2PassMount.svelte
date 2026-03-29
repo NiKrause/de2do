@@ -50,7 +50,6 @@
 	{:else if isInitialized}
 		<div data-testid="p2pass-mount">
 			<StorachaFab
-				fabVisible={false}
 				panelOpenStore={p2passPanelOpenStore}
 				{orbitdb}
 				{database}

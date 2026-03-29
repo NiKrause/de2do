@@ -1,8 +1,4 @@
 import { writable } from 'svelte/store';
 
-/** Shared open state for the P2Pass panel (footer toggle + StorachaFab). */
+/** Panel-open hint for P2Pass mount (e.g. “P2P initializing” overlay when opened before ready). */
 export const p2passPanelOpenStore = writable(false);
-
-export function toggleP2PassPanel() {
-	p2passPanelOpenStore.update((v) => !v);
-}

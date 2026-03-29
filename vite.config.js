@@ -18,6 +18,34 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 // Create build date
 const buildDate = new Date().toISOString().split('T')[0] + ' ' + new Date().toLocaleTimeString(); // YYYY-MM-DD HH:MM:SS format
 
+/**
+ * P2Pass ships `.svelte` files with `<style>`; @tailwindcss/vite can treat the virtual CSS module as tied to
+ * the parent `.svelte` id and feed content the CSS parser rejects ("Invalid declaration: onMount").
+ * Those blocks are plain CSS (no @tailwind / @apply); skipping Tailwind here is safe.
+ *
+ */
+function tailwindcssWithoutP2passSvelteCss(options) {
+	const plugins = tailwindcss(options);
+	for (const p of plugins) {
+		const name = p?.name ?? '';
+		if (!name.startsWith('@tailwindcss/vite:generate')) continue;
+		const t = p.transform;
+		if (!t || typeof t.handler !== 'function') continue;
+		const original = t.handler;
+		t.handler = async function (code, id, ...rest) {
+			if (
+				typeof id === 'string' &&
+				id.includes('@le-space/p2pass') &&
+				id.includes('.svelte')
+			) {
+				return;
+			}
+			return original.call(this, code, id, ...rest);
+		};
+	}
+	return plugins;
+}
+
 export default defineConfig(({ mode }) => ({
 	// P2Pass / WebAuthn standalone worker uses dynamic imports; Vite 7 default iife forbids code-splitting in workers.
 	worker: {
@@ -47,7 +75,7 @@ export default defineConfig(({ mode }) => ({
 				};
 			}
 		},
-		tailwindcss(),
+		...tailwindcssWithoutP2passSvelteCss(),
 		sveltekit(),
 		nodePolyfills({
 			include: [
@@ -168,9 +196,16 @@ export default defineConfig(({ mode }) => ({
 	},
 	optimizeDeps: {
 		// Exclude problematic packages that include .d.ts files in their bin
-		exclude: ['cborg', '@storacha/blob-index'],
+		exclude: [
+			'cborg',
+			'@storacha/blob-index',
+			// Worker keystore: `new Worker(new URL('./ed25519-keystore.worker.js', import.meta.url))` must stay
+			// beside the real source files. Pre-bundling into `.vite/deps` makes the browser request a missing sibling → 404.
+			'@le-space/orbitdb-identity-provider-webauthn-did'
+		],
 		// Include varint to ensure it's pre-bundled correctly
-		include: ['varint'],
+		// `ms` is CJS-only (`module.exports`); without prebundle, browser ESM sees no `default` (debug → humanize).
+		include: ['varint', 'ms', 'debug'],
 		// Configure esbuild to handle CommonJS modules like varint
 		esbuildOptions: {
 			format: 'esm',

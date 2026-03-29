@@ -4,7 +4,7 @@
 	import { currentIdentityStore } from '$lib/stores.js';
 	import { showToast } from '$lib/toast-store.js';
 	import { createPublicClient, http } from 'viem';
-	import { getStoredCredentialInfo } from '@le-space/orbitdb-ui';
+	import { getStoredCredentialInfo } from '$lib/identity/webauthn-identity.js';
 	import {
 		getIdentityProfile,
 		setWalletAddressForCurrentIdentity,

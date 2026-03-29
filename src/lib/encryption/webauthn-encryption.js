@@ -4,7 +4,7 @@ import {
 	wrapSKWithPRF,
 	unwrapSKWithPRF
 } from '@le-space/orbitdb-identity-provider-webauthn-did';
-import { getStoredWebAuthnCredential } from '@le-space/orbitdb-ui';
+import { getStoredWebAuthnCredential } from '../identity/webauthn-identity.js';
 
 const STORAGE_PREFIX = 'simple-encryption-sk-v1:';
 

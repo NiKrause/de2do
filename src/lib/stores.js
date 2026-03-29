@@ -28,6 +28,15 @@ export const identityModeStore = writable({
 	algorithm: null
 });
 
+/**
+ * Last successful P2Pass authenticate payload (from StorachaIntegration onAuthenticate).
+ * Lets the footer show the passkey DID and mode even when OrbitDB has not yet switched identity.
+ * Cleared when onAuthenticate(null) (e.g. recovery bootstrap).
+ */
+export const p2passAuthSnapshotStore = writable(
+	/** @type {{ did: string, mode: string, algorithm: string | null, secure?: boolean, at: number } | null} */ (null)
+);
+
 // Helper function to get current identity ID (no circular dependency!)
 export function getCurrentIdentityId() {
 	const identity = get(currentIdentityStore);

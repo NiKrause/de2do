@@ -811,15 +811,15 @@ export async function handleWebAuthnModal(page, timeout = 5000) {
 }
 
 /**
- * Open the footer P2Pass control and complete passkey setup inside the panel.
- * Call after {@link waitForP2PInitialization} (footer must be visible).
+ * Open P2Pass via the floating Storacha FAB and complete passkey setup inside the panel.
+ * Call after {@link waitForP2PInitialization}.
  *
  * @param {import('@playwright/test').Page} page
  * @param {{ mode?: 'worker' | 'hardware-ed25519' | 'hardware-p256' }} [opts]
  */
 export async function setupPasskeyViaP2PassPanel(page, opts = {}) {
 	const mode = opts.mode ?? 'worker';
-	await page.getByTestId('footer-p2pass-toggle').click();
+	await page.getByTestId('storacha-fab-toggle').click();
 	await expect(page.getByTestId('storacha-panel')).toBeVisible({ timeout: 20000 });
 	if (mode === 'hardware-ed25519') {
 		await page.getByTestId('storacha-signing-pref-hardware-ed25519').check();

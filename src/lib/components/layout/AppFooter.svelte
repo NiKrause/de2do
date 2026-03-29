@@ -3,11 +3,11 @@
 		peerIdStore,
 		currentIdentityStore,
 		delegatedWriteAuthStore,
-		identityModeStore
+		identityModeStore,
+		p2passAuthSnapshotStore
 	} from '$lib/stores.js';
 	import { libp2pStore } from '$lib/p2p.js';
 	import { showToast } from '$lib/toast-store.js';
-	import { p2passPanelOpenStore, toggleP2PassPanel } from '$lib/p2pass-panel-store.js';
 
 	let showPeerList = $state(false);
 	let hoveredPeerId = $state(null);
@@ -21,14 +21,26 @@
 	let identity = $derived($currentIdentityStore);
 	let libp2p = $derived($libp2pStore);
 	let identityMode = $derived($identityModeStore);
+	let p2passSnap = $derived($p2passAuthSnapshotStore);
+
+	let orbitDbPasskeyBacked = $derived(
+		identityMode.mode === 'worker' || identityMode.mode === 'hardware'
+	);
+
+	// When OrbitDB uses a passkey identity, show it; otherwise show P2Pass DID if signed in there.
+	let displayDid = $derived(
+		orbitDbPasskeyBacked && identity?.id ? identity.id : p2passSnap?.did ?? identity?.id
+	);
 
 	// Format PeerID - last 5 chars
 	let shortPeerId = $derived(peerId ? `...${peerId.slice(-5)}` : '-----');
 
-	// Format DID - first 5 chars ... last 5 chars
+	// Format DID - first 13 chars ... last 5 (did:key and hex ids vary in length)
 	let shortDid = $derived(
-		identity?.id
-			? `${identity.id.slice(0, 13)}...${identity.id.slice(-5)}`
+		displayDid
+			? displayDid.length > 18
+				? `${displayDid.slice(0, 13)}...${displayDid.slice(-5)}`
+				: displayDid
 			: 'did:key:-----...-----'
 	);
 
@@ -43,13 +55,21 @@
 					: 'Idle'
 	);
 	let identityModeLabel = $derived(
-		identityMode.mode === 'hardware'
-			? `hardware (${identityMode.algorithm || 'unknown'})`
-			: identityMode.mode === 'worker'
-				? 'worker (ed25519)'
-				: identityMode.mode === 'software'
-					? 'software'
-					: 'unknown'
+		orbitDbPasskeyBacked
+			? identityMode.mode === 'hardware'
+				? `hardware (${identityMode.algorithm || 'unknown'})`
+				: 'worker (ed25519)'
+			: p2passSnap?.did
+				? p2passSnap.mode === 'hardware'
+					? `hardware (${p2passSnap.algorithm || 'unknown'})`
+					: 'worker (ed25519)'
+				: identityMode.mode === 'hardware'
+					? `hardware (${identityMode.algorithm || 'unknown'})`
+					: identityMode.mode === 'worker'
+						? 'worker (ed25519)'
+						: identityMode.mode === 'software'
+							? 'software'
+							: 'unknown'
 	);
 
 	// Update peer count from libp2p events
@@ -195,21 +215,8 @@
 			</code>
 		</div>
 
-		<!-- Right: P2Pass + delegated auth + connected peers -->
+		<!-- Right: delegated auth + connected peers (P2Pass: use floating FAB) -->
 		<div class="relative flex flex-wrap items-center gap-3 sm:gap-4">
-			<button
-				type="button"
-				data-testid="footer-p2pass-toggle"
-				class="rounded-md bg-blue-600 px-2.5 py-1 font-semibold text-white shadow-sm hover:bg-blue-700 {$p2passPanelOpenStore
-					? 'ring-2 ring-blue-300'
-					: ''}"
-				title={$p2passPanelOpenStore ? 'Close P2Pass' : 'Open P2Pass — passkeys, UCAN, backup'}
-				aria-label={$p2passPanelOpenStore ? 'Close P2Pass panel' : 'Open P2Pass panel'}
-				aria-pressed={$p2passPanelOpenStore}
-				onclick={() => toggleP2PassPanel()}
-			>
-				P2Pass
-			</button>
 			<div class="flex items-center gap-2">
 				<span class="text-gray-500">Delegated Auth:</span>
 				<span

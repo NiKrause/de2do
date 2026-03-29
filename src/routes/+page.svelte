@@ -1,9 +1,15 @@
 <script>
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import { initializeP2P, initializationStore, libp2pStore } from '$lib/p2p.js';
+	import {
+		initializeP2P,
+		initializationStore,
+		libp2pStore,
+		reapplyOrbitDbIdentityAfterP2Pass
+	} from '$lib/p2p.js';
 	import { todosStore, todoDBStore, orbitdbStore, todosCountStore } from '$lib/db-actions.js';
-	import { ConsentModal, setOnPasskeyPrompt } from '@le-space/orbitdb-ui';
+	import { ConsentModal } from '@le-space/orbitdb-ui';
+	import { setOnPasskeyPrompt } from '$lib/identity/varsig-identity.js';
 	import {
 		readSigningPreferenceFromStorage,
 		writeSigningPreferenceToStorage
@@ -33,6 +39,7 @@
 		currentDbAddressStore,
 		availableTodoListsStore
 	} from '$lib/todo-list-manager.js';
+	import { p2passAuthSnapshotStore } from '$lib/stores.js';
 	import { get } from 'svelte/store';
 	import { showExternalPasskeyPrompt } from '$lib/passkey-notice.js';
 
@@ -172,11 +179,38 @@
 		persistSectionState();
 	}
 
-	async function handleP2PassAuthenticate() {
+	async function handleP2PassAuthenticate(signingMode) {
+		if (signingMode?.did) {
+			p2passAuthSnapshotStore.set({
+				did: signingMode.did,
+				mode: signingMode.mode,
+				algorithm: signingMode.algorithm,
+				secure: signingMode.secure,
+				at: Date.now()
+			});
+		} else {
+			p2passAuthSnapshotStore.set(null);
+		}
+
 		try {
 			await consolidatePasskeyCredentials();
 		} catch (e) {
 			console.warn('Passkey consolidate after P2Pass auth:', e);
+		}
+
+		const initState = get(initializationStore);
+		if (!initState.isInitialized) return;
+
+		try {
+			const listName = get(currentTodoListNameStore) || 'projects';
+			await reapplyOrbitDbIdentityAfterP2Pass(signingMode, {
+				preferences,
+				todoListName: listName,
+				enableEncryption,
+				encryptionPassword: encryptionPassword?.trim() ? encryptionPassword : null
+			});
+		} catch (e) {
+			console.warn('OrbitDB identity bridge after P2Pass:', e);
 		}
 	}
 

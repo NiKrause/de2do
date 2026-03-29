@@ -159,7 +159,7 @@ test.describe('Simple Todo P2P Application', () => {
 
 		await waitForP2PInitialization(page);
 
-		await page.getByTestId('footer-p2pass-toggle').click();
+		await page.getByTestId('storacha-fab-toggle').click();
 		await expect(page.getByTestId('storacha-panel')).toBeVisible({ timeout: 15000 });
 		const workerPref = page.getByTestId('storacha-signing-pref-worker');
 		await expect(workerPref).toBeChecked();

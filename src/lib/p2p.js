@@ -23,12 +23,23 @@ import {
 	getPreferredWebAuthnMode,
 	getStoredWebAuthnCredential,
 	WEBAUTHN_AUTH_MODES,
+	setPreferredWebAuthnMode
+} from './identity/webauthn-identity.js';
+import {
 	getOrCreateVarsigIdentity,
-	createWebAuthnVarsigIdentities,
 	createIpfsIdentityStorage,
+	createWebAuthnVarsigIdentities,
 	wrapWithVarsigVerification
-} from '@le-space/orbitdb-ui';
-import { OrbitDBWebAuthnIdentityProviderFunction } from '@le-space/orbitdb-identity-provider-webauthn-did';
+} from './identity/varsig-identity.js';
+import {
+	OrbitDBWebAuthnIdentityProviderFunction,
+	WebAuthnDIDProvider,
+	loadWebAuthnVarsigCredential
+} from '@le-space/orbitdb-identity-provider-webauthn-did';
+import {
+	loadWebAuthnCredentialSafe,
+	storeWebAuthnCredentialSafe
+} from '@le-space/orbitdb-identity-provider-webauthn-did/standalone';
 import DelegatedTodoAccessController from '@le-space/orbitdb-access-controller-delegated-todo';
 useAccessController(DelegatedTodoAccessController);
 // Register webauthn provider up-front so identity verification works in mixed-mode
@@ -69,6 +80,407 @@ let peerId = null;
 let todoDB = null;
 // currentIdentity moved to stores.js to break circular dependency
 // let currentIdentity = null;
+
+const WORKER_CREDENTIAL_STORAGE_KEY = 'webauthn-worker-credential';
+
+function base64UrlToUint8Array(b64url) {
+	if (!b64url || typeof b64url !== 'string') return null;
+	const padded =
+		b64url.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice(0, (4 - (b64url.length % 4)) % 4);
+	const binary = atob(padded);
+	const out = new Uint8Array(binary.length);
+	for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
+	return out;
+}
+
+/**
+ * P2Pass worker flow does not persist OrbitDB-shaped credential metadata; try a discoverable
+ * WebAuthn get with the same deterministic PRF salt and persist for OrbitDB worker identity.
+ * @returns {Promise<{ authMode: string, type: string, credentialInfo: object }|null>}
+ */
+async function tryCaptureP2PassWorkerCredentialViaWebAuthnGet() {
+	if (typeof window === 'undefined' || !navigator?.credentials?.get) return null;
+	try {
+		// Let the P2Pass WebAuthn interaction fully finish; an immediate second get() often fails.
+		await new Promise((r) => setTimeout(r, 500));
+		const { computeDeterministicPrfSalt } = await import('@le-space/p2pass');
+		const prfSalt = await computeDeterministicPrfSalt();
+		const assertion = await navigator.credentials.get({
+			mediation: 'optional',
+			publicKey: {
+				challenge: crypto.getRandomValues(new Uint8Array(32)),
+				rpId: window.location.hostname,
+				userVerification: 'required',
+				extensions: { prf: { eval: { first: prfSalt } } }
+			}
+		});
+		if (!assertion || assertion.type !== 'public-key') return null;
+
+		const resp = /** @type {PublicKeyCredential} */ (assertion).response;
+		let publicKey = null;
+		if (typeof resp.getPublicKey === 'function') {
+			try {
+				const spki = resp.getPublicKey();
+				if (spki?.byteLength) {
+					const cryptoKey = await crypto.subtle.importKey(
+						'spki',
+						spki,
+						{ name: 'ECDSA', namedCurve: 'P-256' },
+						false,
+						[]
+					);
+					const jwk = await crypto.subtle.exportKey('jwk', cryptoKey);
+					const x = base64UrlToUint8Array(jwk.x);
+					const y = base64UrlToUint8Array(jwk.y);
+					if (x?.length && y?.length) {
+						publicKey = { algorithm: -7, x, y, keyType: 2, curve: 1 };
+					}
+				}
+			} catch (e) {
+				console.warn('[p2p] Assertion publicKey import failed:', e?.message);
+			}
+		}
+		if (!publicKey?.x || !publicKey?.y) {
+			try {
+				publicKey = await WebAuthnDIDProvider.extractPublicKey(
+					/** @type {PublicKeyCredential} */ (assertion)
+				);
+			} catch {
+				/* assertion responses have no attestationObject */
+			}
+		}
+		if (!publicKey?.x || !publicKey?.y) return null;
+
+		const pkCred = /** @type {PublicKeyCredential} */ (assertion);
+		const credentialInfo = {
+			credentialId: WebAuthnDIDProvider.arrayBufferToBase64url(pkCred.rawId),
+			rawCredentialId: new Uint8Array(pkCred.rawId),
+			publicKey,
+			prfInput: prfSalt
+		};
+		storeWebAuthnCredentialSafe(credentialInfo);
+		storeWebAuthnCredentialSafe(credentialInfo, WORKER_CREDENTIAL_STORAGE_KEY);
+		try {
+			setPreferredWebAuthnMode('worker');
+		} catch {
+			/* ignore */
+		}
+		return {
+			authMode: WEBAUTHN_AUTH_MODES.WORKER,
+			type: 'webauthn',
+			credentialInfo
+		};
+	} catch (e) {
+		console.warn('[p2p] Discoverable WebAuthn get (P2Pass bridge) failed:', e?.message);
+		return null;
+	}
+}
+
+/**
+ * Resolve stored WebAuthn material aligned with P2Pass signing mode (worker vs hardware).
+ * @param {{ mode?: string|null, did?: string|null }} signingMode
+ * @returns {Promise<object|null>}
+ */
+export async function resolveStoredWebAuthnForP2Pass(signingMode) {
+	if (!signingMode?.mode) return null;
+
+	if (signingMode.mode === 'hardware') {
+		let r = getStoredWebAuthnCredential(WEBAUTHN_AUTH_MODES.HARDWARE);
+		if (!r?.credentialInfo) {
+			try {
+				const v = loadWebAuthnVarsigCredential();
+				if (v) {
+					r = {
+						authMode: WEBAUTHN_AUTH_MODES.HARDWARE,
+						type: 'webauthn-varsig',
+						credentialInfo: v
+					};
+				}
+			} catch {
+				r = null;
+			}
+		}
+		return r?.credentialInfo ? r : null;
+	}
+
+	if (signingMode.mode === 'worker') {
+		let r = getStoredWebAuthnCredential(WEBAUTHN_AUTH_MODES.WORKER);
+		if (!r?.credentialInfo) {
+			const c =
+				loadWebAuthnCredentialSafe(WORKER_CREDENTIAL_STORAGE_KEY) || loadWebAuthnCredentialSafe();
+			if (c) {
+				try {
+					storeWebAuthnCredentialSafe(c, WORKER_CREDENTIAL_STORAGE_KEY);
+				} catch {
+					/* ignore */
+				}
+				r = { authMode: WEBAUTHN_AUTH_MODES.WORKER, type: 'webauthn', credentialInfo: c };
+			}
+		}
+		if (!r?.credentialInfo) {
+			r = await tryCaptureP2PassWorkerCredentialViaWebAuthnGet();
+		}
+		return r?.credentialInfo ? r : null;
+	}
+
+	return null;
+}
+
+/**
+ * Create an OrbitDB instance for an existing Helia node (varsig, worker, or software).
+ * @param {object} helia
+ * @param {object|null} storedWebAuthn
+ * @returns {Promise<{ orbitdb: object }>}
+ */
+async function createOrbitDbWithHelia(helia, storedWebAuthn) {
+	let orbitdbCreated = false;
+	let newOrbitdb = null;
+
+	if (
+		storedWebAuthn?.authMode === WEBAUTHN_AUTH_MODES.HARDWARE &&
+		storedWebAuthn.credentialInfo
+	) {
+		try {
+			const varsigCredential = storedWebAuthn.credentialInfo;
+			const identity = await getOrCreateVarsigIdentity(varsigCredential);
+			const identityStorage = createIpfsIdentityStorage(helia);
+			const fallbackIdentities = wrapWithVarsigVerification(await Identities({ ipfs: helia }), helia);
+			const identities = createWebAuthnVarsigIdentities(identity, {}, identityStorage, fallbackIdentities);
+			identity.verify = (signature, arg2, arg3) => {
+				const hasExplicitPublicKey = arg3 !== undefined;
+				const publicKey = hasExplicitPublicKey ? arg2 : identity.publicKey;
+				const data = hasExplicitPublicKey ? arg3 : arg2;
+				return identities.verify(signature, publicKey, data);
+			};
+			identities.verifyIdentityFallback = async (identityToVerify) => {
+				if (
+					identityToVerify?.type === 'webauthn' &&
+					typeof OrbitDBWebAuthnIdentityProviderFunction.verifyIdentity === 'function'
+				) {
+					const verified =
+						await OrbitDBWebAuthnIdentityProviderFunction.verifyIdentity(identityToVerify);
+					if (verified) return true;
+				}
+				return await fallbackIdentities.verifyIdentity(identityToVerify);
+			};
+
+			console.log('🔍 Created WebAuthn varsig identity:', {
+				id: identity.id,
+				type: identity.type,
+				hash: identity.hash
+			});
+
+			newOrbitdb = await createOrbitDB({
+				ipfs: helia,
+				identities,
+				identity,
+				id: 'simple-todo-app',
+				directory: './orbitdb'
+			});
+
+			const orbitdbIdentity = newOrbitdb?.identity;
+			console.log('🔍 OrbitDB identity after varsig init:', {
+				id: orbitdbIdentity?.id,
+				type: orbitdbIdentity?.type,
+				expectedId: identity.id,
+				expectedType: identity.type
+			});
+			if (typeof identity.id === 'string' && !identity.id.startsWith('did:key:')) {
+				throw new Error(`Varsig identity id is not did:key (got "${identity.id}")`);
+			}
+			if (
+				!orbitdbIdentity ||
+				orbitdbIdentity.type !== 'webauthn-varsig' ||
+				orbitdbIdentity.id !== identity.id
+			) {
+				throw new Error('Varsig identity was not applied to OrbitDB (identity mismatch).');
+			}
+
+			orbitdbCreated = true;
+			identityModeStore.set({
+				mode: 'hardware',
+				algorithm: varsigCredential?.algorithm?.toLowerCase() === 'p-256' ? 'p-256' : 'ed25519'
+			});
+			showToast('✅ Authenticated with hardware identity', 'success', 3000);
+		} catch (error) {
+			console.error('❌ Failed to create OrbitDB with varsig identity:', error);
+			showToast(
+				'❌ Varsig identity required but not applied. Initialization stopped.',
+				'error',
+				5000
+			);
+			throw error;
+		}
+	}
+
+	if (
+		!orbitdbCreated &&
+		storedWebAuthn?.authMode === WEBAUTHN_AUTH_MODES.WORKER &&
+		storedWebAuthn.credentialInfo
+	) {
+		try {
+			const identities = wrapWithVarsigVerification(await Identities({ ipfs: helia }), helia);
+			const identity = await identities.createIdentity({
+				id: 'simple-todo-app',
+				provider: OrbitDBWebAuthnIdentityProviderFunction({
+					webauthnCredential: storedWebAuthn.credentialInfo,
+					keystore: identities.keystore,
+					useKeystoreDID: true,
+					encryptKeystore: true,
+					keystoreKeyType: 'Ed25519',
+					keystoreEncryptionMethod: 'prf'
+				})
+			});
+
+			newOrbitdb = await createOrbitDB({
+				ipfs: helia,
+				identities,
+				identity,
+				id: 'simple-todo-app',
+				directory: './orbitdb'
+			});
+
+			orbitdbCreated = true;
+			identityModeStore.set({ mode: 'worker', algorithm: 'ed25519' });
+			showToast('✅ Authenticated with worker identity', 'success', 3000);
+		} catch (error) {
+			console.error('❌ Failed to create OrbitDB with worker WebAuthn identity:', error);
+			showToast(
+				'❌ Worker WebAuthn identity required but not applied. Initialization stopped.',
+				'error',
+				5000
+			);
+			throw error;
+		}
+	}
+
+	if (!orbitdbCreated) {
+		const defaultIdentities = wrapWithVarsigVerification(await Identities({ ipfs: helia }), helia);
+		newOrbitdb = await createOrbitDB({
+			ipfs: helia,
+			identities: defaultIdentities,
+			id: 'simple-todo-app',
+			directory: './orbitdb'
+		});
+		identityModeStore.set({ mode: 'software', algorithm: null });
+	}
+
+	return { orbitdb: newOrbitdb };
+}
+
+async function bootstrapRegistryForIdentity(orbitdbInstance, identityId) {
+	if (!orbitdbInstance || !identityId) return;
+
+	console.log('📋 Initializing registry database...');
+	const accessController = OrbitDBAccessController({
+		write: [identityId]
+	});
+
+	const registryDb = await orbitdbInstance.open(identityId, {
+		type: 'keyvalue',
+		create: true,
+		sync: true,
+		AccessController: accessController
+	});
+
+	const projectsEntry = await registryDb.get('projects');
+	if (!projectsEntry) {
+		await registryDb.put('projects', {
+			displayName: 'projects',
+			dbName: `${identityId}_projects`,
+			parent: null,
+			createdAt: new Date().toISOString()
+		});
+		console.log('✅ Added "projects" to registry');
+	}
+
+	await registryDb.close();
+	console.log('✅ Registry database initialized');
+}
+
+/**
+ * After P2Pass authentication, replace the OrbitDB instance so it uses the same passkey mode
+ * (worker / hardware) as P2Pass, refresh identity stores, and reopen the active todo list.
+ *
+ * @param {{ mode?: string|null, did?: string|null }} signingMode - from P2Pass; null skips (e.g. recovery bootstrap)
+ * @param {object} [options]
+ * @param {object} [options.preferences] - same shape as consent / openTodoList
+ * @param {string} [options.todoListName]
+ * @param {boolean} [options.enableEncryption]
+ * @param {string|null} [options.encryptionPassword]
+ * @returns {Promise<{ ok: boolean, reason?: string }>}
+ */
+export async function reapplyOrbitDbIdentityAfterP2Pass(signingMode, options = {}) {
+	if (!signingMode?.mode) {
+		return { ok: false, reason: 'skipped' };
+	}
+	if (!helia || !libp2p) {
+		throw new Error('P2P stack is not ready');
+	}
+
+	const {
+		preferences = {},
+		todoListName = 'projects',
+		enableEncryption = false,
+		encryptionPassword = null
+	} = options;
+
+	const storedWebAuthn = await resolveStoredWebAuthnForP2Pass(signingMode);
+	if (!storedWebAuthn) {
+		showToast(
+			'P2Pass is signed in, but no OrbitDB passkey record was found. If prompted, confirm your passkey once more; or register a passkey from Wallet settings first.',
+			'warning',
+			7000
+		);
+		return { ok: false, reason: 'no-credential' };
+	}
+
+	let usedPasskeyPath = true;
+	try {
+		if (todoDB) {
+			await todoDB.close();
+			todoDB = null;
+		}
+		if (orbitdb) {
+			await orbitdb.stop();
+			orbitdb = null;
+		}
+		orbitDBStore.set(null);
+
+		const { orbitdb: next } = await createOrbitDbWithHelia(helia, storedWebAuthn);
+		orbitdb = next;
+	} catch (err) {
+		console.error('❌ P2Pass OrbitDB identity switch failed:', err);
+		showToast(
+			`Could not switch OrbitDB to passkey identity: ${err instanceof Error ? err.message : String(err)}. Restoring software identity.`,
+			'error',
+			7000
+		);
+		usedPasskeyPath = false;
+		try {
+			const { orbitdb: fallback } = await createOrbitDbWithHelia(helia, null);
+			orbitdb = fallback;
+		} catch (e2) {
+			console.error('❌ OrbitDB software fallback failed:', e2);
+			throw e2;
+		}
+	}
+
+	orbitDBStore.set(orbitdb);
+	currentIdentityStore.set(orbitdb.identity);
+	console.log('🔑 Identity after P2Pass bridge:', orbitdb.identity?.id);
+
+	await bootstrapRegistryForIdentity(orbitdb, orbitdb.identity?.id);
+	systemToasts.showOrbitDBCreated();
+
+	await openTodoList(todoListName, preferences, enableEncryption, encryptionPassword);
+
+	if (usedPasskeyPath) {
+		showToast('Todo database is now using your P2Pass passkey identity.', 'success', 4000);
+	}
+
+	return { ok: true, usedPasskeyPath };
+}
 
 /**
  * Build standard database options for OrbitDB
@@ -127,11 +539,15 @@ export async function openTodoList(
 		throw new Error('OrbitDB instance not initialized. Please initialize P2P first.');
 	}
 
-	let identity = get(currentIdentityStore);
-	if (!identity) {
-		identity = orbitdb.identity;
-		currentIdentityStore.set(identity);
+	// Always use the live OrbitDB identity (avoids stale currentIdentityStore after P2Pass re-identity).
+	let identity = orbitdb.identity;
+	if (!identity?.id) {
+		identity = get(currentIdentityStore);
 	}
+	if (!identity?.id) {
+		throw new Error('OrbitDB has no identity; cannot open todo list.');
+	}
+	currentIdentityStore.set(identity);
 
 	// Create database name: identityId + "_" + todoListName
 	const identityId = identity.id;
@@ -827,197 +1243,22 @@ export async function initializeP2P(preferences = {}) {
 			}
 		}
 
-		let orbitdbCreated = false;
+		const { orbitdb: createdOrbit } = await createOrbitDbWithHelia(helia, storedWebAuthn);
+		orbitdb = createdOrbit;
 
-		// Create OrbitDB with WebAuthn varsig identity if available
-		if (
-			storedWebAuthn?.authMode === WEBAUTHN_AUTH_MODES.HARDWARE &&
-			storedWebAuthn.credentialInfo
-		) {
-			try {
-				const varsigCredential = storedWebAuthn.credentialInfo;
-				const identity = await getOrCreateVarsigIdentity(varsigCredential);
-				const identityStorage = createIpfsIdentityStorage(helia);
-				const fallbackIdentities = wrapWithVarsigVerification(
-					await Identities({ ipfs: helia }),
-					helia
-				);
-				const identities = createWebAuthnVarsigIdentities(
-					identity,
-					{},
-					identityStorage,
-					fallbackIdentities
-				);
-				// OrbitDB Entry.verify invokes identity.verify(sig, key, bytes), not identities.verify.
-				// orbitdb-ui getOrCreateVarsigIdentity wires identity.verify to varsig-only; remote
-				// worker-signed entries would never hit the hybrid identities.verify without this.
-				identity.verify = (signature, arg2, arg3) => {
-					const hasExplicitPublicKey = arg3 !== undefined;
-					const publicKey = hasExplicitPublicKey ? arg2 : identity.publicKey;
-					const data = hasExplicitPublicKey ? arg3 : arg2;
-					return identities.verify(signature, publicKey, data);
-				};
-				identities.verifyIdentityFallback = async (identityToVerify) => {
-					if (
-						identityToVerify?.type === 'webauthn' &&
-						typeof OrbitDBWebAuthnIdentityProviderFunction.verifyIdentity === 'function'
-					) {
-						const verified =
-							await OrbitDBWebAuthnIdentityProviderFunction.verifyIdentity(identityToVerify);
-						if (verified) return true;
-					}
-					return await fallbackIdentities.verifyIdentity(identityToVerify);
-				};
-
-				console.log('🔍 Created WebAuthn varsig identity:', {
-					id: identity.id,
-					type: identity.type,
-					hash: identity.hash
-				});
-
-				orbitdb = await createOrbitDB({
-					ipfs: helia,
-					identities,
-					identity,
-					id: 'simple-todo-app',
-					directory: './orbitdb'
-				});
-
-				const orbitdbIdentity = orbitdb?.identity;
-				console.log('🔍 OrbitDB identity after varsig init:', {
-					id: orbitdbIdentity?.id,
-					type: orbitdbIdentity?.type,
-					expectedId: identity.id,
-					expectedType: identity.type
-				});
-				if (typeof identity.id === 'string' && !identity.id.startsWith('did:key:')) {
-					throw new Error(`Varsig identity id is not did:key (got "${identity.id}")`);
-				}
-				if (
-					!orbitdbIdentity ||
-					orbitdbIdentity.type !== 'webauthn-varsig' ||
-					orbitdbIdentity.id !== identity.id
-				) {
-					throw new Error('Varsig identity was not applied to OrbitDB (identity mismatch).');
-				}
-
-				orbitdbCreated = true;
-				identityModeStore.set({
-					mode: 'hardware',
-					algorithm: varsigCredential?.algorithm?.toLowerCase() === 'p-256' ? 'p-256' : 'ed25519'
-				});
-				showToast('✅ Authenticated with hardware identity', 'success', 3000);
-			} catch (error) {
-				console.error('❌ Failed to create OrbitDB with varsig identity:', error);
-				showToast(
-					'❌ Varsig identity required but not applied. Initialization stopped.',
-					'error',
-					5000
-				);
-				throw error;
-			}
-		}
-
-		if (
-			!orbitdbCreated &&
-			storedWebAuthn?.authMode === WEBAUTHN_AUTH_MODES.WORKER &&
-			storedWebAuthn.credentialInfo
-		) {
-			try {
-				const identities = wrapWithVarsigVerification(await Identities({ ipfs: helia }), helia);
-				const identity = await identities.createIdentity({
-					id: 'simple-todo-app',
-					provider: OrbitDBWebAuthnIdentityProviderFunction({
-						webauthnCredential: storedWebAuthn.credentialInfo,
-						keystore: identities.keystore,
-						useKeystoreDID: true,
-						encryptKeystore: true,
-						keystoreKeyType: 'Ed25519',
-						keystoreEncryptionMethod: 'prf'
-					})
-				});
-
-				orbitdb = await createOrbitDB({
-					ipfs: helia,
-					identities,
-					identity,
-					id: 'simple-todo-app',
-					directory: './orbitdb'
-				});
-
-				orbitdbCreated = true;
-				identityModeStore.set({ mode: 'worker', algorithm: 'ed25519' });
-				showToast('✅ Authenticated with worker identity', 'success', 3000);
-			} catch (error) {
-				console.error('❌ Failed to create OrbitDB with worker WebAuthn identity:', error);
-				showToast(
-					'❌ Worker WebAuthn identity required but not applied. Initialization stopped.',
-					'error',
-					5000
-				);
-				throw error;
-			}
-		}
-
-		if (!orbitdbCreated) {
-			// Create OrbitDB with default identity + varsig verification support
-			// This enables verifying entries from peers who use varsig identities
-			const defaultIdentities = wrapWithVarsigVerification(
-				await Identities({ ipfs: helia }),
-				helia
-			);
-			orbitdb = await createOrbitDB({
-				ipfs: helia,
-				identities: defaultIdentities,
-				id: 'simple-todo-app',
-				directory: './orbitdb'
-			});
-			orbitdbCreated = true;
-			identityModeStore.set({ mode: 'software', algorithm: null });
-		}
-
-		// Show toast for OrbitDB creation
 		systemToasts.showOrbitDBCreated();
 
-		// Make OrbitDB instance available to other components
 		orbitDBStore.set(orbitdb);
 
-		// Get the identity from OrbitDB instance and store it
 		const identity = orbitdb.identity;
 		currentIdentityStore.set(identity);
+		console.log('🔍 OrbitDB identity after init:', {
+			id: identity?.id,
+			type: identity?.type
+		});
 		console.log('🔑 Current identity:', identity.id);
 
-		// Initialize the registry database for this identity
-		const identityId = identity?.id || null;
-		const registryDbName = identityId; // Registry DB is just the identityId
-
-		console.log('📋 Initializing registry database...');
-		const accessController = OrbitDBAccessController({
-			write: [identityId]
-		});
-
-		const registryDb = await orbitdb.open(registryDbName, {
-			type: 'keyvalue',
-			create: true,
-			sync: true,
-			AccessController: accessController
-		});
-
-		// Ensure 'projects' is in the registry (default todo list)
-		const projectsEntry = await registryDb.get('projects');
-		if (!projectsEntry) {
-			await registryDb.put('projects', {
-				displayName: 'projects',
-				dbName: `${identityId}_projects`,
-				parent: null,
-				createdAt: new Date().toISOString()
-			});
-			console.log('✅ Added "projects" to registry');
-		}
-
-		// Close registry database (we'll reopen it when needed)
-		await registryDb.close();
-		console.log('✅ Registry database initialized');
+		await bootstrapRegistryForIdentity(orbitdb, identity?.id || null);
 
 		// Open default todo list 'projects' unless we're skipping it (e.g., when opening from URL hash)
 		if (!skipDefaultDatabase) {

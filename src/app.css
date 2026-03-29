@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* P2Pass uses inline styles + plain <style> blocks; do not scan (avoids Vite/Tailwind mis-handling .svelte virtual CSS). */
+@source not '../node_modules/@le-space/p2pass/**';
+
 /* Generate utilities for class names shipped inside @le-space/orbitdb-ui (Tailwind v4 skips node_modules by default). */
 @source '../node_modules/@le-space/orbitdb-ui/dist/index.js';
 

@@ -28,6 +28,31 @@ function base64urlToBytes(str) {
 const STORAGE_KEY_IDENTITY = 'webauthn-varsig-orbitdb-identity';
 let lastPasskeyToastAt = 0;
 
+function defaultPasskeyToast(reason) {
+	const now = Date.now();
+	if (now - lastPasskeyToastAt < 1500) return;
+	lastPasskeyToastAt = now;
+	showToast(`🔐 Passkey required: ${reason}`, 'default', 3000);
+}
+
+/** @type {(reason: string) => void} */
+let onPasskeyPrompt = defaultPasskeyToast;
+
+/**
+ * Wire hardware/varsig prompts (e.g. to passkey-notice). Replaces default toast.
+ * @param {(reason: string) => void} cb
+ */
+export function setOnPasskeyPrompt(cb) {
+	if (typeof cb === 'function') {
+		onPasskeyPrompt = (reason) => {
+			lastPasskeyToastAt = 0;
+			cb(reason);
+		};
+	} else {
+		onPasskeyPrompt = defaultPasskeyToast;
+	}
+}
+
 function bytesEqual(a, b) {
 	if (a instanceof ArrayBuffer) a = new Uint8Array(a);
 	if (b instanceof ArrayBuffer) b = new Uint8Array(b);
@@ -55,10 +80,7 @@ function verifyWithFlexibleArgs(provider, fallbackPublicKey, signature, arg2, ar
 }
 
 function showPasskeyPrompt(reason) {
-	const now = Date.now();
-	if (now - lastPasskeyToastAt < 1500) return;
-	lastPasskeyToastAt = now;
-	showToast(`🔐 Passkey required: ${reason}`, 'default', 3000);
+	onPasskeyPrompt(reason);
 }
 
 function serializeIdentity(identity) {

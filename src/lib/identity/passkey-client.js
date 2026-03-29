@@ -7,7 +7,7 @@ import {
 	hasExistingCredentials,
 	setPreferredWebAuthnMode,
 	useExistingWebAuthnCredential as baseUseExistingWebAuthnCredential
-} from '@le-space/orbitdb-ui';
+} from './webauthn-identity.js';
 import { beforePasskeyPrompt } from '../passkey-notice.js';
 
 function authModeLabel(mode) {
