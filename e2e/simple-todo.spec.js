@@ -10,7 +10,8 @@ import {
 	getCurrentDatabaseAddress,
 	waitForTodoText,
 	handleWebAuthnModal,
-	addVirtualAuthenticator
+	addVirtualAuthenticator,
+	setupPasskeyViaP2PassPanel
 } from './helpers.js';
 import { createWebAuthnDelegationHelpers } from './webauthn-delegation-helpers.js';
 
@@ -136,7 +137,7 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('🎉 All test steps completed successfully!');
 	});
 
-	test('should default to worker mode, allow switching, and expose mode in footer', async ({
+	test('should default signing pref to worker in P2Pass and expose mode in footer', async ({
 		page
 	}) => {
 		await addVirtualAuthenticator(page);
@@ -156,27 +157,17 @@ test.describe('Simple Todo P2P Application', () => {
 		await page.getByTestId('consent-accept-button').click();
 		await expect(consentModal).not.toBeVisible();
 
-		await page.waitForSelector('[data-testid="webauthn-setup-modal"]', {
-			state: 'attached',
-			timeout: 10000
-		});
-
-		const workerMode = page.getByTestId('auth-mode-worker');
-		const hardwareMode = page.getByTestId('auth-mode-hardware');
-		await expect(workerMode).toBeChecked();
-		await expect(hardwareMode).not.toBeChecked();
-
-		await hardwareMode.check();
-		await expect(hardwareMode).toBeChecked();
-		await workerMode.check();
-		await expect(workerMode).toBeChecked();
-
-		await page.getByRole('button', { name: /Skip for Now/i }).click();
-		await expect(page.locator('[data-testid="webauthn-setup-modal"]')).not.toBeVisible({
-			timeout: 20000
-		});
-
 		await waitForP2PInitialization(page);
+
+		await page.getByTestId('footer-p2pass-toggle').click();
+		await expect(page.getByTestId('storacha-panel')).toBeVisible({ timeout: 15000 });
+		const workerPref = page.getByTestId('storacha-signing-pref-worker');
+		await expect(workerPref).toBeChecked();
+		await page.getByTestId('storacha-signing-pref-hardware-ed25519').check();
+		await expect(page.getByTestId('storacha-signing-pref-hardware-ed25519')).toBeChecked();
+		await workerPref.check();
+		await expect(workerPref).toBeChecked();
+
 		await expect(page.getByTestId('identity-mode')).toContainText(
 			/(software|unknown|worker \(ed25519\)|hardware \((ed25519|p-256)\))/i,
 			{
@@ -539,23 +530,10 @@ test.describe('Simple Todo P2P Application', () => {
 		await proceedButton1.click();
 		await expect(consentModal1).not.toBeVisible();
 
-		// Create passkey via the WebAuthn setup modal
-		console.log('🔐 Alice: Creating passkey...');
-		await page1.waitForSelector('[data-testid="webauthn-setup-modal"]', {
-			state: 'attached',
-			timeout: 10000
-		});
-		const setupButton = page1.getByRole('button', { name: /Set Up WebAuthn/i });
-		await expect(setupButton).toBeVisible({ timeout: 5000 });
-		await setupButton.click();
-		console.log('🔐 Alice: Clicked "Set Up WebAuthn", waiting for credential...');
-		await expect(page1.locator('[data-testid="webauthn-setup-modal"]')).not.toBeVisible({
-			timeout: 20000
-		});
-		console.log('✅ Alice: Passkey created');
-
-		// Wait for P2P initialization (triggered after WebAuthn modal closes)
+		console.log('🔐 Alice: Waiting for P2P, then passkey via P2Pass…');
 		await waitForP2PInitialization(page1);
+		await setupPasskeyViaP2PassPanel(page1, { mode: 'worker' });
+		console.log('✅ Alice: Passkey created (P2Pass)');
 
 		// Add 3 todos
 		const todos = ['Buy groceries', 'Walk the dog', 'Write tests'];

@@ -7,6 +7,7 @@
 	} from '$lib/stores.js';
 	import { libp2pStore } from '$lib/p2p.js';
 	import { showToast } from '$lib/toast-store.js';
+	import { p2passPanelOpenStore, toggleP2PassPanel } from '$lib/p2pass-panel-store.js';
 
 	let showPeerList = $state(false);
 	let hoveredPeerId = $state(null);
@@ -194,8 +195,21 @@
 			</code>
 		</div>
 
-		<!-- Right: Delegated auth + connected peers -->
+		<!-- Right: P2Pass + delegated auth + connected peers -->
 		<div class="relative flex flex-wrap items-center gap-3 sm:gap-4">
+			<button
+				type="button"
+				data-testid="footer-p2pass-toggle"
+				class="rounded-md bg-blue-600 px-2.5 py-1 font-semibold text-white shadow-sm hover:bg-blue-700 {$p2passPanelOpenStore
+					? 'ring-2 ring-blue-300'
+					: ''}"
+				title={$p2passPanelOpenStore ? 'Close P2Pass' : 'Open P2Pass — passkeys, UCAN, backup'}
+				aria-label={$p2passPanelOpenStore ? 'Close P2Pass panel' : 'Open P2Pass panel'}
+				aria-pressed={$p2passPanelOpenStore}
+				onclick={() => toggleP2PassPanel()}
+			>
+				P2Pass
+			</button>
 			<div class="flex items-center gap-2">
 				<span class="text-gray-500">Delegated Auth:</span>
 				<span

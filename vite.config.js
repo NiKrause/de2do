@@ -19,6 +19,10 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const buildDate = new Date().toISOString().split('T')[0] + ' ' + new Date().toLocaleTimeString(); // YYYY-MM-DD HH:MM:SS format
 
 export default defineConfig(({ mode }) => ({
+	// P2Pass / WebAuthn standalone worker uses dynamic imports; Vite 7 default iife forbids code-splitting in workers.
+	worker: {
+		format: 'es'
+	},
 	plugins: [
 		// Plugin to exclude .d.ts files from processing
 		{

@@ -811,6 +811,28 @@ export async function handleWebAuthnModal(page, timeout = 5000) {
 }
 
 /**
+ * Open the footer P2Pass control and complete passkey setup inside the panel.
+ * Call after {@link waitForP2PInitialization} (footer must be visible).
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {{ mode?: 'worker' | 'hardware-ed25519' | 'hardware-p256' }} [opts]
+ */
+export async function setupPasskeyViaP2PassPanel(page, opts = {}) {
+	const mode = opts.mode ?? 'worker';
+	await page.getByTestId('footer-p2pass-toggle').click();
+	await expect(page.getByTestId('storacha-panel')).toBeVisible({ timeout: 20000 });
+	if (mode === 'hardware-ed25519') {
+		await page.getByTestId('storacha-signing-pref-hardware-ed25519').check();
+	} else if (mode === 'hardware-p256') {
+		await page.getByTestId('storacha-signing-pref-hardware-p256').check();
+	} else {
+		await page.getByTestId('storacha-signing-pref-worker').check();
+	}
+	await page.getByTestId('storacha-passkey-primary').click();
+	await expect(page.getByTestId('storacha-post-auth')).toBeVisible({ timeout: 30000 });
+}
+
+/**
  * Set up a CDP virtual authenticator for WebAuthn testing (Chromium only).
  * Call after creating the page but before navigating.
  *

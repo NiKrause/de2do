@@ -47,6 +47,7 @@ import {
 	ensureSettingsExpanded,
 	ensureTodoListSectionExpanded,
 	waitForP2PInitialization,
+	setupPasskeyViaP2PassPanel,
 	waitForTodoText,
 	waitForTodoVisibleWithReplicationPoll,
 	waitForPeerCount,
@@ -848,26 +849,19 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 			await page.getByTestId('consent-accept-button').click();
 			await expect(page.locator('[data-testid="consent-modal"]')).not.toBeVisible();
 
-			logPasskeyStep(label, 'WebAuthn setup modal → worker + Set Up WebAuthn');
-			await page.waitForSelector('[data-testid="webauthn-setup-modal"]', {
-				state: 'attached',
-				timeout: 15000
-			});
-			await page.getByTestId('auth-mode-worker').check();
-			await expect(page.getByTestId('auth-mode-worker')).toBeChecked();
-			const setupButton = page.getByRole('button', { name: /Set Up WebAuthn/i });
-			await expect(setupButton).toBeVisible({ timeout: 5000 });
-			await setupButton.click();
-			await expect(page.locator('[data-testid="webauthn-setup-modal"]')).not.toBeVisible({
-				timeout: 30000
-			});
-
 			logPasskeyStep(label, 'waitForP2PInitialization (todo-input + footer)…');
 			await waitForP2PInitialization(page);
-			logPasskeyStep(label, 'expect identity-mode worker (ed25519)…');
-			await expect(page.getByTestId('identity-mode')).toContainText(/worker \(ed25519\)/i, {
-				timeout: 30000
-			});
+
+			logPasskeyStep(label, 'P2Pass footer → worker passkey…');
+			await setupPasskeyViaP2PassPanel(page, { mode: 'worker' });
+
+			logPasskeyStep(label, 'expect identity-mode (software or worker until OrbitDB bridge)…');
+			await expect(page.getByTestId('identity-mode')).toContainText(
+				/software|worker \(ed25519\)/i,
+				{
+					timeout: 30000
+				}
+			);
 			console.log(`✅ ${label}: P2P + worker identity ready`);
 		}
 

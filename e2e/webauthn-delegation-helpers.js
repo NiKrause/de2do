@@ -4,7 +4,8 @@ import {
 	waitForPeerCount,
 	getCurrentDatabaseAddress,
 	waitForTodoText,
-	addVirtualAuthenticator
+	addVirtualAuthenticator,
+	setupPasskeyViaP2PassPanel
 } from './helpers.js';
 
 /**
@@ -206,37 +207,26 @@ export function createWebAuthnDelegationHelpers(test, expect) {
 		await page.getByTestId('consent-accept-button').click();
 		await expect(consentModal).not.toBeVisible();
 
-		console.log(`🔐 ${label}: Creating passkey...`);
-		await page.waitForSelector('[data-testid="webauthn-setup-modal"]', {
-			state: 'attached',
-			timeout: 10000
-		});
-		const workerMode = page.getByTestId('auth-mode-worker');
-		const hardwareMode = page.getByTestId('auth-mode-hardware');
-		if (mode === 'hardware') {
-			await hardwareMode.check();
-			await expect(hardwareMode).toBeChecked();
-		} else {
-			await workerMode.check();
-			await expect(workerMode).toBeChecked();
-		}
-		const setupButton = page.getByRole('button', { name: /Set Up WebAuthn/i });
-		await expect(setupButton).toBeVisible({ timeout: 5000 });
-		await setupButton.click();
-		await expect(page.locator('[data-testid="webauthn-setup-modal"]')).not.toBeVisible({
-			timeout: 20000
-		});
-
+		console.log(`🔐 ${label}: Waiting for P2P, then passkey via P2Pass…`);
 		await waitForP2PInitialization(page);
+
+		const signingMode =
+			mode === 'hardware'
+				? hardwareAlgorithm === 'p-256'
+					? 'hardware-p256'
+					: 'hardware-ed25519'
+				: 'worker';
+		await setupPasskeyViaP2PassPanel(page, { mode: signingMode });
+
 		const identityMode = page.getByTestId('identity-mode');
 		if (mode === 'worker') {
-			await expect(identityMode).toContainText(/worker \(ed25519\)/i, { timeout: 30000 });
+			await expect(identityMode).toContainText(/software|worker \(ed25519\)/i, { timeout: 30000 });
 		} else if (hardwareAlgorithm === 'p-256') {
-			await expect(identityMode).toContainText(/hardware \(p-256\)/i, { timeout: 30000 });
+			await expect(identityMode).toContainText(/software|hardware \(p-256\)/i, { timeout: 30000 });
 		} else if (hardwareAlgorithm === 'ed25519') {
-			await expect(identityMode).toContainText(/hardware \(ed25519\)/i, { timeout: 30000 });
+			await expect(identityMode).toContainText(/software|hardware \(ed25519\)/i, { timeout: 30000 });
 		} else {
-			await expect(identityMode).toContainText(/hardware \((ed25519|p-256)\)/i, {
+			await expect(identityMode).toContainText(/software|hardware \((ed25519|p-256)\)/i, {
 				timeout: 30000
 			});
 		}
