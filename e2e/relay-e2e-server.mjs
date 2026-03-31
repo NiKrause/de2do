@@ -405,14 +405,22 @@ export async function restartRelayBetweenTests(cwd = process.cwd()) {
 	await cleanRelayDatastore(cwd);
 
 	const { multiaddr } = await startRelayOnly(cwd);
-	const needViteRestart = previousMultiaddr != null && previousMultiaddr !== multiaddr;
+	const needViteReload = previousMultiaddr != null && previousMultiaddr !== multiaddr;
 
-	if (needViteRestart) {
-		console.log('🔄 [e2e] Relay bootstrap changed; restarting Vite dev server...');
-		stopViteDevServer(cwd);
-		await new Promise((r) => setTimeout(r, 500));
+	if (needViteReload) {
+		// `startRelayOnly` already rewrote `.env.development`. Vite dev watches that file and restarts
+		// internally. Spawning a second `npm run dev` races with that restart and causes
+		// "Port 4174 is already in use"; `stopViteDevServer` often hits ESRCH (stale PID after Vite's
+		// child process swap). Wait for the single dev server to become ready instead.
+		console.log(
+			'🔄 [e2e] Relay bootstrap changed; waiting for Vite to reload .env.development (same process)…'
+		);
 		await new Promise((r) => setTimeout(r, 2000));
-		await startViteDevServer(cwd);
+		await waitForHttpReady('http://127.0.0.1:4174/', {
+			timeoutMs: 120000,
+			intervalMs: 750
+		});
+		console.log('✅ [e2e] Vite dev server ready after relay restart');
 	} else {
 		console.log('✅ [e2e] Relay restarted (bootstrap unchanged; Vite unchanged)');
 	}
