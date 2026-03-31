@@ -14,7 +14,7 @@ function authModeLabel(mode) {
 	return mode === 'hardware' ? 'hardware identity' : 'worker identity';
 }
 
-export async function createWebAuthnIdentity(userName = 'Simple Todo User', options = {}) {
+export async function createWebAuthnIdentity(userName = 'De2do User', options = {}) {
 	const mode = options?.mode === 'hardware' ? 'hardware' : 'worker';
 	const details =
 		mode === 'hardware'

@@ -10,7 +10,7 @@ import {
 import { createWebAuthnDelegationHelpers } from './webauthn-delegation-helpers.js';
 import { restartRelayBetweenTests } from './relay-e2e-server.mjs';
 
-test.describe('Simple Todo WebAuthn delegation (mode matrix, security, replication, embed)', () => {
+test.describe('De2do WebAuthn delegation (mode matrix, security, replication, embed)', () => {
 	test.describe.configure({ mode: 'serial' });
 
 	// Fresh relay + datastore avoids cross-test libp2p / heads state (flaky peer counts).

@@ -1,6 +1,6 @@
 # BrowserStack Cross-Browser Testing Setup
 
-This document provides a complete setup for running Playwright tests on BrowserStack across multiple browsers and platforms for the Simple Todo consent screen functionality.
+This document provides a complete setup for running Playwright tests on BrowserStack across multiple browsers and platforms for the De2do consent screen functionality.
 
 ## 🎯 What's Been Set Up
 

@@ -1,4 +1,4 @@
-# Simple Todo - A Local-First Peer-to-Peer Demo App (in Svelte)
+# De2do (de2do.xyz) — Local-First Peer-to-Peer Todos (Svelte)
 
 [![CI](https://github.com/NiKrause/simple-todo/workflows/CI/badge.svg)](https://github.com/NiKrause/simple-todo/actions)
 [![Version](https://img.shields.io/badge/version-0.4.12-blue.svg)](https://github.com/NiKrause/simple-todo)
@@ -29,7 +29,8 @@ See `docs/WEBAUTHN_VARSIG_CHANGES.md` for the WebAuthn varsig/PRF flow details a
 
 ## 🚀 Live Demo
 
-- **HTTP**: https://simple-todo.le-space.de
+- **HTTP**: https://de2do.xyz
+- **HTTP (legacy host)**: https://simple-todo.le-space.de
 - **IPFS (dweb.link)**: https://QmUdf5uJAunNqsos4USWGJDFRMpY6vUM1b24u2ky981Mtn.ipfs.dweb.link
 - **IPFS (dweb.link, orbitdb demo)**: https://QmUdf5uJAunNqsos4USWGJDFRMpY6vUM1b24u2ky981Mtn.ipfs.dweb.link/#/orbitdb/zdpuAskw4Xes4nxR1YNV8TxK2qmrDgceAqEoGHDtTAUhQWvDP
 

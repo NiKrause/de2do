@@ -20,7 +20,7 @@ test.afterEach(async ({ page }, testInfo) => {
 
 test.describe('Consent Screen', () => {
 	test('should show consent controls and proceed on accept', async ({ page }) => {
-		const testUrl = process.env.BROWSERSTACK_BUILD_NAME ? 'https://simple-todo.le-space.de' : '/';
+		const testUrl = process.env.BROWSERSTACK_BUILD_NAME ? 'https://de2do.xyz' : '/';
 		await page.goto(testUrl);
 
 		if (process.env.BROWSERSTACK_BUILD_NAME) {
@@ -49,7 +49,7 @@ test.describe('Consent Screen', () => {
 	});
 
 	test('should remember consent decision when checkbox is checked', async ({ page }) => {
-		const testUrl = process.env.BROWSERSTACK_BUILD_NAME ? 'https://simple-todo.le-space.de' : '/';
+		const testUrl = process.env.BROWSERSTACK_BUILD_NAME ? 'https://de2do.xyz' : '/';
 		await page.goto(testUrl);
 
 		if (process.env.BROWSERSTACK_BUILD_NAME) {
@@ -71,7 +71,7 @@ test.describe('Consent Screen', () => {
 	});
 
 	test('should disable network and keep peer count at zero', async ({ page }) => {
-		const testUrl = process.env.BROWSERSTACK_BUILD_NAME ? 'https://simple-todo.le-space.de' : '/';
+		const testUrl = process.env.BROWSERSTACK_BUILD_NAME ? 'https://de2do.xyz' : '/';
 		await page.goto(testUrl);
 
 		if (process.env.BROWSERSTACK_BUILD_NAME) {

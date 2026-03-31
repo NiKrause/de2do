@@ -29,7 +29,7 @@
 	let error = '';
 	let success = '';
 	let selectedMode = 'worker';
-	let passkeyName = 'Simple Todo';
+	let passkeyName = 'De2do';
 
 	async function refreshCapabilities() {
 		capabilities = await getWebAuthnCapabilities();
@@ -59,7 +59,7 @@
 		success = '';
 
 		try {
-			const result = await createWebAuthnIdentity(passkeyName.trim() || 'Simple Todo', {
+			const result = await createWebAuthnIdentity(passkeyName.trim() || 'De2do', {
 				mode: selectedMode
 			});
 			setPreferredWebAuthnMode(selectedMode);
@@ -209,7 +209,7 @@
 							bind:value={passkeyName}
 							type="text"
 							maxlength="64"
-							placeholder="Simple Todo"
+							placeholder="De2do"
 							data-testid="passkey-name-input"
 							class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 						/>

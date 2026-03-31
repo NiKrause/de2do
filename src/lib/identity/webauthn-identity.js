@@ -66,10 +66,10 @@ function normalizeMode(mode) {
 }
 
 function createPasskeyUserId(label) {
-	const normalized = String(label || 'Simple Todo')
+	const normalized = String(label || 'De2do')
 		.trim()
 		.slice(0, 64);
-	return normalized || 'Simple Todo';
+	return normalized || 'De2do';
 }
 
 function getBrowserName() {
@@ -323,7 +323,7 @@ async function createHardwareCredential(userName) {
 	};
 }
 
-export async function createWebAuthnIdentity(userName = 'Simple Todo User', options = {}) {
+export async function createWebAuthnIdentity(userName = 'De2do User', options = {}) {
 	if (!isWebAuthnAvailable()) {
 		throw new Error('WebAuthn is not available in this browser');
 	}

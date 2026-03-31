@@ -12,12 +12,12 @@ const browserstackCapabilities = {
 	'browserstack.username': BS_USERNAME,
 	'browserstack.accessKey': BS_ACCESS_KEY,
 	'browserstack.buildName': BS_BUILD_NAME,
-	'browserstack.projectName': 'simple-todo-consent-screen-tests',
+	'browserstack.projectName': 'de2do-consent-screen-tests',
 	'browserstack.debug': 'true',
 	'browserstack.console': 'verbose',
 	'browserstack.networkLogs': 'true',
 	'browserstack.local': 'true', // Enable local tunnel
-	'browserstack.localIdentifier': BS_BUILD_NAME || 'simple-todo-local'
+	'browserstack.localIdentifier': BS_BUILD_NAME || 'de2do-local'
 };
 
 export default defineConfig({

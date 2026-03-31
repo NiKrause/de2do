@@ -15,7 +15,7 @@ import {
 } from './helpers.js';
 import { createWebAuthnDelegationHelpers } from './webauthn-delegation-helpers.js';
 
-test.describe('Simple Todo P2P Application', () => {
+test.describe('De2do P2P Application', () => {
 	const {
 		initializeWithWebAuthn,
 		addAndSelectUserByDid,
@@ -34,7 +34,7 @@ test.describe('Simple Todo P2P Application', () => {
 
 		// Verify the page loads
 		await page.goto('/');
-		await expect(page).toHaveTitle(/Simple TODO/i);
+		await expect(page).toHaveTitle(/De2do/i);
 
 		// Verify main content is present
 		await expect(page.locator('main')).toBeVisible({ timeout: 10000 });
@@ -70,7 +70,7 @@ test.describe('Simple Todo P2P Application', () => {
 			await qrButton.click({ force: true });
 		}
 		await expect(qrDialog).toBeVisible({ timeout: 10000 });
-		await expect(qrDialog.locator('#qr-modal-title')).toHaveText(/Simple-Todo Example/i);
+		await expect(qrDialog.locator('#qr-modal-title')).toHaveText(/De2do/i);
 
 		// Close via close button
 		const closeButton = qrDialog.getByRole('button', { name: /Close QR code modal/i });

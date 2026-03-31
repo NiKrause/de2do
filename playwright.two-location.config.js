@@ -20,7 +20,7 @@ export default defineConfig({
 		}
 	],
 	use: {
-		baseURL: process.env.PUBLIC_APP_URL || 'https://simple-todo.le-space.de',
+		baseURL: process.env.PUBLIC_APP_URL || 'https://de2do.xyz',
 		screenshot: 'only-on-failure',
 		video: 'retain-on-failure',
 		trace: 'retain-on-failure'

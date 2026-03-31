@@ -1,5 +1,5 @@
 /**
- * Simple Todo OrbitDB Storacha Backup Integration
+ * De2do (de2do.xyz) — OrbitDB Storacha backup integration
  *
  * Uses the orbitdb-storacha-bridge library from npm
  */
@@ -529,7 +529,11 @@ export async function listBackups(client) {
 				const response = await fetch(`https://w3s.link/ipfs/${cid}`);
 				if (response.ok) {
 					const data = await response.json();
-					if (data.backupVersion && data.databaseInfo && data.appInfo?.name === 'simple-todo') {
+					if (
+						data.backupVersion &&
+						data.databaseInfo &&
+						(data.appInfo?.name === 'simple-todo' || data.appInfo?.name === 'de2do-xyz')
+					) {
 						backups.push({
 							cid,
 							timestamp: data.timestamp,

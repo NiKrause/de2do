@@ -233,6 +233,7 @@ export async function resolveStoredWebAuthnForP2Pass(signingMode) {
  * @returns {Promise<{ orbitdb: object }>}
  */
 async function createOrbitDbWithHelia(helia, storedWebAuthn) {
+	// OrbitDB manifest id — remains `simple-todo-app` so existing installs keep the same program id / DB paths.
 	let orbitdbCreated = false;
 	let newOrbitdb = null;
 

@@ -3,7 +3,7 @@
 Date: 2026-01-29
 Branch: varsic
 
-This document summarizes the changes made to align Simple Todo with the WebAuthn varsig OrbitDB example, and to tighten identity handling.
+This document summarizes the changes made to align De2do with the WebAuthn varsig OrbitDB example, and to tighten identity handling.
 
 ## Goals
 
