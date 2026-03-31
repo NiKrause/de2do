@@ -29,13 +29,25 @@ function httpGet(url) {
 	});
 }
 
+/** HTML from the dev server is ready when it looks like our SvelteKit shell (rebrand-safe). */
+function isDevServerHtmlReady(body) {
+	if (!body || typeof body !== 'string') return false;
+	const lower = body.toLowerCase();
+	return (
+		lower.includes('de2do') ||
+		lower.includes('simple todo') ||
+		lower.includes('sveltekit') ||
+		lower.includes('__sveltekit')
+	);
+}
+
 export async function waitForHttpReady(url, { timeoutMs = 60000, intervalMs = 500 } = {}) {
 	const deadline = Date.now() + timeoutMs;
 	let lastErr = null;
 	while (Date.now() < deadline) {
 		try {
 			const res = await httpGet(url);
-			if (res.status === 200 && res.body && res.body.toLowerCase().includes('simple todo')) {
+			if (res.status === 200 && isDevServerHtmlReady(res.body)) {
 				return;
 			}
 			lastErr = new Error(

@@ -19,10 +19,12 @@
 #      IPNS_KEY="<PeerID from step 2>"
 #      IPNS_NAME="<your-key-name>"
 #
-# 4. (Optional) DNSLink for de2do.xyz is updated via Cloudflare API after publish
-#    (see scripts/cloudflare-dnslink.sh). Set CLOUDFLARE_API_TOKEN and
-#    CLOUDFLARE_ZONE_ID when prompted, or export them before running.
-#    Legacy: IPNS / DNSLink verification:
+# 4. After publish, the script can prompt to patch Nginx on le-space.de so
+#    proxy_pass points at the new CID (sites-available/$IPNS_NAME).
+#    Optional Cloudflare DNSLink update is kept below but commented out; use
+#    scripts/cloudflare-dnslink.sh manually if needed.
+#
+#    IPNS / DNSLink verification:
 #
 #    To verify the DNSLink TXT record with dig (replace with your domain if needed):
 #      dig +short TXT _dnslink.$IPNS_NAME
@@ -95,26 +97,35 @@ git push origin --tags
 
 echo "Changes committed and pushed to GitHub. Tagged as v$version"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-_saved_cf_token="${CLOUDFLARE_API_TOKEN-}"
-_saved_cf_zone="${CLOUDFLARE_ZONE_ID-}"
-_saved_cf_zonename="${CLOUDFLARE_ZONE_NAME-}"
-if [[ -f "$REPO_ROOT/.env" ]]; then
-	set -a
-	# shellcheck disable=SC1091
-	source "$REPO_ROOT/.env"
-	set +a
-	CLOUDFLARE_API_TOKEN="${_saved_cf_token:-$CLOUDFLARE_API_TOKEN}"
-	CLOUDFLARE_ZONE_ID="${_saved_cf_zone:-$CLOUDFLARE_ZONE_ID}"
-	CLOUDFLARE_ZONE_NAME="${_saved_cf_zonename:-$CLOUDFLARE_ZONE_NAME}"
-fi
-read -p "Update Cloudflare DNSLink for de2do.xyz (TXT _dnslink) to this CID? (yes/no): " answer
+read -p "Do you want to update the production Nginx config on le-space.de with the new CID? (yes/no): " answer
 if [[ "$answer" == "yes" ]]; then
-	if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
-		echo "Set CLOUDFLARE_API_TOKEN for the de2do.xyz zone (.env or env; zone id is optional — see scripts/cloudflare-dnslink.sh)." >&2
-	else
-		"$REPO_ROOT/scripts/cloudflare-dnslink.sh" "$cid"
-	fi
+	ssh root@le-space.de "sed -i 's|proxy_pass https://$IPFS_SERVER/ipfs/[^/]*/;|proxy_pass https://$IPFS_SERVER/ipfs/$cid/;|' /etc/nginx/sites-available/$IPNS_NAME && systemctl reload nginx"
+	echo "Nginx config updated with new CID $cid and reloaded for $IPNS_NAME."
 else
-	echo "Cloudflare DNSLink was NOT updated."
+	echo "Production Nginx config was NOT updated."
 fi
+
+# --- Optional: Cloudflare DNSLink (TXT _dnslink) — uncomment to prompt after publish ---
+# REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# _saved_cf_token="${CLOUDFLARE_API_TOKEN-}"
+# _saved_cf_zone="${CLOUDFLARE_ZONE_ID-}"
+# _saved_cf_zonename="${CLOUDFLARE_ZONE_NAME-}"
+# if [[ -f "$REPO_ROOT/.env" ]]; then
+# 	set -a
+# 	# shellcheck disable=SC1091
+# 	source "$REPO_ROOT/.env"
+# 	set +a
+# 	CLOUDFLARE_API_TOKEN="${_saved_cf_token:-$CLOUDFLARE_API_TOKEN}"
+# 	CLOUDFLARE_ZONE_ID="${_saved_cf_zone:-$CLOUDFLARE_ZONE_ID}"
+# 	CLOUDFLARE_ZONE_NAME="${_saved_cf_zonename:-$CLOUDFLARE_ZONE_NAME}"
+# fi
+# read -p "Update Cloudflare DNSLink for de2do.xyz (TXT _dnslink) to this CID? (yes/no): " answer
+# if [[ "$answer" == "yes" ]]; then
+# 	if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
+# 		echo "Set CLOUDFLARE_API_TOKEN for the de2do.xyz zone (.env or env; zone id is optional — see scripts/cloudflare-dnslink.sh)." >&2
+# 	else
+# 		"$REPO_ROOT/scripts/cloudflare-dnslink.sh" "$cid"
+# 	fi
+# else
+# 	echo "Cloudflare DNSLink was NOT updated."
+# fi

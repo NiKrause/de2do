@@ -2,6 +2,12 @@ import adapter from '@sveltejs/adapter-static';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
+	// orbitdb-storacha-bridge has legacy "svelte" in package.json without exports.svelte; silence until upstream fixes.
+	vitePlugin: {
+		experimental: {
+			disableSvelteResolveWarnings: true
+		}
+	},
 	kit: {
 		adapter: adapter({
 			// Enable fallback to index.html for client-side routing
