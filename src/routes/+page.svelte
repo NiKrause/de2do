@@ -260,14 +260,13 @@
 
 			// If there's a hash in URL, auto-initialize even without consent
 			if (hasHash || hasConsent) {
-				if (hasHash && !hasConsent) {
-					// Auto-initialize when hash is present - accessing DB via URL implies consent
+				// Hash wins over remembered consent: open the linked DB from the URL, not the default
+				// list first (avoids wrong DB + flaky P2P when sharing #/orbitdb/... links).
+				if (hasHash) {
 					showModal = false;
 					console.log(
-						'🔧 DEBUG: Hash detected, auto-initializing to open database (implied consent)...'
+						'🔧 DEBUG: Hash in URL — initializing with skipDefaultDatabase (router opens DB from hash)…'
 					);
-					// Initialize - skip default database since we'll open from hash
-					// Hash will be handled by router once initialized
 					await initializeP2P({
 						enablePersistentStorage: true,
 						enableNetworkConnection: true,
@@ -275,7 +274,6 @@
 						skipDefaultDatabase: true
 					});
 				} else if (hasConsent) {
-					// Normal flow: consent remembered
 					showModal = false;
 					console.log('🔧 DEBUG: Auto-initializing with default preferences');
 					await initializeP2P({

@@ -51,7 +51,8 @@ import {
 	waitForTodoText,
 	waitForTodoVisibleWithReplicationPoll,
 	waitForPeerCount,
-	getCurrentDatabaseAddress
+	getCurrentDatabaseAddress,
+	waitForDidKeyIdentityId
 } from './helpers.js';
 
 /** Escrow lock amount (must match Passkey Wallet + Anvil funding headroom). */
@@ -886,14 +887,25 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 		}
 
 		async function assertDelegatedStateAfterAction(page, delegatedAuthState) {
-			const state = await delegatedAuthState.getAttribute('data-state');
-			if (state === 'awaiting' || state === 'success') {
-				await expect(delegatedAuthState).toHaveAttribute('data-state', 'success', {
-					timeout: 20000
-				});
+			try {
+				await expect
+					.poll(async () => await delegatedAuthState.getAttribute('data-state'), {
+						timeout: 10000,
+						intervals: [50, 100, 200, 400]
+					})
+					.toMatch(/^(awaiting|success|error)$/);
+			} catch {
+				await expect(delegatedAuthState).toHaveAttribute('data-state', 'idle');
 				return;
 			}
-			await expect(delegatedAuthState).toHaveAttribute('data-state', 'idle');
+
+			const state = await delegatedAuthState.getAttribute('data-state');
+			if (state === 'error') {
+				const msg = (await delegatedAuthState.textContent())?.trim() || '';
+				throw new Error(`Delegated auth failed: ${msg}`);
+			}
+			if (state === 'success') return;
+			await expect(delegatedAuthState).toHaveAttribute('data-state', 'success', { timeout: 25000 });
 		}
 
 		async function assertAccessControllerType(page, expectedType, timeout = 45000) {
@@ -906,8 +918,7 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 
 		try {
 			await initializeWithWebAuthn(alice, 'Alice');
-			const aliceDid = await alice.evaluate(() => window.__currentIdentityId__ || null);
-			expect(aliceDid).toBeTruthy();
+			const aliceDid = await waitForDidKeyIdentityId(alice);
 
 			// Bob before long smart-account steps so the second headed window loads the app early.
 			logPasskeyStep(
@@ -915,8 +926,7 @@ test.describe('Passkey wallet + escrow (Alice / Bob)', () => {
 				'initialize Bob (WebAuthn + P2P), then Bob passkey wallet → visible address for Alice’s delegate field'
 			);
 			await initializeWithWebAuthn(bob, 'Bob');
-			const bobDid = await bob.evaluate(() => window.__currentIdentityId__ || null);
-			expect(bobDid).toBeTruthy();
+			const bobDid = await waitForDidKeyIdentityId(bob);
 
 			await setupPasskeyWallet(bob, 'Bob', bobDid);
 			const bobPayoutAddress = await readVisibleSmartAccountAddress(bob);

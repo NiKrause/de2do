@@ -1,11 +1,14 @@
 import {
 	ensureAddTodoExpanded,
+	ensureSettingsExpanded,
 	waitForP2PInitialization,
 	waitForPeerCount,
 	getCurrentDatabaseAddress,
 	waitForTodoText,
 	addVirtualAuthenticator,
-	setupPasskeyViaP2PassPanel
+	setupPasskeyViaP2PassPanel,
+	waitForFooterIdentityModeAfterPasskeyBridge,
+	waitForDidKeyIdentityId
 } from './helpers.js';
 
 /**
@@ -218,16 +221,18 @@ export function createWebAuthnDelegationHelpers(test, expect) {
 				: 'worker';
 		await setupPasskeyViaP2PassPanel(page, { mode: signingMode });
 
+		await waitForFooterIdentityModeAfterPasskeyBridge(page, 60000);
+
 		const identityMode = page.getByTestId('identity-mode');
 		if (mode === 'worker') {
-			await expect(identityMode).toContainText(/software|worker \(ed25519\)/i, { timeout: 30000 });
+			await expect(identityMode).toContainText(/software|worker \(ed25519\)/i, { timeout: 15000 });
 		} else if (hardwareAlgorithm === 'p-256') {
-			await expect(identityMode).toContainText(/software|hardware \(p-256\)/i, { timeout: 30000 });
+			await expect(identityMode).toContainText(/software|hardware \(p-256\)/i, { timeout: 15000 });
 		} else if (hardwareAlgorithm === 'ed25519') {
-			await expect(identityMode).toContainText(/software|hardware \(ed25519\)/i, { timeout: 30000 });
+			await expect(identityMode).toContainText(/software|hardware \(ed25519\)/i, { timeout: 15000 });
 		} else {
 			await expect(identityMode).toContainText(/software|hardware \((ed25519|p-256)\)/i, {
-				timeout: 30000
+				timeout: 15000
 			});
 		}
 	}
@@ -241,7 +246,7 @@ export function createWebAuthnDelegationHelpers(test, expect) {
 		try {
 			await initializeWithWebAuthn(alice, 'Alice', aliceOptions);
 
-			const aliceDid = await alice.evaluate(() => window.__currentIdentityId__ || null);
+			const aliceDid = await waitForDidKeyIdentityId(alice);
 			const relayPinningHttpAvailable = await isRelayPinningHttpAvailable();
 			let failedSyncsBefore = 0;
 			if (relayPinningHttpAvailable) {
@@ -252,7 +257,6 @@ export function createWebAuthnDelegationHelpers(test, expect) {
 					`⚠️ ${scenarioName}: relay has no /pinning/* HTTP API; mixed-mode test will rely on live P2P replication only`
 				);
 			}
-			expect(aliceDid).toBeTruthy();
 
 			const originalTitle = `Delegated mixed-mode todo ${scenarioName} ${Date.now()}`;
 			const originalDescription = `Original description ${scenarioName}`;
@@ -260,8 +264,7 @@ export function createWebAuthnDelegationHelpers(test, expect) {
 			const updatedDescription = `Updated by Bob via delegation ${scenarioName}`;
 
 			await initializeWithWebAuthn(bob, 'Bob', bobOptions);
-			const bobDid = await bob.evaluate(() => window.__currentIdentityId__ || null);
-			expect(bobDid).toBeTruthy();
+			const bobDid = await waitForDidKeyIdentityId(bob);
 
 			await ensureAddTodoExpanded(alice);
 			await alice.getByRole('button', { name: /Show Advanced Fields/i }).click();
@@ -371,6 +374,7 @@ export function createWebAuthnDelegationHelpers(test, expect) {
 	}
 
 	async function addAndSelectUserByDid(page, did) {
+		await ensureSettingsExpanded(page);
 		const usersInput = page.locator('#users-list');
 		await expect(usersInput).toBeVisible({ timeout: 15000 });
 		await usersInput.click();
@@ -515,13 +519,27 @@ export function createWebAuthnDelegationHelpers(test, expect) {
 	}
 
 	async function assertDelegatedStateAfterAction(page, delegatedAuthState) {
-		const state = await delegatedAuthState.getAttribute('data-state');
-		if (state === 'awaiting' || state === 'success') {
-			await expect(delegatedAuthState).toHaveAttribute('data-state', 'success', { timeout: 15000 });
+		// `requireDelegatedWriteAuthentication` sets `awaiting` on a later tick; the first read is
+		// often still `idle`, so we must not treat that as "done" and skip waiting for WebAuthn.
+		try {
+			await expect
+				.poll(async () => await delegatedAuthState.getAttribute('data-state'), {
+					timeout: 10000,
+					intervals: [50, 100, 200, 400]
+				})
+				.toMatch(/^(awaiting|success|error)$/);
+		} catch {
+			await expect(delegatedAuthState).toHaveAttribute('data-state', 'idle');
 			return;
 		}
 
-		await expect(delegatedAuthState).toHaveAttribute('data-state', 'idle');
+		const state = await delegatedAuthState.getAttribute('data-state');
+		if (state === 'error') {
+			const msg = (await delegatedAuthState.textContent())?.trim() || '';
+			throw new Error(`Delegated auth failed: ${msg}`);
+		}
+		if (state === 'success') return;
+		await expect(delegatedAuthState).toHaveAttribute('data-state', 'success', { timeout: 25000 });
 	}
 
 	return {

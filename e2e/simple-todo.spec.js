@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import {
 	acceptConsentAndInitialize,
 	ensureAddTodoExpanded,
+	ensureTodoListSectionExpanded,
+	openUsersListDropdown,
 	waitForP2PInitialization,
 	waitForPeerCount,
 	getPeerId,
@@ -9,6 +11,8 @@ import {
 	getPeerCount,
 	getCurrentDatabaseAddress,
 	waitForTodoText,
+	waitForTodoVisibleWithReplicationPoll,
+	waitForDidKeyIdentityId,
 	handleWebAuthnModal,
 	addVirtualAuthenticator,
 	setupPasskeyViaP2PassPanel
@@ -339,11 +343,11 @@ test.describe('De2do P2P Application', () => {
 		];
 
 		for (const todoText of todos) {
+			await ensureTodoListSectionExpanded(page);
 			await todoInput.fill(todoText);
 			await page.locator('[data-testid="add-todo-button"]').click();
 
-			// Verify todo appears
-			await expect(page.locator('text=' + todoText)).toBeVisible({ timeout: 5000 });
+			await waitForTodoText(page, todoText, 20000, { browserName: test.info().project.name });
 
 			console.log(`✅ Added and verified todo: "${todoText}"`);
 		}
@@ -543,9 +547,10 @@ test.describe('De2do P2P Application', () => {
 		await expect(todoInput1).toBeEnabled({ timeout: 10000 });
 
 		for (const todoText of todos) {
+			await ensureTodoListSectionExpanded(page1);
 			await todoInput1.fill(todoText);
 			await page1.locator('[data-testid="add-todo-button"]').click();
-			await expect(page1.locator('text=' + todoText).first()).toBeVisible({ timeout: 5000 });
+			await waitForTodoText(page1, todoText, 20000, { browserName: test.info().project.name });
 			console.log(`✅ Alice: Added "${todoText}"`);
 		}
 
@@ -556,8 +561,7 @@ test.describe('De2do P2P Application', () => {
 		const dbAddress = await getCurrentDatabaseAddress(page1, 15000);
 		expect(dbAddress).toBeTruthy();
 		console.log(`✅ Alice: Database address: ${dbAddress}`);
-		const aliceDid = await page1.evaluate(() => window.__currentIdentityId__ || null);
-		expect(aliceDid).toBeTruthy();
+		const aliceDid = await waitForDidKeyIdentityId(page1);
 		console.log(`✅ Alice: DID: ${aliceDid}`);
 
 		// ===== BOB: Open shared database and verify todos =====
@@ -588,9 +592,9 @@ test.describe('De2do P2P Application', () => {
 		}
 		expect(bobInitialized).toBe(true);
 
-		// Verify Alice DID is visible in Bob's left users list by default
+		// Verify Alice DID is visible in Bob's Users list (dropdown must be open — listbox is focus-gated)
+		await openUsersListDropdown(page2);
 		const usersListbox = page2.getByTestId('users-listbox');
-		await expect(usersListbox).toBeVisible({ timeout: 30000 });
 		await expect(usersListbox.getByRole('option', { name: aliceDid })).toBeVisible({
 			timeout: 60000
 		});
@@ -603,7 +607,8 @@ test.describe('De2do P2P Application', () => {
 		// Verify all 3 todos sync
 		console.log('⏳ Bob: Waiting for todos to sync...');
 		for (const todoText of todos) {
-			await waitForTodoText(page2, todoText, 60000);
+			await ensureTodoListSectionExpanded(page2);
+			await waitForTodoText(page2, todoText, 60000, { browserName: test.info().project.name });
 			console.log(`✅ Bob: Found "${todoText}"`);
 		}
 
@@ -647,9 +652,10 @@ test.describe('De2do P2P Application', () => {
 		await expect(todoInput1).toBeEnabled({ timeout: 10000 });
 
 		for (const todoText of todos) {
+			await ensureTodoListSectionExpanded(page1);
 			await todoInput1.fill(todoText);
 			await page1.locator('[data-testid="add-todo-button"]').click();
-			await expect(page1.locator('text=' + todoText).first()).toBeVisible({ timeout: 5000 });
+			await waitForTodoText(page1, todoText, 20000, { browserName: test.info().project.name });
 			console.log(`✅ Alice: Added "${todoText}"`);
 		}
 
@@ -658,8 +664,7 @@ test.describe('De2do P2P Application', () => {
 		const dbAddress = await getCurrentDatabaseAddress(page1, 15000);
 		expect(dbAddress).toBeTruthy();
 		console.log(`✅ Alice: Database address: ${dbAddress}`);
-		const aliceDid = await page1.evaluate(() => window.__currentIdentityId__ || null);
-		expect(aliceDid).toBeTruthy();
+		const aliceDid = await waitForDidKeyIdentityId(page1);
 		console.log(`✅ Alice: DID: ${aliceDid}`);
 
 		await initializeWithWebAuthn(page2, 'Bob', {
@@ -693,8 +698,8 @@ test.describe('De2do P2P Application', () => {
 		}
 		expect(bobInitialized).toBe(true);
 
+		await openUsersListDropdown(page2);
 		const usersListbox = page2.getByTestId('users-listbox');
-		await expect(usersListbox).toBeVisible({ timeout: 30000 });
 		await expect(usersListbox.getByRole('option', { name: aliceDid })).toBeVisible({
 			timeout: 60000
 		});
@@ -705,7 +710,8 @@ test.describe('De2do P2P Application', () => {
 
 		console.log('⏳ Bob: Waiting for todos to sync...');
 		for (const todoText of todos) {
-			await waitForTodoText(page2, todoText, 60000);
+			await ensureTodoListSectionExpanded(page2);
+			await waitForTodoText(page2, todoText, 60000, { browserName: test.info().project.name });
 			console.log(`✅ Bob: Found "${todoText}"`);
 		}
 
@@ -746,10 +752,8 @@ test.describe('De2do P2P Application', () => {
 			mode: 'worker'
 		});
 
-		const aliceDid = await alice.evaluate(() => window.__currentIdentityId__ || null);
-		const bobDid = await bob.evaluate(() => window.__currentIdentityId__ || null);
-		expect(aliceDid).toBeTruthy();
-		expect(bobDid).toBeTruthy();
+		const aliceDid = await waitForDidKeyIdentityId(alice);
+		const bobDid = await waitForDidKeyIdentityId(bob);
 
 		const originalTitle = `Delegated todo ${Date.now()}`;
 		const originalDescription = 'Original description';
@@ -828,7 +832,11 @@ test.describe('De2do P2P Application', () => {
 		await assertDelegatedStateAfterAction(bob, delegatedAuthState);
 		console.log('🔎 Bob diagnostics after save/auth:', await getTodoDiagnostics(bob, updatedTitle));
 
-		await waitForTodoText(bob, updatedTitle, 30000, { browserName: test.info().project.name });
+		await waitForTodoVisibleWithReplicationPoll(bob, updatedTitle, {
+			totalTimeoutMs: 120000,
+			innerWaitMs: 15000,
+			browserName: test.info().project.name
+		});
 
 		const bobTodoRow = bob
 			.locator('div.rounded-md.border', { has: bob.locator(`[data-todo-text="${updatedTitle}"]`) })

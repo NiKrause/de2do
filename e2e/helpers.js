@@ -177,11 +177,26 @@ export async function waitForP2PInitialization(page, timeout = 30000) {
 }
 
 /**
+ * Close the P2Pass / Storacha floating panel if it is open. The FAB toggle covers the main UI
+ * (z-index) and blocks Add Todo until dismissed.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+export async function closeP2PassFabPanelIfOpen(page) {
+	const panel = page.getByTestId('storacha-panel');
+	const visible = await panel.isVisible().catch(() => false);
+	if (!visible) return;
+	await page.getByTestId('storacha-fab-toggle').click();
+	await expect(panel).not.toBeVisible({ timeout: 10000 });
+}
+
+/**
  * Ensure the Add Todo section is expanded before interacting with its inputs.
  *
  * @param {import('@playwright/test').Page} page - Playwright page instance
  */
 export async function ensureAddTodoExpanded(page) {
+	await closeP2PassFabPanelIfOpen(page);
 	const addTodoToggle = page.getByRole('button', { name: /Add Todo/i }).first();
 	await expect(addTodoToggle).toBeVisible({ timeout: 10000 });
 	if ((await addTodoToggle.getAttribute('aria-expanded')) !== 'true') {
@@ -215,6 +230,18 @@ export async function ensureSettingsExpanded(page) {
 		await toggle.click();
 	}
 	await expect(page.locator('#users-list')).toBeVisible({ timeout: 10000 });
+}
+
+/**
+ * The Users listbox (`data-testid="users-listbox"`) only mounts when the filter input is focused
+ * (`showDropdown` in UsersList). Expand Settings, then focus the input so options exist for E2E.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+export async function openUsersListDropdown(page) {
+	await ensureSettingsExpanded(page);
+	await page.locator('#users-list').click();
+	await expect(page.getByTestId('users-listbox')).toBeVisible({ timeout: 15000 });
 }
 
 /**
@@ -641,6 +668,39 @@ export async function getIdentityId(page, timeout = 15000) {
 }
 
 /**
+ * Wait until the exposed OrbitDB identity is a passkey-backed **`did:key`** (not a legacy pubkey hex id).
+ * After consent, OrbitDB may briefly use a software identity; P2Pass then runs `reapplyOrbitDbIdentityAfterP2Pass`.
+ * Reading `window.__currentIdentityId__` too early yields hex — use this before delegation / UsersList flows.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {number} [timeout=60000]
+ * @returns {Promise<string>}
+ */
+export async function waitForDidKeyIdentityId(page, timeout = 60000) {
+	console.log('⏳ Waiting for did:key identity (OrbitDB identity after passkey bridge)…');
+
+	const id = await page
+		.waitForFunction(
+			() => {
+				const raw =
+					(typeof window.__currentIdentityId__ === 'string' && window.__currentIdentityId__) ||
+					(typeof window.__orbitdb__?.identity?.id === 'string' && window.__orbitdb__.identity.id) ||
+					null;
+				return raw && raw.startsWith('did:key:') ? raw : null;
+			},
+			{ timeout }
+		)
+		.then((handle) => handle.jsonValue());
+
+	if (!id || typeof id !== 'string') {
+		throw new Error(`waitForDidKeyIdentityId: no did:key identity within ${timeout}ms`);
+	}
+
+	console.log(`✅ did:key identity: ${id.slice(0, 32)}…`);
+	return id;
+}
+
+/**
  * Wait for a deterministic todo sync event emitted by the app.
  *
  * @param {import('@playwright/test').Page} page - Playwright page instance
@@ -830,6 +890,28 @@ export async function setupPasskeyViaP2PassPanel(page, opts = {}) {
 	}
 	await page.getByTestId('storacha-passkey-primary').click();
 	await expect(page.getByTestId('storacha-post-auth')).toBeVisible({ timeout: 30000 });
+	await closeP2PassFabPanelIfOpen(page);
+}
+
+/**
+ * After P2Pass reports success, the OrbitDB identity bridge runs asynchronously. The footer can
+ * still show `unknown` until {@link reapplyOrbitDbIdentityAfterP2Pass} finishes — wait before
+ * asserting on `[data-testid="identity-mode"]`.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {number} [timeout=60000]
+ */
+export async function waitForFooterIdentityModeAfterPasskeyBridge(page, timeout = 60000) {
+	await page.waitForFunction(
+		() => {
+			const el = document.querySelector('[data-testid="identity-mode"]');
+			const t = el?.textContent?.trim() ?? '';
+			if (!t) return false;
+			if (/^unknown$/i.test(t)) return false;
+			return /software|worker|hardware/i.test(t);
+		},
+		{ timeout }
+	);
 }
 
 /**

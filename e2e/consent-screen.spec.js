@@ -98,7 +98,15 @@ test.describe('Consent Screen', () => {
 		const preferences = await page.evaluate(() => window.__lastConsentPreferences__);
 		expect(preferences?.enableNetworkConnection).toBe(false);
 
-		const hasLibp2p = await page.evaluate(() => typeof window.__libp2p__ !== 'undefined');
-		expect(hasLibp2p).toBe(false);
+		// Offline / network-off mode still creates a local libp2p stack for OrbitDB, but no remote peers.
+		const remotePeerCount = await page.evaluate(() => {
+			if (typeof window.__libp2p__ === 'undefined') return 0;
+			try {
+				return window.__libp2p__.getPeers()?.length ?? 0;
+			} catch {
+				return -1;
+			}
+		});
+		expect(remotePeerCount).toBe(0);
 	});
 });

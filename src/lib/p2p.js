@@ -1222,7 +1222,8 @@ export async function initializeP2P(preferences = {}) {
 		let storedWebAuthn = null;
 		const useWebAuthn = preferences.useWebAuthn !== false; // Default to true
 		const configuredWebAuthnMode = preferences.useWebAuthnMode || getPreferredWebAuthnMode();
-		identityModeStore.set({ mode: 'unknown', algorithm: null });
+		// Do not reset identityModeStore here: it defaults to unknown in stores.js; re-setting causes
+		// a footer flash and races E2E (post-auth UI appears before OrbitDB bridge updates mode).
 
 		if (useWebAuthn && isWebAuthnAvailable()) {
 			try {

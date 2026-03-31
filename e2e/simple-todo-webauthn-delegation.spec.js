@@ -2,10 +2,12 @@ import { test, expect } from '@playwright/test';
 import {
 	acceptConsentAndInitialize,
 	ensureAddTodoExpanded,
+	ensureSettingsExpanded,
 	waitForP2PInitialization,
 	waitForPeerCount,
 	waitForTodoText,
-	getCurrentDatabaseAddress
+	getCurrentDatabaseAddress,
+	waitForDidKeyIdentityId
 } from './helpers.js';
 import { createWebAuthnDelegationHelpers } from './webauthn-delegation-helpers.js';
 import { restartRelayBetweenTests } from './relay-e2e-server.mjs';
@@ -113,8 +115,7 @@ test.describe('De2do WebAuthn delegation (mode matrix, security, replication, em
 		await initializeWithWebAuthn(alice, 'Alice');
 		await initializeWithWebAuthn(mallory, 'Mallory');
 
-		const aliceDid = await alice.evaluate(() => window.__currentIdentityId__ || null);
-		expect(aliceDid).toBeTruthy();
+		const aliceDid = await waitForDidKeyIdentityId(alice);
 
 		const originalTitle = `Owner only todo ${Date.now()}`;
 		const maliciousTitle = `${originalTitle} - hacked`;
@@ -286,6 +287,7 @@ test.describe('De2do WebAuthn delegation (mode matrix, security, replication, em
 
 		// Find the Users List input field and paste Browser A's identity ID
 		console.log('📋 Browser B: Adding Browser A as tracked user...');
+		await ensureSettingsExpanded(page2);
 		const usersListInput = page2.locator('#users-list');
 		await expect(usersListInput).toBeVisible({ timeout: 10000 });
 
@@ -406,6 +408,7 @@ test.describe('De2do WebAuthn delegation (mode matrix, security, replication, em
 		console.log('🔄 Browser A: Adding Browser B as tracked user...');
 
 		// Find the Users List input field in Browser A
+		await ensureSettingsExpanded(page1);
 		const usersListInputA = page1.locator('#users-list');
 		await expect(usersListInputA).toBeVisible({ timeout: 10000 });
 
