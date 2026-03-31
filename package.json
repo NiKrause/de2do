@@ -85,7 +85,7 @@
 		"@le-space/orbitdb-identity-provider-webauthn-did": "^0.2.13",
 		"@le-space/orbitdb-simple-encryption": "^0.0.2",
 		"@le-space/orbitdb-ui": "^0.1.4",
-		"@le-space/p2pass": "^0.3.1",
+		"@le-space/p2pass": "^0.3.2",
 		"@libp2p/autonat": "^2.0.38",
 		"@libp2p/bootstrap": "^11.0.47",
 		"@libp2p/circuit-relay-v2": "^3.2.24",
