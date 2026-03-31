@@ -16,16 +16,14 @@
 
 A basic decentralized, local-first, peer-to-peer todo application built with `libp2p`, `IPFS`, and `OrbitDB`. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
-See `docs/WEBAUTHN_VARSIG_CHANGES.md` for the WebAuthn varsig/PRF flow details and sequence diagrams.
-
-**Passkey wallet + local Anvil / EntryPoint v0.8:** `docs/HOWTO_PASSKEY_ESCROW.md` · **Roadmap (E2E, env):** `docs/PLAN_LOCAL_AA_AND_E2E.md` · **One-shot local AA + contracts:** `pnpm run setup:local-aa` (with `anvil` running — see HOWTO §F)
-
-> **Unstoppable** - This application demonstrates technology that continues operating even when cloud providers fail, governments attempt censorship, or software vendors shut down their services. Your data and functionality remain under your control, distributed across a resilient peer-to-peer network or self-hosted signaling or relay nodes. Imagine traditional software which was sold on a compact disc in the past - once installed it could never be stopped. A USP which should convince every client around the globe.
+ control, distributed across a resilient peer-to-peer network or self-hosted signaling or relay nodes. Imagine traditional software which was sold on a compact disc in the past - once installed it could never be stopped. A USP which should convince every client around the globe.
 
 ---
 
-- **Progressive Web App**: If clouds are down, this is a PWA which can run from desktops and mobile devices connecting peer-to-peer to other collaborators via a relay or OrbitDB pinning network.
 - **Storacha/Filecoin Integration with UCAN-Auth:** Backup & restore todo lists via Storacha gateway to Filecoin decentralized storage - restore the TodoList's OrbitDB decentralized form the IPFS network
+- **Progressive Web App**: If clouds are down, this is a PWA which can run from desktops and mobile devices connecting peer-to-peer to other collaborators via a relay or OrbitDB pinning network.
+- **Passkey wallet + local Anvil / EntryPoint v0.8:** `docs/HOWTO_PASSKEY_ESCROW.md`
+- **P2Pass - peer-to-peer identities, passkeys and ucans** integrated: https://github.com/asabya/p2pass
 
 ## 🚀 Live Demo
 
@@ -66,7 +64,16 @@ npm run relay
 # VITE_RELAY_BOOTSTRAP_ADDR_DEV=/ip4/127.0.0.1/tcp/4102/ws/p2p/<peerId>
 ```
 
-There is **no `relay/` subfolder** in this repo; the relay CLI comes from **`node_modules/orbitdb-relay-pinner`**.
+Run the the local environment for EIP7702/ERC7443 passkey wallets
+
+**One-shot local AA + contracts:**
+`pnpm run setup:local-aa` (with `anvil` running — see HOWTO )
+
+### Docs
+
+- [Passkey + escrow (local Anvil)](./docs/HOWTO_PASSKEY_ESCROW.md)
+- [Testing / Playwright](./docs/TESTING.md)
+- [WebAuthn varsig notes](./docs/WEBAUTHN_VARSIG_CHANGES.md)
 
 ### Configuration
 
@@ -81,7 +88,6 @@ For detailed relay server configuration options and HTTP API endpoints, see **[R
 5. **Copy URL from browser A to browser B** - If both browsers open the same todo-list they can see each other's todos (only A has write permission at the moment)
 6. **Add Todos** - Create todos in one browser and watch them appear in the other
 
-**Docs:** [Passkey + escrow (local Anvil)](./docs/HOWTO_PASSKEY_ESCROW.md) · [Testing / Playwright](./docs/TESTING.md) · [WebAuthn varsig notes](./docs/WEBAUTHN_VARSIG_CHANGES.md)
 
 > A legacy `docs/TUTORIAL.md` / `tutorial-01.js` quick-start is **not** in this tree; use the HOWTO and `npm run dev` / `npm run test:e2e` instead.
 
@@ -90,3 +96,5 @@ For detailed relay server configuration options and HTTP API endpoints, see **[R
 This project is open source and available under the [LICENSE](./LICENSE) file.
 
 ---
+
+See `docs/WEBAUTHN_VARSIG_CHANGES.md` for the WebAuthn varsig/PRF flow details and sequence diagrams.
