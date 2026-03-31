@@ -34,8 +34,9 @@ if [[ -f "$REPO_ROOT/.env" ]]; then
 	source "$REPO_ROOT/.env"
 	set +a
 fi
-CLOUDFLARE_API_TOKEN="${_saved_token:-$CLOUDFLARE_API_TOKEN}"
-CLOUDFLARE_ZONE_ID="${_saved_zone:-$CLOUDFLARE_ZONE_ID}"
+# Use ${VAR-} on the RHS so set -u does not fail when vars are absent before merge.
+CLOUDFLARE_API_TOKEN="${_saved_token:-${CLOUDFLARE_API_TOKEN-}}"
+CLOUDFLARE_ZONE_ID="${_saved_zone:-${CLOUDFLARE_ZONE_ID-}}"
 CLOUDFLARE_ZONE_NAME="${_saved_zonename:-${CLOUDFLARE_ZONE_NAME-}}"
 DNSLINK_TXT_FQDN="${_saved_fqdn:-${DNSLINK_TXT_FQDN-}}"
 DNSLINK_TXT_LABEL="${_saved_label:-${DNSLINK_TXT_LABEL-}}"
