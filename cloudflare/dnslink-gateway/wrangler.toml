@@ -1,0 +1,22 @@
+# Cloudflare Worker: proxy https://de2do.xyz to DNSLink target (dweb.link).
+#
+# Setup:
+# 1. npm i -g wrangler   # or use npx wrangler
+# 2. wrangler login
+# 3. wrangler deploy
+# 4. Cloudflare dashboard → Workers & Pages → this worker → Triggers → Add route:
+#    de2do.xyz/*  and  www.de2do.xyz/*  (optional)
+# 5. DNS: apex A records proxied (orange cloud). The worker answers HTTP; no origin server needed.
+#
+# Vars (optional overrides):
+# [vars]
+# DNSLINK_NAME = "_dnslink.de2do.xyz"
+# IPFS_GATEWAY = "https://dweb.link"
+
+name = "de2do-dnslink-gateway"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+[vars]
+DNSLINK_NAME = "_dnslink.de2do.xyz"
+IPFS_GATEWAY = "https://dweb.link"

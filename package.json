@@ -25,6 +25,7 @@
 		"setup:local-aa": "node scripts/setup-local-aa.mjs",
 		"setup:local-aa:test": "node scripts/setup-local-aa.mjs --env-file .env.test --start-anvil --write-anvil-pid",
 		"deploy:sepolia": "bash scripts/deploy-sepolia.sh",
+		"deploy:cf-gateway": "npx wrangler deploy --config cloudflare/dnslink-gateway/wrangler.toml",
 		"test": "npm run test:e2e",
 		"test:e2e": "playwright test",
 		"test:e2e:passkey-escrow": "playwright test -c playwright.passkey-escrow.config.js",
