@@ -27,6 +27,14 @@
 		identityMode.mode === 'worker' || identityMode.mode === 'hardware'
 	);
 
+	// Passkey mode is on but OrbitDB has not finished re-keying — id may still be legacy hex (not did:key).
+	let legacyOrbitIdentityWhilePasskey = $derived(
+		orbitDbPasskeyBacked &&
+			typeof identity?.id === 'string' &&
+			identity.id.length > 0 &&
+			!identity.id.startsWith('did:key:')
+	);
+
 	// When OrbitDB uses a passkey identity, show it; otherwise show P2Pass DID if signed in there.
 	let displayDid = $derived(
 		orbitDbPasskeyBacked && identity?.id ? identity.id : p2passSnap?.did ?? identity?.id
@@ -200,9 +208,13 @@
 			<span class="text-gray-500">DID:</span>
 			<button
 				type="button"
-				class="min-w-0 truncate rounded bg-purple-50 px-2 py-1 font-mono text-purple-600 hover:bg-purple-100"
-				title="Click to copy full DID"
-				onclick={() => copyToClipboard(identity?.id, 'DID')}
+				class="min-w-0 truncate rounded px-2 py-1 font-mono hover:opacity-90 {legacyOrbitIdentityWhilePasskey
+					? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200'
+					: 'bg-purple-50 text-purple-600 hover:bg-purple-100'}"
+				title={legacyOrbitIdentityWhilePasskey
+					? 'OrbitDB identity still migrating to did:key — wait before delegating'
+					: 'Click to copy full DID'}
+				onclick={() => copyToClipboard(displayDid, 'DID')}
 			>
 				{shortDid}
 			</button>
@@ -310,6 +322,18 @@
 			{/if}
 		</div>
 	</div>
+
+	{#if legacyOrbitIdentityWhilePasskey}
+		<div
+			class="container mx-auto max-w-4xl border-t border-amber-200 bg-amber-50/95 px-3 py-1.5 text-[11px] leading-snug text-amber-950 sm:px-4"
+			role="status"
+			data-testid="orbit-identity-did-pending"
+		>
+			<span class="font-medium">Passkey is active, but OrbitDB still shows a legacy id (not did:key yet).</span>
+			<span class="text-amber-900/90">
+				Wait for this banner to disappear before delegating todos or relying on the DID above.</span>
+		</div>
+	{/if}
 </footer>
 
 <style>
