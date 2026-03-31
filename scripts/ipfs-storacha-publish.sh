@@ -19,8 +19,10 @@
 #      IPNS_KEY="<PeerID from step 2>"
 #      IPNS_NAME="<your-key-name>"
 #
-# 4. (Optional) If you want to publish under a DNSLink, ensure your DNS provider
-#    points the desired domain TXT record to your IPNS key.
+# 4. (Optional) DNSLink for de2do.xyz is updated via Cloudflare API after publish
+#    (see scripts/cloudflare-dnslink.sh). Set CLOUDFLARE_API_TOKEN and
+#    CLOUDFLARE_ZONE_ID when prompted, or export them before running.
+#    Legacy: IPNS / DNSLink verification:
 #
 #    To verify the DNSLink TXT record with dig (replace with your domain if needed):
 #      dig +short TXT _dnslink.$IPNS_NAME
@@ -129,10 +131,26 @@ git push origin --tags
 
 echo "Changes committed and pushed to GitHub. Tagged as v$version"
 
-read -p "Do you want to update the production Nginx config with the new CID? (yes/no): " answer
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_saved_cf_token="${CLOUDFLARE_API_TOKEN-}"
+_saved_cf_zone="${CLOUDFLARE_ZONE_ID-}"
+_saved_cf_zonename="${CLOUDFLARE_ZONE_NAME-}"
+if [[ -f "$REPO_ROOT/.env" ]]; then
+	set -a
+	# shellcheck disable=SC1091
+	source "$REPO_ROOT/.env"
+	set +a
+	CLOUDFLARE_API_TOKEN="${_saved_cf_token:-$CLOUDFLARE_API_TOKEN}"
+	CLOUDFLARE_ZONE_ID="${_saved_cf_zone:-$CLOUDFLARE_ZONE_ID}"
+	CLOUDFLARE_ZONE_NAME="${_saved_cf_zonename:-$CLOUDFLARE_ZONE_NAME}"
+fi
+read -p "Update Cloudflare DNSLink for de2do.xyz (TXT _dnslink) to this CID? (yes/no): " answer
 if [[ "$answer" == "yes" ]]; then
-    ssh root@le-space.de "sed -i 's|proxy_pass https://$IPFS_SERVER/ipfs/[^/]*/;|proxy_pass https://$IPFS_SERVER/ipfs/$cid/;|' /etc/nginx/sites-available/$IPNS_NAME && systemctl reload nginx"
-    echo "Nginx config updated with new CID $cid and reloaded for $IPNS_NAME."
+	if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
+		echo "Set CLOUDFLARE_API_TOKEN for the de2do.xyz zone (.env or env; zone id is optional — see scripts/cloudflare-dnslink.sh)." >&2
+	else
+		"$REPO_ROOT/scripts/cloudflare-dnslink.sh" "$cid"
+	fi
 else
-    echo "Production Nginx config was NOT updated."
+	echo "Cloudflare DNSLink was NOT updated."
 fi

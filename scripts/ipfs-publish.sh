@@ -34,8 +34,8 @@
 #
 # -----------------------------------------------------------------------------
 # Configurable variables
-IPNS_KEY="k51qzi5uqu5dhkz74iq3k4asoqnjdccgaad6lkk94j7rkfowrdhnxifz7dosm1"
-IPNS_NAME="de2do.xyz"
+IPNS_KEY="k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs"
+IPNS_NAME="simple-todo.le-space.de"
 IPFS_SERVER="ipfs.le-space.de"
 
 # Bump version automatically (patch level) and build the project
