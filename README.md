@@ -1,7 +1,7 @@
 # De2do (de2do.xyz) — Local-First Peer-to-Peer Todos (Svelte)
 
-[![CI](https://github.com/NiKrause/simple-todo/workflows/CI/badge.svg)](https://github.com/NiKrause/simple-todo/actions)
-[![Version](https://img.shields.io/badge/version-0.4.12-blue.svg)](https://github.com/NiKrause/simple-todo)
+[![CI](https://github.com/NiKrause/de2do/workflows/CI/badge.svg)](https://github.com/NiKrause/de2do/actions)
+[![Version](https://img.shields.io/badge/version-0.4.12-blue.svg)](https://github.com/NiKrause/de2do)
 [![IPFS](https://img.shields.io/badge/IPFS-QmUdf5uJAunNqsos4USWGJDFRMpY6vUM1b24u2ky981Mtn-brightgreen.svg)](https://QmUdf5uJAunNqsos4USWGJDFRMpY6vUM1b24u2ky981Mtn.ipfs.dweb.link)
 [![License](https://img.shields.io/badge/license-Open%20Source-blue.svg)](./LICENSE)
 
@@ -46,7 +46,7 @@ This project uses the **`orbitdb-relay-pinner`** npm package for local/dev relay
 
 ### Quick Start
 
-Run the simple-todo via a public relay
+Run De2do via a public relay
 
 ```bash
 copy .env.example .env

@@ -1,6 +1,10 @@
 {
 	"name": "de2do-xyz",
 	"private": true,
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/NiKrause/de2do.git"
+	},
 	"version": "0.4.16",
 	"type": "module",
 	"scripts": {
