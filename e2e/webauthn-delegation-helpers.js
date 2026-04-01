@@ -8,7 +8,8 @@ import {
 	addVirtualAuthenticator,
 	setupPasskeyViaP2PassPanel,
 	waitForFooterIdentityModeAfterPasskeyBridge,
-	waitForDidKeyIdentityId
+	waitForDidKeyIdentityId,
+	waitForTodoVisibleWithReplicationPoll
 } from './helpers.js';
 
 /**
@@ -274,11 +275,9 @@ export function createWebAuthnDelegationHelpers(test, expect) {
 			await alice.getByTestId('add-todo-button').click();
 			await waitForTodoText(alice, originalTitle, 15000, { browserName: test.info().project.name });
 
-			const aliceOriginalTodoRow = alice
-				.locator('div.rounded-md.border', {
-					has: alice.locator(`[data-todo-text="${originalTitle}"]`)
-				})
-				.first();
+			const aliceOriginalTodoRow = alice.getByTestId('todo-item').filter({
+				has: alice.locator(`[data-todo-text="${originalTitle}"]`)
+			}).first();
 			await expect(aliceOriginalTodoRow.locator(`text=${bobDid}`)).toBeVisible({ timeout: 15000 });
 
 			const aliceDbAddress = await getCurrentDatabaseAddress(alice, 15000);
@@ -304,30 +303,23 @@ export function createWebAuthnDelegationHelpers(test, expect) {
 			await expect
 				.poll(async () => await getCurrentDatabaseAddress(bob, 10000), { timeout: 60000 })
 				.toBe(aliceDbAddress);
+			await expect
+				.poll(async () => await getCurrentDbName(bob), { timeout: 60000 })
+				.toBe(`${aliceDid}_projects`);
 			await assertAccessControllerType(bob, 'todo-delegation', 30000);
 
 			await waitForPeerCount(bob, 2, 120000);
 			await waitForTodoAfterDidSwitch(bob, aliceDid, originalTitle);
 
-			const bobTodoTextForEdit = bob
-				.locator('[data-testid="todo-text"]')
-				.filter({ hasText: originalTitle })
-				.first();
-			if ((await bobTodoTextForEdit.count()) === 0) {
-				await expect(bob.locator('[data-testid="todo-text"]').first()).toBeVisible({
-					timeout: 60000
-				});
-			}
-			const effectiveTodoText =
-				(await bobTodoTextForEdit.count()) > 0
-					? bobTodoTextForEdit
-					: bob.locator('[data-testid="todo-text"]').first();
-			const bobTodoRowForEdit = effectiveTodoText
-				.locator('xpath=ancestor::div[contains(@class,"rounded-md") and contains(@class,"border")]')
-				.first();
-			await expect(bobTodoRowForEdit).toBeVisible({ timeout: 60000 });
+			// Use todo-item (not :has([data-todo-text]) on a styled wrapper): that attribute is view-mode
+			// markup and disappears when edit mode mounts, which breaks row locators mid-test.
+			await expect(bob.getByTestId('todo-item')).toHaveCount(1);
+			const bobTodoRowForEdit = bob.getByTestId('todo-item').first();
+			await expect(bobTodoRowForEdit.locator(`[data-todo-text="${originalTitle}"]`)).toBeVisible({
+				timeout: 60000
+			});
 			await bobTodoRowForEdit.scrollIntoViewIfNeeded();
-			const editButton = bobTodoRowForEdit.locator('button[title="Edit todo"]').first();
+			const editButton = bobTodoRowForEdit.getByTitle('Edit todo');
 			await expect(editButton).toBeVisible({ timeout: 60000 });
 			await editButton.click();
 			const editFormInput = bob.locator('input[placeholder="Edit todo..."]').first();
@@ -342,22 +334,22 @@ export function createWebAuthnDelegationHelpers(test, expect) {
 			const delegatedAuthState = bob.getByTestId('delegated-auth-state');
 			await assertDelegatedStateAfterAction(bob, delegatedAuthState);
 
-			await waitForTodoText(bob, updatedTitle, 30000, { browserName: test.info().project.name });
+			await waitForTodoVisibleWithReplicationPoll(bob, updatedTitle, {
+				totalTimeoutMs: 120000,
+				innerWaitMs: 15000,
+				browserName: test.info().project.name
+			});
 
-			const bobTodoRow = bob
-				.locator('div.rounded-md.border', {
-					has: bob.locator(`[data-todo-text="${updatedTitle}"]`)
-				})
-				.first();
-			await bobTodoRow.locator('input[type="checkbox"]').click();
+			const bobTodoRow = bob.getByTestId('todo-item').first();
+			await bobTodoRow.getByTestId('todo-complete-checkbox').click();
 			await assertDelegatedStateAfterAction(bob, delegatedAuthState);
 
-			const aliceTodoRow = alice
-				.locator('div.rounded-md.border', {
-					has: alice.locator(`[data-todo-text="${updatedTitle}"]`)
-				})
-				.first();
-			await expect(aliceTodoRow.locator('input[type="checkbox"]')).toBeChecked({ timeout: 60000 });
+			const aliceTodoRow = alice.getByTestId('todo-item').filter({
+				has: alice.locator(`[data-todo-text="${updatedTitle}"]`)
+			}).first();
+			await expect(aliceTodoRow.getByTestId('todo-complete-checkbox')).toBeChecked({
+				timeout: 60000
+			});
 			await expect(alice.locator('text=' + updatedDescription).first()).toBeVisible({
 				timeout: 60000
 			});

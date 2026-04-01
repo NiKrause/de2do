@@ -406,7 +406,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<meta
 		name="description"
-		content="De2do (de2do.xyz): local-first peer-to-peer todos with OrbitDB, IPFS and libp2p"
+		content="De2do (de2do.xyz): Permissionless Decentralised Collaboration with OrbitDB, IPFS and libp2p"
 	/>
 	<!-- Storacha Brand Fonts (Local) -->
 	<link rel="stylesheet" href="/fonts/storacha-fonts.css" />

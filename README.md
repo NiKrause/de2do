@@ -1,4 +1,4 @@
-# De2do (de2do.xyz) — Local-First Peer-to-Peer Todos (Svelte)
+# De2do (de2do.xyz) — Permissionless Decentralised Collaboration (Svelte)
 
 [![CI](https://github.com/NiKrause/de2do/workflows/CI/badge.svg)](https://github.com/NiKrause/de2do/actions)
 [![Version](https://img.shields.io/badge/version-0.4.12-blue.svg)](https://github.com/NiKrause/de2do)

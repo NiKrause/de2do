@@ -1,7 +1,7 @@
 {
-  "name": "De2do — Local-first peer-to-peer todos",
+  "name": "De2do — Permissionless Decentralised Collaboration",
   "short_name": "De2do",
-  "description": "De2do (de2do.xyz): local-first peer-to-peer todos using OrbitDB, IPFS and libp2p",
+  "description": "De2do (de2do.xyz): Permissionless Decentralised Collaboration using OrbitDB, IPFS and libp2p",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",
