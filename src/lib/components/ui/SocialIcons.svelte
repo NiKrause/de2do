@@ -12,7 +12,7 @@
 		target="_blank"
 		rel="noopener noreferrer"
 		class="rounded-md p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-gray-900"
-		title="GitHub (/NiKrause/simple-todo)"
+		title="GitHub — NiKrause/simple-todo"
 		aria-label="Visit GitHub repository"
 	>
 		<svg class={size} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">

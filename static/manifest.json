@@ -1,7 +1,7 @@
 {
-  "name": "Simple TODO Example - A Basic Local-First Peer-To-Peer ",
-  "short_name": "P2P Todo",
-  "description": "A simple local-first peer-to-peer TODO list app using OrbitDB, IPFS and libp2p",
+  "name": "De2do — Local-first peer-to-peer todos",
+  "short_name": "De2do",
+  "description": "De2do (de2do.xyz): local-first peer-to-peer todos using OrbitDB, IPFS and libp2p",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",

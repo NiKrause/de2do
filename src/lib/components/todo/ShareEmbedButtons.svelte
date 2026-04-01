@@ -61,7 +61,7 @@
 		if (navigator.share) {
 			navigator
 				.share({
-					title: `${listName} - Simple TODO`,
+					title: `${listName} — De2do`,
 					text: `Check out this todo list: ${listName}`,
 					url: fullUrl
 				})
