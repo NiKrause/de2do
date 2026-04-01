@@ -1,8 +1,8 @@
-# Simple Todo - A Local-First Peer-to-Peer Demo App (in Svelte)
+# De2do (de2do.xyz) — Permissionless Decentralised Collaboration (Svelte)
 
-[![CI](https://github.com/NiKrause/simple-todo/workflows/CI/badge.svg)](https://github.com/NiKrause/simple-todo/actions)
-[![Version](https://img.shields.io/badge/version-0.4.12-blue.svg)](https://github.com/NiKrause/simple-todo)
-[![IPFS](https://img.shields.io/badge/IPFS-QmSCqLKmLy8rd9BA4N66XvbWT4fwWLVR3p9gLzi99s57dz-brightgreen.svg)](https://QmSCqLKmLy8rd9BA4N66XvbWT4fwWLVR3p9gLzi99s57dz.ipfs.dweb.link)
+[![CI](https://github.com/NiKrause/de2do/workflows/CI/badge.svg)](https://github.com/NiKrause/de2do/actions)
+[![Version](https://img.shields.io/badge/version-0.4.12-blue.svg)](https://github.com/NiKrause/de2do)
+[![IPFS](https://img.shields.io/badge/IPFS-QmUdf5uJAunNqsos4USWGJDFRMpY6vUM1b24u2ky981Mtn-brightgreen.svg)](https://QmUdf5uJAunNqsos4USWGJDFRMpY6vUM1b24u2ky981Mtn.ipfs.dweb.link)
 [![License](https://img.shields.io/badge/license-Open%20Source-blue.svg)](./LICENSE)
 
 <div align="center" style="width: 100%;">
@@ -27,9 +27,10 @@ A basic decentralized, local-first, peer-to-peer todo application built with `li
 
 ## 🚀 Live Demo
 
-- **HTTP**: https://simple-todo.le-space.de
-- **IPFS (dweb.link)**: https://QmSCqLKmLy8rd9BA4N66XvbWT4fwWLVR3p9gLzi99s57dz.ipfs.dweb.link
-- **IPFS (dweb.link, orbitdb demo)**: https://QmSCqLKmLy8rd9BA4N66XvbWT4fwWLVR3p9gLzi99s57dz.ipfs.dweb.link/#/orbitdb/zdpuAskw4Xes4nxR1YNV8TxK2qmrDgceAqEoGHDtTAUhQWvDP
+- **HTTP**: https://de2do.xyz
+- **HTTP (legacy host)**: https://simple-todo.le-space.de
+- **IPFS (dweb.link)**: https://QmUdf5uJAunNqsos4USWGJDFRMpY6vUM1b24u2ky981Mtn.ipfs.dweb.link
+- **IPFS (dweb.link, orbitdb demo)**: https://QmUdf5uJAunNqsos4USWGJDFRMpY6vUM1b24u2ky981Mtn.ipfs.dweb.link/#/orbitdb/zdpuAskw4Xes4nxR1YNV8TxK2qmrDgceAqEoGHDtTAUhQWvDP
 
 ### Key Features
 
@@ -43,7 +44,7 @@ This project uses the **`orbitdb-relay-pinner`** npm package for local/dev relay
 
 ### Quick Start
 
-Run the simple-todo via a public relay
+Run De2do via a public relay
 
 ```bash
 copy .env.example .env
