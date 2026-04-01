@@ -20,7 +20,7 @@ test.describe('WebAuthn Authentication', () => {
 
 		// For now, just verify the app loads correctly
 		const heading = page.locator('h1');
-		await expect(heading).toContainText(/Simple Todo/i);
+		await expect(heading).toContainText(/De2do/i);
 	});
 
 	test('should handle WebAuthn not available gracefully', async ({ page, context }) => {
@@ -41,7 +41,7 @@ test.describe('WebAuthn Authentication', () => {
 
 		// App should work with software identity
 		const heading = page.locator('h1');
-		await expect(heading).toContainText(/Simple Todo/i);
+		await expect(heading).toContainText(/De2do/i);
 	});
 
 	test('should detect platform authenticator availability', async ({ page }) => {
@@ -134,7 +134,7 @@ test.describe('WebAuthn Authentication', () => {
 
 		// Verify app still works
 		const heading = page.locator('h1');
-		await expect(heading).toContainText(/Simple Todo/i);
+		await expect(heading).toContainText(/De2do/i);
 	});
 });
 

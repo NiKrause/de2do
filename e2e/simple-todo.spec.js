@@ -33,7 +33,7 @@ test.describe('Simple Todo P2P Application', () => {
 
 		// Verify the page loads
 		await page.goto('/');
-		await expect(page).toHaveTitle(/Simple TODO/i);
+		await expect(page).toHaveTitle(/De2do/i);
 
 		// Verify main content is present
 		await expect(page.locator('main')).toBeVisible({ timeout: 10000 });
