@@ -35,7 +35,10 @@ export async function waitForHttpReady(url, { timeoutMs = 60000, intervalMs = 50
 	while (Date.now() < deadline) {
 		try {
 			const res = await httpGet(url);
-			if (res.status === 200 && res.body && res.body.toLowerCase().includes('simple todo')) {
+			const body = res.body?.toLowerCase() ?? '';
+			const looksLikeApp =
+				body.includes('simple todo') || body.includes('de2do');
+			if (res.status === 200 && res.body && looksLikeApp) {
 				return;
 			}
 			lastErr = new Error(
