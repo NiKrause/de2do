@@ -112,7 +112,7 @@
 				<!-- Left Side: Logo & Settings -->
 				<div class="flex items-center gap-4">
 					<!-- Logo -->
-					<img src="/favicon.svg" alt="Simple TODO" class="h-8 w-8 flex-shrink-0" />
+					<img src="/de2do-xyz-logo.png" alt="De2do" class="h-8 w-8 flex-shrink-0 object-contain" />
 
 					<!-- Toggles in horizontal row -->
 					<div class="flex items-center gap-4">

@@ -27,12 +27,15 @@
   
   <!-- Main Title -->
   <text x="600" y="200" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="64" font-weight="bold">
-    Simple TODO Example
+    De2Do.xyz
   </text>
   
   <!-- Subtitle -->
-  <text x="600" y="250" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-family="Arial, sans-serif" font-size="28">
-    A Basic Local-First Peer-To-Peer 
+  <text x="600" y="235" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-family="Arial, sans-serif" font-size="22">
+    Permissionless Decentralised Collaboration
+  </text>
+  <text x="600" y="268" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-family="Arial, sans-serif" font-size="22">
+    Founding the DeCol Economy
   </text>
   
   <!-- P2P Network Visualization -->

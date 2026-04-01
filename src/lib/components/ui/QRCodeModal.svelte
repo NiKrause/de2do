@@ -103,7 +103,7 @@
 
 				<!-- Modal Header -->
 				<div class="mb-6 text-center">
-					<h2 id="qr-modal-title" class="text-2xl font-bold text-gray-900">Simple-Todo Example</h2>
+					<h2 id="qr-modal-title" class="text-2xl font-bold text-gray-900">De2do</h2>
 					<p class="mt-2 text-sm text-gray-600">
 						Scan with your mobile device to open this page on another device
 					</p>

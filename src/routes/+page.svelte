@@ -368,12 +368,12 @@
 
 <svelte:head>
 	<title
-		>Simple TODO Example {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</title
+		>De2do {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</title
 	>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<meta
 		name="description"
-		content="A simple local-first peer-to-peer TODO list app using OrbitDB, IPFS and libp2p"
+		content="De2do (de2do.xyz): local-first peer-to-peer todos with OrbitDB, IPFS and libp2p"
 	/>
 	<!-- Storacha Brand Fonts (Local) -->
 	<link rel="stylesheet" href="/fonts/storacha-fonts.css" />
@@ -387,8 +387,8 @@
 		layout="footer"
 		rememberLabel="Don't show this again on this device"
 		proceedButtonText="Accept & Continue"
-		appName="Simple Todo"
-		logoUrl="/favicon.svg"
+		appName="De2do"
+		logoUrl="/de2do-xyz-logo.png"
 		versionString={`${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'} [${typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev'}]`}
 		onproceed={(detail) => handleModalClose({ detail })}
 	/>
@@ -401,7 +401,7 @@
 		optional={true}
 		modeConfig="choice"
 		defaultMode="worker"
-		appName="Simple Todo"
+		appName="De2do"
 		on:created={handleWebAuthnSetupComplete}
 		on:skip={handleWebAuthnSetupComplete}
 	/>
