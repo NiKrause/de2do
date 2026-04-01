@@ -9,7 +9,7 @@
 	<div class="flex-1">
 		<h1 class="text-2xl font-bold text-gray-800 sm:text-3xl">De2do</h1>
 		<p class="mt-1 text-sm text-gray-500">
-			• A Basic Local-First Peer-To-Peer PWA with IPFS and OrbitDB v{typeof __APP_VERSION__ !==
+			Permissionless Decentralised Collaboration <br>Founding the DeCol Economy v{typeof __APP_VERSION__ !==
 			'undefined'
 				? __APP_VERSION__
 				: '0.0.0'} [{typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev'}]

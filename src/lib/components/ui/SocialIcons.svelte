@@ -8,11 +8,11 @@
 <div class="flex space-x-3 {className}">
 	<!-- GitHub -->
 	<a
-		href="https://github.com/NiKrause/simple-todo"
+		href="https://github.com/NiKrause/de2do"
 		target="_blank"
 		rel="noopener noreferrer"
 		class="rounded-md p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-gray-900"
-		title="GitHub — NiKrause/simple-todo"
+		title="GitHub — NiKrause/de2do"
 		aria-label="Visit GitHub repository"
 	>
 		<svg class={size} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
