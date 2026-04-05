@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/NiKrause/de2do/workflows/CI/badge.svg)](https://github.com/NiKrause/de2do/actions)
 [![Version](https://img.shields.io/badge/version-0.4.12-blue.svg)](https://github.com/NiKrause/de2do)
-[![IPFS](https://img.shields.io/badge/IPFS-QmUdf5uJAunNqsos4USWGJDFRMpY6vUM1b24u2ky981Mtn-brightgreen.svg)](https://QmUdf5uJAunNqsos4USWGJDFRMpY6vUM1b24u2ky981Mtn.ipfs.dweb.link)
+[![IPFS](https://img.shields.io/badge/IPFS-QmST7ytMyXJnMa4vzKxF6xSxvoKFmax5zi7PRr3zevkFov-brightgreen.svg)](https://QmST7ytMyXJnMa4vzKxF6xSxvoKFmax5zi7PRr3zevkFov.ipfs.dweb.link)
 [![License](https://img.shields.io/badge/license-Open%20Source-blue.svg)](./LICENSE)
 
 <div align="center" style="width: 100%;">
@@ -28,9 +28,8 @@ A basic decentralized, local-first, peer-to-peer todo application built with `li
 ## 🚀 Live Demo
 
 - **HTTP**: https://de2do.xyz
-- **HTTP (legacy host)**: https://simple-todo.le-space.de
-- **IPFS (dweb.link)**: https://QmUdf5uJAunNqsos4USWGJDFRMpY6vUM1b24u2ky981Mtn.ipfs.dweb.link
-- **IPFS (dweb.link, orbitdb demo)**: https://QmUdf5uJAunNqsos4USWGJDFRMpY6vUM1b24u2ky981Mtn.ipfs.dweb.link/#/orbitdb/zdpuAskw4Xes4nxR1YNV8TxK2qmrDgceAqEoGHDtTAUhQWvDP
+- **IPFS (dweb.link)**: https://QmST7ytMyXJnMa4vzKxF6xSxvoKFmax5zi7PRr3zevkFov.ipfs.dweb.link
+- **IPFS (dweb.link, orbitdb demo)**: https://QmST7ytMyXJnMa4vzKxF6xSxvoKFmax5zi7PRr3zevkFov.ipfs.dweb.link/#/orbitdb/zdpuAzbMMiWvTw9WvJhmTdZJVVN6dtKJ3FsmShFfWrjJivco1
 
 ### Key Features
 
