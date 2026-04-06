@@ -8,6 +8,7 @@
 # new ${cid}.ipfs.dweb.link after each release.
 #
 # Prereqs: local Kubo (ipfs), npm, SSH to root@le-space.de, key ipfs name publish.
+# Remote pin/resolve: use runuser (not su) — service user may have nologin shell.
 # -----------------------------------------------------------------------------
 set -euo pipefail
 
@@ -69,10 +70,10 @@ fi
 ipfs name publish --key="$IPNS_NAME" "/ipfs/$cid"
 echo "IPNS name $IPNS_NAME updated with CID $cid"
 
-ssh -t "root@${IPFS_SERVER}" "su ipfs -c 'ipfs pin add $cid'"
+ssh "root@${IPFS_SERVER}" "runuser -u ipfs -- ipfs pin add ${cid}"
 echo "IPFS CID $cid pinned to $IPFS_SERVER"
 
-result=$(ssh -t "root@${IPFS_SERVER}" "su ipfs -c 'ipfs name resolve --nocache /ipns/${IPNS_KEY}'" | tr -d '\r' | tr -d '\n')
+result=$(ssh "root@${IPFS_SERVER}" "runuser -u ipfs -- ipfs name resolve --nocache /ipns/${IPNS_KEY}" | tr -d '\r' | tr -d '\n')
 if [[ "$result" == "/ipfs/$cid" ]]; then
 	echo "$(tput setaf 2)IPFS name resolve matches CID $cid$(tput sgr0)"
 else

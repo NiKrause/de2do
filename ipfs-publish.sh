@@ -94,13 +94,13 @@ rm -f README.md.bak
 ipfs name publish --key=$IPNS_NAME /ipfs/$cid
 echo "IPFS name $IPNS_NAME updated with CID $cid"
 
-# Pin the CID to ipfs.le-space.de
-ssh -t root@$IPFS_SERVER "su ipfs -c 'ipfs pin add $cid'"
+# Pin the CID to ipfs.le-space.de (runuser: ipfs user may have nologin; su fails with "account not available")
+ssh root@$IPFS_SERVER "runuser -u ipfs -- ipfs pin add $cid"
 echo "IPFS CID $cid pinned to $IPFS_SERVER"
 
 
 # echo the result of name resolve should be the same as the cid
-result=$(ssh -t root@$IPFS_SERVER "su ipfs -c 'ipfs name resolve --nocache /ipns/$IPNS_KEY'" | tr -d '\r' | tr -d '\n')
+result=$(ssh root@$IPFS_SERVER "runuser -u ipfs -- ipfs name resolve --nocache /ipns/$IPNS_KEY" | tr -d '\r' | tr -d '\n')
 
 # Debug with hexdump to see exactly what characters we're getting
 echo "Result raw:"
