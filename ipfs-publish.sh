@@ -84,11 +84,11 @@ rm -f README.md.bak
 
 # Upload the same build to Storacha (CLI must be installed; see https://storacha.network ).
 # Network/TLS issues here must not block IPNS, pinning, or README updates.
-if storacha up build; then
-	echo "Storacha upload finished successfully (storacha up build)."
-else
-	echo "Storacha upload failed or skipped (storacha up build). Local IPFS add and README CID update already applied." >&2
-fi
+# if storacha up build; then
+# 	echo "Storacha upload finished successfully (storacha up build)."
+# else
+# 	echo "Storacha upload failed or skipped (storacha up build). Local IPFS add and README CID update already applied." >&2
+# fi
 
 # Run the ipfs name publish command with the extracted CID
 ipfs name publish --key=$IPNS_NAME /ipfs/$cid
