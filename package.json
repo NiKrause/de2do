@@ -5,7 +5,7 @@
 		"type": "git",
 		"url": "https://github.com/NiKrause/de2do.git"
 	},
-	"version": "0.5.3",
+	"version": "0.5.4",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
